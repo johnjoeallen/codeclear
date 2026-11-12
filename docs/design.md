@@ -51,7 +51,7 @@ The review pipeline is composed of three stages: source resolution, AI review, a
 
 The app runs **natively on Windows** (Linux/macOS are not a first target) and is started from a launcher script rather than an installer:
 
-- `codeclear.ps1` (PowerShell) and `codeclear.sh` (bash, e.g. Git Bash) are thin equivalents that do the same things: check prerequisites (Java 25, and `copilot.exe` when the Copilot provider is enabled), build the JAR on first run if it is missing, start the backend bound to `127.0.0.1`, and open the browser.
+- `codeclear.ps1` (PowerShell) and `codeclear.sh` (bash, e.g. Git Bash) are thin equivalents that do the same things: check prerequisites (Java 25, and `copilot.exe` when the Copilot provider is enabled), start the **prebuilt** JAR (`codeclear.jar`, distributed with the launcher scripts; users do not build from source), start the backend bound to `127.0.0.1`, and open the browser.
 - The backend invokes the Windows `copilot.exe` directly. It is not run inside WSL, which avoids Windows/Linux path translation.
 - The scripts contain bootstrap logic only; all behavior lives in the backend so the two scripts cannot drift apart.
 
@@ -513,4 +513,4 @@ CC is configured through the bundled application properties file. Values can be 
 
 - `copilot.exe`: which non-interactive flags and output format does the installed version support, and can it be run strictly read-only?
 - Which models does Copilot expose through the CLI, and can the UI let the user choose one?
-- Should the launcher scripts build the JAR on first run, or should a prebuilt JAR be distributed?
+- Where are prebuilt JARs published (GitHub Releases is the likely answer), and does the launcher check for updates?
