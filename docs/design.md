@@ -18,6 +18,7 @@
 9. [Local Branch Analysis](#9-local-branch-analysis)
 10. [Storage and State](#10-storage-and-state)
 11. [Configuration](#11-configuration)
+12. [Open Questions](#12-open-questions)
 
 ---
 
@@ -45,6 +46,14 @@
 The application runs entirely on the user's machine as a single self-contained JAR. A browser connects to a locally running Spring Boot 4 app on port 8080. The backend serves both a REST API (under `/api/`) and static frontend files from an embedded resources directory.
 
 The review pipeline is composed of three stages: source resolution, AI review, and publishing. Source resolution has three implementations — local git (JGit), GitLab, and GitHub — all producing the same internal representation. The AI reviewer and publisher are both abstracted behind interfaces so providers can be swapped independently.
+
+### 2.1 Launching and Platform
+
+The app runs **natively on Windows** (Linux/macOS are not a first target) and is started from a launcher script rather than an installer:
+
+- `codeclear.ps1` (PowerShell) and `codeclear.sh` (bash, e.g. Git Bash) are thin equivalents that do the same things: check prerequisites (Java 25, and `copilot.exe` when the Copilot provider is enabled), build the JAR on first run if it is missing, start the backend bound to `127.0.0.1`, and open the browser.
+- The backend invokes the Windows `copilot.exe` directly. It is not run inside WSL, which avoids Windows/Linux path translation.
+- The scripts contain bootstrap logic only; all behavior lives in the backend so the two scripts cannot drift apart.
 
 Two filesystem locations are used for persistent state:
 
@@ -126,7 +135,7 @@ Structured concurrency (Java 25) is used to fan out parallel file-content fetche
 | analysis.source | File content resolver |
 | analysis.model | CCChangedFile, CCFinding, CCFindingCategory, and related types |
 | ai | CCAiReviewer interface, prompt builder, assessment parser, finding validator, instruction loader, redactor |
-| ai.copilot | GitHub Copilot reviewer implementation and SDK client |
+| ai.copilot | GitHub Copilot reviewer implementation and `copilot.exe` process runner |
 | publishing | CCPublisher interface, publishing service, post preview and result models |
 | credentials | Local credential store and model |
 | prefs | User preferences store |
@@ -285,11 +294,22 @@ CC looks for a repo-level agent instruction file at `.codeClear/agent.md` and ad
 
 Three implementations of CCAiReviewer are planned:
 
-- **CCCopilotAiReviewer** — GitHub Copilot SDK (the only fully implemented provider at launch)
+- **CCCopilotAiReviewer** — GitHub Copilot via the native `copilot.exe` CLI (the only fully implemented provider at launch; see 7.5)
 - **CCAnthropicAiReviewer** — Claude via HTTP API
 - **CCOpenAiCompatibleAiReviewer** — any OpenAI-compatible endpoint
 
 The active provider is selected by configuration. Provider-specific settings are kept in namespaced config sections.
+
+### 7.5 Copilot Provider (`copilot.exe`)
+
+Copilot is integrated by launching the installed `copilot.exe` rather than calling an HTTP API:
+
+- The reviewer spawns `copilot.exe` with `ProcessBuilder` in non-interactive (single prompt) mode, using the repo being reviewed as the working directory. The exact flags and output mode must be confirmed against the installed version.
+- Authentication is owned by the CLI. CodeClear never sees Copilot tokens; `/api/config/ai` reports whether the executable was found and is signed in, and the UI shows setup guidance if not.
+- The CLI cannot enforce a JSON schema, so the prompt instructs the model to emit findings as JSON. The reviewer extracts and validates it through the existing assessment parser and finding validator, and retries once with a repair prompt on failure.
+- The executable path is configurable (default: resolved from `PATH`). Each prompt has a timeout (`prompt-timeout-seconds`); stdout and stderr are captured, and cancelling a review destroys the whole process tree.
+- Review runs must be read-only: no file-write or shell tool permissions are granted to the CLI, since it runs inside the user's repo.
+- Token and cost accounting is not available for this provider. Progress streaming is coarse (per prompt batch).
 
 ---
 
@@ -396,7 +416,7 @@ Three items are held in memory for the server lifetime:
 
 `~/.codeClear/` holds machine-level config and must never be committed. `{repo}/.codeClear/` holds the team's shared history and must be committed with the repo.
 
-**Credentials file**: a named profiles list (each with platform, host, and token) plus an AI block specifying the active provider and provider-specific settings (CLI path, API key, endpoint, model name).
+**Credentials file**: a named profiles list (each with platform, host, and token) plus an AI block specifying the active provider and provider-specific settings (CLI path, API key, endpoint, model name). Copilot credentials are never stored here; they remain inside `copilot.exe`. On Windows, the file lives under the user profile and should be restricted to the current user.
 
 ### 10.3 Append-Only Issue Event Store
 
@@ -479,9 +499,18 @@ CC is configured through the bundled application properties file. Values can be 
 | max-batches | 40 | Maximum batches per review |
 | full-file-max-chars | 48,000 | File content threshold; larger files are omitted from the prompt |
 | prompt-timeout-seconds | 300 | Per-prompt AI call timeout |
+| copilot.cli-path | `copilot.exe` | Path to the Copilot CLI; resolved from `PATH` by default |
 | default-scope | COMMITTED | Default diff scope for local-branch reviews |
 | agent-file | .codeClear/agent.md | Repo-level agent instruction file |
 | instructions-dir | .codeClear/instructions | Repo-level instruction files directory |
 | classpath-fallback | codeClear/agent.md | JAR-bundled fallback instructions |
 | user-dir | ~/.codeClear | Machine-level storage root (never committed) |
 | repo-dir | .codeClear | Repo-relative storage root (committed with the repo) |
+
+---
+
+## 12. Open Questions
+
+- `copilot.exe`: which non-interactive flags and output format does the installed version support, and can it be run strictly read-only?
+- Which models does Copilot expose through the CLI, and can the UI let the user choose one?
+- Should the launcher scripts build the JAR on first run, or should a prebuilt JAR be distributed?
