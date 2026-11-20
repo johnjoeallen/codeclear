@@ -34,6 +34,8 @@ res.json(user);
 ## Implementation notes
 Anchor to the unreturned response call. Equivalent: `consistent-return`, `callback-return`.
 
+Detected on an `if` inside a function whose parameters include `res`, `response` or `reply`: the last statement of the branch calls `res.send/json/sendStatus/end/redirect/status/render/sendFile` or `next(x)`, and a later statement of the same block mentions the response or awaits. A branch that ends in `return` or `throw` is not flagged, and neither is an `if` that is the last statement. A continuation held in an `else` is not flagged because nothing follows the `if`/`else` in that case.
+
 ## Required tests
 Unreturned 404 then send (finding), returned (no finding), else branch (no finding), last statement (no finding).
 

@@ -31,5 +31,7 @@ items.map((item) => <Row key={item.id} item={item} />)
 ## Implementation notes
 Equivalent: ESLint `react/no-array-index-key`.
 
+Detected on JSX `key` attributes in `.tsx` and `.jsx` files (read with the TSX grammar): the expression must mention the second parameter of the nearest enclosing function, which must be the callback of a `.map(...)`. A list is static, and skipped, when the mapped value is an array literal or a top-level `const` array of the same file.
+
 ## Required tests
 `key={i}` (finding), `` key={`row-${i}`} `` (finding), `key={item.id}` (no finding), static literal array (no finding).

@@ -64,6 +64,7 @@ final class DslFacts {
                 case "line" -> (long) n.line();
                 case "children" -> n.children();
                 case "args" -> n.args();
+                case "following" -> n.following();
                 case "positional" -> n.positional();
                 case "parent" -> n.parent();
                 case "next" -> n.next();
@@ -193,7 +194,7 @@ final class DslFacts {
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
             "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
             "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString",
-            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional");
+            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -212,6 +213,9 @@ final class DslFacts {
         if (target instanceof com.codeclear.rules.CCTsNode n) {
             if (name.equals("field") && args.size() == 1 && args.get(0) instanceof String f) {
                 return n.field(f);
+            }
+            if (name.equals("childAt") && args.size() == 1 && args.get(0) instanceof Number i) {
+                return n.childAt(i.intValue());
             }
             if (name.equals("arg") && args.size() == 1 && args.get(0) instanceof Number i) {
                 List<com.codeclear.rules.CCTsNode> p = n.positional(); // the i-th positional argument, or missing

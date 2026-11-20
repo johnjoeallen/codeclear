@@ -24,7 +24,7 @@
   </properties>
 
   <dependencies>
-    <!-- Tree-sitter with prebuilt native grammars for Python and TypeScript (bundled for Linux, macOS and Windows). -->
+    <!-- Tree-sitter with prebuilt native grammars for Python, TypeScript and TSX (bundled for Linux, macOS and Windows). -->
     <dependency>
       <groupId>io.github.bonede</groupId>
       <artifactId>tree-sitter</artifactId>
@@ -38,6 +38,11 @@
     <dependency>
       <groupId>io.github.bonede</groupId>
       <artifactId>tree-sitter-typescript</artifactId>
+      <version>0.23.2</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.bonede</groupId>
+      <artifactId>tree-sitter-tsx</artifactId>
       <version>0.23.2</version>
     </dependency>
     <dependency>

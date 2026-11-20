@@ -136,6 +136,20 @@ public final class CCTsNode implements CCModelNode {
         return n == 0 ? null : new CCTsNode(node.getNamedChild(n - 1), tree);
     }
 
+    /** The named siblings after this node, in order. */
+    public List<CCTsNode> following() {
+        List<CCTsNode> out = new ArrayList<>();
+        for (TSNode s = node.getNextNamedSibling(); s != null && !s.isNull(); s = s.getNextNamedSibling()) {
+            out.add(new CCTsNode(s, tree));
+        }
+        return out;
+    }
+
+    /** The i-th named child (from 0), or null. */
+    public CCTsNode childAt(int i) {
+        return i >= 0 && i < node.getNamedChildCount() ? new CCTsNode(node.getNamedChild(i), tree) : null;
+    }
+
     /** The first named child of this type, or null. */
     public CCTsNode child(String type) {
         for (int i = 0; i < node.getNamedChildCount(); i++) {

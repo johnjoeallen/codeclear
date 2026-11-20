@@ -33,6 +33,8 @@ try { return await work(); } finally { await conn.release(); }
 ## Implementation notes
 Equivalent: ESLint `no-unsafe-finally`. Emit that config for the first condition; the second needs AST.
 
+Both parts are detected on the tree. A `return`, `throw`, `break` or `continue` is flagged when a `finally` clause is the nearest of: the finally, a function, or a loop (a `throw` is not flagged when a `try` with a `catch` inside the finally contains it). A `close`, `release`, `rollback`, `end` or `disconnect` call in a `finally` is flagged when it is not inside its own `try` and the `try` the finally belongs to has a `catch` that throws. The rule is a "linter" rule only in name: no ESLint run is needed.
+
 ## Required tests
 `return` in finally (finding), `throw` in finally (finding), plain cleanup (no finding), jump inside nested function (no finding).
 

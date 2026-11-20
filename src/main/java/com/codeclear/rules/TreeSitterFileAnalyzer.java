@@ -7,10 +7,11 @@ import org.treesitter.TSLanguage;
 import org.treesitter.TSParser;
 import org.treesitter.TSTree;
 import org.treesitter.TreeSitterPython;
+import org.treesitter.TreeSitterTsx;
 import org.treesitter.TreeSitterTypescript;
 
 /**
- * Parses Python and TypeScript (and JavaScript, which the TypeScript grammar reads; JSX is not part of that grammar, so it becomes error nodes) with tree-sitter into the
+ * Parses Python and TypeScript (and JavaScript, which the TypeScript grammar reads; and the TSX grammar for .tsx and .jsx files, which also reads JSX) with tree-sitter into the
  * {@link CCTsTree} the rules receive. The grammars are native libraries bundled in the jar for Linux, macOS and Windows.
  * Tree-sitter recovers from syntax errors, so a file with one is still analysed.
  *
@@ -37,7 +38,10 @@ public final class TreeSitterFileAnalyzer {
         if (language == null) {
             throw new IllegalArgumentException("no tree-sitter grammar for " + path);
         }
-        TSLanguage grammar = language.equals("python") ? new TreeSitterPython() : new TreeSitterTypescript();
+        String lower = path.toLowerCase(Locale.ROOT);
+        // The TSX grammar reads JSX; it is the one for .tsx and .jsx files.
+        TSLanguage grammar = language.equals("python") ? new TreeSitterPython()
+                : lower.endsWith(".tsx") || lower.endsWith(".jsx") ? new TreeSitterTsx() : new TreeSitterTypescript();
         byte[] bytes = source.getBytes(StandardCharsets.UTF_8);
         try (TSParser parser = new TSParser()) {
             parser.setLanguage(grammar);

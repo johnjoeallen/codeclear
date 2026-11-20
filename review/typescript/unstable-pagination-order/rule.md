@@ -32,6 +32,8 @@ Post.findAll({ limit: 20, offset: page * 20, order: [['createdAt', 'DESC'], ['id
 ## Implementation notes
 Anchor to the query call. Raw SQL: regex on the literal.
 
+Detected on calls with an options object that has `take`, `limit`, `skip` or `offset` and no `order`, `orderBy` or `sort` (a spread is trusted to hold one), on chained `.limit(n)`/`.take(n)`/`.skip(n)`/`.offset(n)` with no ordering call in the same statement, and on SQL strings with `LIMIT` and no `ORDER BY`. `limit 1`/`take: 1` is skipped. An order that names only `createdAt`, `updatedAt`, `status` or `name` without `id` is flagged as a weak order.
+
 ## Required tests
 No order (finding), order by `createdAt` only (finding), with `id` tiebreaker (no finding), `limit 1` (no finding).
 
