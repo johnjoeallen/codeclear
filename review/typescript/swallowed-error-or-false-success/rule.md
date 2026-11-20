@@ -35,6 +35,8 @@ try { return await getUser(id); } catch (e) { if (isNotFound(e)) return null; th
 ## Implementation notes
 Equivalent: `no-empty`, `@typescript-eslint/no-floating-promises`. Anchor to the catch.
 
+Detected on a `catch` with an empty body; a `catch` whose statements are only log calls and `return true/false/[]/{}/null/undefined` (and no `throw`, and no mention of `res`, `reply`, `next`, `ctx` or a callback); `.catch(() => <literal>)`; and `.then(ok, () => <literal>)`. A `catch` inside a `finally` block is treated as best-effort cleanup.
+
 ## Required tests
 Empty catch (finding), `.catch(() => [])` (finding), rethrow (no finding), not-found classification (no finding).
 

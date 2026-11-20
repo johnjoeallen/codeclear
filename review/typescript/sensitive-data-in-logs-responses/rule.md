@@ -32,6 +32,8 @@ logger.info('login', { userId: user.id });
 ## Implementation notes
 Anchor to the logging or response call.
 
+Detected on `console`, `logger` and `log` calls with an argument whose identifiers or property names look like secrets (`password`, `token`, `apiKey`, `authorization`, `cookie`, `ssn`, `card`, `cvv`, ...) or that is a whole `req`, `req.headers/body/cookies`, or a `user`/`account`/`session` object; and on `res.send/json` with `err.stack`, `err.message`, an error identifier, or an object holding one. An argument containing `mask`, `redact`, `sanitize`, `omit` or `pick(`, and calls inside an `if` or ternary that tests `NODE_ENV`, are skipped. A pino `redact` configuration is not read.
+
 ## Required tests
 Logging `req.body` (finding), logging `userId` only (no finding), `res.json({ stack: err.stack })` (finding), pino with `redact` covering the field (no finding).
 

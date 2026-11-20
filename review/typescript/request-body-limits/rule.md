@@ -35,6 +35,8 @@ const upload = multer({ dest: 'u/', limits: { fileSize: 5_000_000, files: 1 } })
 ## Implementation notes
 Anchor to the parser construction.
 
+Detected on `multer(...)` or `busboy(...)` with no `limits`, `formidable(...)` without `maxFileSize`, a body-parser or `express.json/urlencoded/raw/text` with a `limit` of 50 MB or more, a gigabyte or `Infinity`, and `req.on("data", ...)` whose callback appends or concatenates in a function with no length, size or limit check. A limit set by a reverse proxy, and routes documented as large, are not visible and are left to the AI.
+
 ## Required tests
 `multer` without limits (finding), with limits (no finding), manual accumulation without cap (finding), default `express.json()` (no finding).
 

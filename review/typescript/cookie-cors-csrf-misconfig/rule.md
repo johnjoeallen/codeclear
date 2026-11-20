@@ -35,6 +35,8 @@ app.use(cors({ origin: ['https://app.example.com'], credentials: true }));
 ## Implementation notes
 Anchor to the configuration call.
 
+Detected on `res.cookie(name, value, options)` for a name containing `session`, `sid`, `auth`, `token`, `jwt`, `login` or `remember` without `httpOnly: true`, `secure` and `sameSite`; on `session(...)`/`cookieSession(...)` options with `httpOnly: false`, `secure: false` or no `sameSite`; on `cors({ origin: true })`, a reflected `req.headers.origin`, and `origin: "*"` with `credentials: true`; on `set("trust proxy", true)`; and on a `post`/`put`/`patch`/`delete` route in a file that uses `express-session`, `cookie-session` or `req.session` and mentions no CSRF middleware, `sameSite: "strict"` or bearer token. Blocks under `if (NODE_ENV === "development")` are skipped.
+
 ## Required tests
 Reflected origin with credentials (finding), allow-list (no finding), cookie without `httpOnly` for session (finding), preferences cookie (no finding).
 
