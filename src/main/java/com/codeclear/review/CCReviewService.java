@@ -150,7 +150,7 @@ public class CCReviewService implements AutoCloseable {
             }
             CCRuleDefinition rule = byId.get(result.ruleId());
             for (CCRuleFinding f : result.findings()) {
-                if (suppressed(suppressions, sources, f.path(), f.line())) {
+                if (suppressed(suppressions, sources, f.path(), f.line(), f.ruleId())) {
                     ignored++;
                     continue;
                 }
@@ -158,7 +158,7 @@ public class CCReviewService implements AutoCloseable {
                         CCReviewFinding.Source.RULE));
             }
             for (CCRuleCandidate c : result.candidates()) {
-                if (suppressed(suppressions, sources, c.path(), c.line())) {
+                if (suppressed(suppressions, sources, c.path(), c.line(), c.ruleId())) {
                     ignored++;
                     continue;
                 }
@@ -188,8 +188,9 @@ public class CCReviewService implements AutoCloseable {
     }
 
     /** The line is covered by a {@code CodeClear:} comment (see {@link CCSuppressions}). */
-    private static boolean suppressed(Map<String, CCSuppressions> cache, Map<String, String> sources, String path, int line) {
-        return cache.computeIfAbsent(path, p -> CCSuppressions.parse(p, sources.getOrDefault(p, ""))).covers(line);
+    private static boolean suppressed(Map<String, CCSuppressions> cache, Map<String, String> sources, String path, int line,
+                                      String ruleId) {
+        return cache.computeIfAbsent(path, p -> CCSuppressions.parse(p, sources.getOrDefault(p, ""))).covers(line, ruleId);
     }
 
     @Override

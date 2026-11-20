@@ -90,6 +90,17 @@ class CCReviewServiceTest {
     }
 
     @Test
+    void aCommentThatNamesARuleIgnoresOnlyThatRule() {
+        String named = "class A {\n  void f() {\n    // CodeClear: java/r on purpose\n    try { g(); } catch (Exception e) { }\n  }\n}\n";
+        String other = named.replace("java/r on purpose", "java/other on purpose");
+        CCReviewService svc = service(List.of(rule("java/r", CCDetectionType.AST, REPORT)),
+                new FakeConfirmer(false, CCCandidateVerdict.Kind.NO_VERDICT));
+
+        assertThat(svc.review(file(named)).findings()).isEmpty();
+        assertThat(svc.review(file(other)).findings()).hasSize(1);
+    }
+
+    @Test
     void aTrailingCodeClearCommentIgnoresItsOwnLine() {
         String code = "class A {\n  void f() {\n    try { g(); } catch (Exception e) { } // CodeClear: on purpose\n  }\n}\n";
 

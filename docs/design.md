@@ -85,7 +85,7 @@ The Markdown report has a summary (files, rules run, findings by severity and ru
 
 **Ignoring findings.** A comment that starts with `CodeClear:` followed by a reason ignores findings and candidates on one line: the
 next non-blank line when the comment is alone on its line, or its own line when it trails code. `//`, `/* */` and (in files that use them)
-`#` comments are recognised, the keyword is case-insensitive, and every rule is covered. Ignored candidates are not sent to the AI. The review
+`#` comments are recognised, the keyword is case-insensitive, and every rule is covered unless the reason starts with rule ids (`java/a, java/b reason`), which limits the comment to those rules. Ignored candidates are not sent to the AI. The review
 reports how many findings were ignored in its notes. See `CCSuppressions`.
 
 Two filesystem locations are used for persistent state:

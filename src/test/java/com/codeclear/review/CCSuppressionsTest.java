@@ -75,6 +75,51 @@ class CCSuppressionsTest {
     }
 
     @Test
+    void ruleIdsAtTheStartOfTheReasonLimitTheCommentToThoseRules() {
+        CCSuppressions s = java("// CodeClear: java/empty-catch-block the caller handles it\nb();\n");
+
+        assertThat(s.covers(2, "java/empty-catch-block")).isTrue();
+        assertThat(s.covers(2, "java/log-and-rethrow")).isFalse();
+        assertThat(s.covers(2)).isFalse(); // not covered for every rule
+    }
+
+    @Test
+    void severalRuleIdsCanBeListed() {
+        CCSuppressions s = java("b(); // CodeClear: java/a, java/b-c reason\n");
+
+        assertThat(s.covers(1, "java/a")).isTrue();
+        assertThat(s.covers(1, "java/b-c")).isTrue();
+        assertThat(s.covers(1, "java/d")).isFalse();
+    }
+
+    @Test
+    void aReasonWithoutRuleIdsCoversEveryRuleEvenIfItMentionsASlash() {
+        CCSuppressions s = java("// CodeClear: fine because of a/b testing and java/x later\nb();\n");
+
+        assertThat(s.covers(2, "java/anything")).isTrue();
+        assertThat(s.covers(2)).isTrue();
+    }
+
+    @Test
+    void ruleIdsInABlockCommentEndAtTheCommentEnd() {
+        CCSuppressions s = java("/* CodeClear: java/a*/\nb();\n");
+
+        assertThat(s.covers(2, "java/a")).isTrue();
+        assertThat(s.covers(2, "java/b")).isFalse();
+    }
+
+    @Test
+    void twoCommentsOnOneLineAddUpAndOneWithoutRulesCoversAll() {
+        CCSuppressions named = java("// CodeClear: java/a x\nb(); // CodeClear: java/b y\n");
+        CCSuppressions open = java("// CodeClear: java/a x\nb(); // CodeClear: y\n");
+
+        assertThat(named.covers(2, "java/a")).isTrue();
+        assertThat(named.covers(2, "java/b")).isTrue();
+        assertThat(named.covers(2, "java/c")).isFalse();
+        assertThat(open.covers(2, "java/c")).isTrue();
+    }
+
+    @Test
     void aCommentOnTheLastLineCoversNothing() {
         assertThat(java("a();\n// CodeClear: x").covers(3)).isFalse();
     }
