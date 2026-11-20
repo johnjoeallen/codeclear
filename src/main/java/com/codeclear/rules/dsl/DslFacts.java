@@ -194,7 +194,7 @@ final class DslFacts {
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
             "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
             "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString",
-            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following", "enclosingCallName", "enclosingCalls", "enclosingStatement", "enclosingClass");
+            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following", "enclosingCallName", "enclosingCalls", "returnType", "guardedField", "enclosingStatement", "enclosingClass");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -252,6 +252,9 @@ final class DslFacts {
         if (name.equals("targetAnnotations") && target instanceof MethodCallExpr call && project != null) {
             // The annotations, as source, of the methods the call may reach in the project (a few at most).
             return project.targets(call).stream().flatMap(m -> m.getAnnotations().stream()).map(Object::toString).toList();
+        }
+        if (name.equals("mentions") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String id) {
+            return p.mentions(id); // some file of the project uses this name as a type or identifier
         }
         if (name.equals("siblingValue") && target instanceof com.codeclear.rules.CCConfigModel.Setting s && args.size() == 1
                 && args.get(0) instanceof String last) {

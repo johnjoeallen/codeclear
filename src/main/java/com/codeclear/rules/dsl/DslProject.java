@@ -41,10 +41,12 @@ final class DslProject {
     private final Map<String, List<String>> subs = new HashMap<>();
     private final Map<MethodDeclaration, String> owner = new java.util.IdentityHashMap<>();
     /** Call graph: method to the call expressions that may invoke it (matched by name and arity). */
+    private final List<CompilationUnit> units;
     private final Map<MethodDeclaration, List<MethodCallExpr>> callers = new java.util.IdentityHashMap<>();
 
     DslProject(List<CompilationUnit> units, Map<String, String> config) {
         this.config = config;
+        this.units = List.copyOf(units);
         for (CompilationUnit cu : units) {
             for (ClassOrInterfaceDeclaration c : cu.findAll(ClassOrInterfaceDeclaration.class)) {
                 if (has(c, "Entity")) {
@@ -243,6 +245,20 @@ final class DslProject {
     static boolean has(NodeWithAnnotations<?> n, String annotation) {
         return n.getAnnotationByName(annotation).isPresent();
     }
+
+    /** Some file of the project uses this simple name: as a type, a class, or any identifier. */
+    boolean mentions(String name) {
+        if (mentionIndex == null) {
+            java.util.Set<String> all = new java.util.HashSet<>();
+            for (CompilationUnit u : units) {
+                u.findAll(com.github.javaparser.ast.expr.SimpleName.class).forEach(s -> all.add(s.getIdentifier()));
+            }
+            mentionIndex = all;
+        }
+        return mentionIndex.contains(name);
+    }
+
+    private java.util.Set<String> mentionIndex;
 
     String config(String key) {
         return config.get(key);

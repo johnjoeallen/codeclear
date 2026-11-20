@@ -35,6 +35,8 @@ cache.computeIfAbsent(id, this::load);
 ## Implementation notes
 AST, same-block pattern. Anchor to the `if`.
 
+Detected on an `if` whose condition reads a field of the class (not a local or a parameter), outside `synchronized`: `!m.containsKey(k)` or `m.get(k) == null` followed by `m.put`, `if (f == null) f = ...` on a non-volatile field, and `if (a.get() < n) a.incrementAndGet()`. Only these text shapes are matched, and a field guarded by a `Lock` is not recognised.
+
 ## Required tests
 containsKey/put (candidate), computeIfAbsent (none), inside synchronized (none), local HashMap (none).
 

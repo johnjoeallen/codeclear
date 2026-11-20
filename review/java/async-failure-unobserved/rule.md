@@ -32,6 +32,8 @@ OK: `sendEmail` returns `CompletableFuture<Void>` that the caller observes, or c
 ## Implementation notes
 AST. Anchor to the method or submit call.
 
+Two files: `async.dsl` flags an `@Async` method that returns `void` and has no `catch`, unless some file of the project mentions `AsyncUncaughtExceptionHandler`; `rule.dsl` flags a discarded `submit`/`execute` on an executor, a discarded `runAsync`/`supplyAsync`, and a discarded `then*` chain, unless the statement has a `catch` or `exceptionally`/`handle`/`whenComplete`/`join`/`get`. A stored or returned future is never discarded, so it is not flagged.
+
 ## Required tests
 `@Async void` without handler (candidate), returned future (none), discarded `supplyAsync` (candidate), try/catch body (none).
 

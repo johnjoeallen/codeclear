@@ -83,6 +83,8 @@ final class DslSyntaxFacts {
                 }
                 return names;
             }
+            case "parent": return n.getParentNode().orElse(null);
+            case "guardedField": return n instanceof com.github.javaparser.ast.stmt.IfStmt i ? guardedField(i) : null;
             case "enclosingStatement": return n.findAncestor(Statement.class).orElse(null);
             case "enclosingClass": return n.findAncestor(ClassOrInterfaceDeclaration.class).orElse(null);
             case "enclosingMethodName": return n.findAncestor(MethodDeclaration.class).map(MethodDeclaration::getNameAsString).orElse(null);
@@ -92,6 +94,7 @@ final class DslSyntaxFacts {
             switch (name) {
                 case "isPublic": return m.isPublic() || m.findAncestor(ClassOrInterfaceDeclaration.class).map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
                 case "classIsPublic": return m.findAncestor(ClassOrInterfaceDeclaration.class).map(ClassOrInterfaceDeclaration::isPublic).orElse(false);
+                case "returnType": return m.getType().toString();
                 case "throwsTypes": return m.getThrownExceptions().stream().map(Type::toString).toList();
                 case "annotations": return m.getAnnotations().stream().map(a -> a.getNameAsString()).toList();
                 case "isPrivate": return m.isPrivate();
@@ -1152,6 +1155,38 @@ final class DslSyntaxFacts {
         if (parent instanceof com.github.javaparser.ast.expr.AssignExpr a && a.getValue() == n) {
             return a.getTarget() instanceof NameExpr x ? x.getNameAsString()
                     : a.getTarget() instanceof FieldAccessExpr f ? f.getNameAsString() : null;
+        }
+        return null;
+    }
+
+    /**
+     * The field of the enclosing class that the condition of an {@code if} reads: a name that is not a local variable or a
+     * parameter of the method and that the class declares as a field, or {@code this.x}. Null when there is none.
+     */
+    private static FieldDeclaration guardedField(com.github.javaparser.ast.stmt.IfStmt i) {
+        Optional<ClassOrInterfaceDeclaration> cls = i.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (cls.isEmpty()) {
+            return null;
+        }
+        Optional<MethodDeclaration> method = i.findAncestor(MethodDeclaration.class);
+        java.util.Set<String> locals = new java.util.HashSet<>();
+        method.ifPresent(m -> {
+            m.getParameters().forEach(p -> locals.add(p.getNameAsString()));
+            m.findAll(VariableDeclarator.class).forEach(v -> locals.add(v.getNameAsString()));
+        });
+        List<String> names = new java.util.ArrayList<>();
+        i.getCondition().findAll(NameExpr.class).forEach(x -> names.add(x.getNameAsString()));
+        i.getCondition().findAll(FieldAccessExpr.class).stream().filter(f -> f.getScope().isThisExpr())
+                .forEach(f -> names.add(f.getNameAsString()));
+        for (String name : names) {
+            if (locals.contains(name) && i.getCondition().findAll(FieldAccessExpr.class).stream().noneMatch(f -> f.getScope().isThisExpr() && f.getNameAsString().equals(name))) {
+                continue;
+            }
+            for (FieldDeclaration f : cls.get().getFields()) {
+                if (f.getVariables().stream().anyMatch(v -> v.getNameAsString().equals(name))) {
+                    return f;
+                }
+            }
         }
         return null;
     }

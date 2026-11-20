@@ -34,6 +34,8 @@ OK:
 ## Implementation notes
 Regex/AST for candidates. Anchor to the literal. Never echo the secret in the finding.
 
+Detected on string literals. A secret-named variable, field or assignment target with a literal of 6 or more characters that is not a placeholder or a key name; the known formats (AWS key, PEM header, `Bearer` token); and URLs for `localhost`, an IP address or a host containing `dev`, `staging`, `test`, `prod`, `internal`, `uat` or `qa`. Annotation values, schema URLs and `@Configuration`/`@ConfigurationProperties` classes are skipped. Secrets passed as call arguments are not tied to a name.
+
 ## Required tests
 Hard-coded password (candidate), AKIA key (candidate), `@Value` placeholder (none), test file (none), localhost URL (candidate).
 

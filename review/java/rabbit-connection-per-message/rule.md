@@ -30,6 +30,8 @@ OK: inject `RabbitTemplate` and call `convertAndSend`.
 ## Implementation notes
 AST. Anchor to the creation call.
 
+Detected on `newConnection()`/`createConnection()` on a `ConnectionFactory` and `createChannel()` on a `Connection`, in a loop or in a method that publishes or consumes (`basicPublish`, `basicGet`, `basicConsume`, `convertAndSend`). Calls inside `execute(...)`, in `@PostConstruct`/`@Bean`/init-style methods, and in a try-with-resources outside a loop are skipped.
+
 ## Required tests
 `newConnection` in publish method (candidate), `RabbitTemplate` (none), try-with-resources (candidate only if per message), init-time creation (none).
 

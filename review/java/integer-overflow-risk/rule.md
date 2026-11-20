@@ -34,6 +34,8 @@ long timeoutMs = days * 24L * 60 * 60 * 1000;
 ## Implementation notes
 AST with type resolution; constant-fold literals to see whether the product exceeds `Integer.MAX_VALUE`. Anchor to the expression.
 
+Detected on the outermost `*` expression that contains a time or size factor (`1000`, `60`, `24`, `365`, `3600`, `1024`) and a name, with no `long` literal, `(long)` cast, `TimeUnit`, `Duration` or `multiplyExact`. A product of literals only is a constant the compiler can check. The `int` accumulators and `(int)` casts of the second and third bullets are not detected.
+
 ## Required tests
 `int` product exceeding max (candidate), `1000L` (none), narrowing cast of `long` (candidate), loop index (none).
 

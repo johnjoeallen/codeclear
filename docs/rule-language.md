@@ -119,6 +119,9 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Annotation` | `name` |
 | `Call` and `New` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource`, `closedOrHandedOn` (the method closes that local, returns it, stores it or passes it to another call) |
 | any node (enclosing) | `enclosingCallName` (the nearest call around it), `enclosingCalls` (the names of every call around it, nearest first), `enclosingStatement`, `enclosingClass` |
+| `If` (shared state) | `i.guardedField`: the field of the class that its condition reads (not a local or a parameter), or missing |
+| `project.mentions('X')` | some file of the project uses that name as a type or identifier |
+| any node (tree) | `parent` is the node it is inside |
 | `Call` (callees) | `c.targetAnnotations()`: the annotations, as source text, of the project methods the call may reach |
 | any node (locks) | `inSynchronized` (inside a `synchronized` block or method) |
 | any node (logging) | `inLevelGuard` (inside an `if` whose condition calls `isDebugEnabled()`, `isTraceEnabled()`, `isEnabledFor(...)` or `isLoggable(...)`) |
