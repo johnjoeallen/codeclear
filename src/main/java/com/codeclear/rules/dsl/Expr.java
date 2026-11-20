@@ -26,4 +26,8 @@ sealed interface Expr {
     record Inside(Expr l, String kind) implements Expr { }
     record Quant(boolean all, Expr l, String pred) implements Expr { }
     record Eq(Expr l, Expr r, boolean neg) implements Expr { }
+    record Num(long v) implements Expr { }
+    record Size(Expr l) implements Expr { }
+    /** A numeric comparison: {@code op} is one of {@code ==}, {@code !=}, {@code >}, {@code >=}, {@code <}, {@code <=}. */
+    record Cmp(Expr l, String op, Expr r) implements Expr { }
 }

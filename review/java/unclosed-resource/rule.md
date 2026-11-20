@@ -34,6 +34,8 @@ try (InputStream in = new FileInputStream(f)) { return in.readAllBytes(); }
 ## Implementation notes
 AST with type resolution. Anchor to the creation expression. Equivalent: SpotBugs `OBL_UNSATISFIED_OBLIGATION`, Sonar S2095.
 
+Only the listed creations are checked: `FileInputStream`, `FileOutputStream`, `FileReader`, `FileWriter`, `Socket`, `ServerSocket`, `RandomAccessFile`, `ZipFile`, `JarFile`, `Files.newInputStream` and similar, and `getConnection`. A resource the method closes anywhere, returns, stores or passes to another call is skipped, so a close that is not in a `finally` is not caught.
+
 ## Required tests
 Unclosed stream (candidate), try-with-resources (none), close in finally (none), returned stream (none), `ByteArrayInputStream` (none).
 

@@ -32,6 +32,8 @@ OK: `.orTimeout(2, SECONDS).join()` with a dedicated executor passed to `supplyA
 ## Implementation notes
 AST. Anchor to the `join`/`get` or the lambda.
 
+Detected by the receiver's declared type or a `CompletableFuture.supplyAsync(...)` chain. A future known to be complete (after `allOf(...).join()`) is not tracked: left to the AI.
+
 ## Required tests
 `join()` no timeout (candidate), `orTimeout().join()` (none), blocking in `supplyAsync` default pool (candidate), custom executor (none).
 

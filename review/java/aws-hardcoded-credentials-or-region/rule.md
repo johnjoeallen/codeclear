@@ -31,6 +31,8 @@ OK: `S3Client.create()` using the default chains.
 ## Implementation notes
 AST. Anchor to the literal; never echo the secret. Credentials are a secret finding regardless of deployment; region/endpoint only with evidence of a deployment issue.
 
+Literal credentials are a finding; a literal region or endpoint is a candidate. `Region.US_EAST_1` style constants and credentials passed through a variable are not detected. A region that is correct by design for a single-region service is left to the AI.
+
 ## Required tests
 Literal access key (finding), `DefaultCredentialsProvider` (none), literal region (candidate), test source (none).
 

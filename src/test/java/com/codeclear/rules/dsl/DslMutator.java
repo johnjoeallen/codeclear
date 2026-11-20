@@ -125,6 +125,13 @@ final class DslMutator {
             case Expr.Inside x -> out.add(new Expr.Not(x));
             case Expr.Quant q -> out.add(new Expr.Quant(!q.all(), q.l(), q.pred()));
             case Expr.FactCall f -> out.add(new Expr.Not(f));
+            case Expr.Cmp c -> {
+                for (String op : List.of("==", "!=", ">", ">=", "<", "<=")) {
+                    if (!op.equals(c.op())) {
+                        out.add(new Expr.Cmp(c.l(), op, c.r()));
+                    }
+                }
+            }
             default -> { }
         }
         return out;
@@ -161,6 +168,9 @@ final class DslMutator {
             case Expr.Exists x -> unparse(x.l()) + " exists";
             case Expr.Inside x -> unparse(x.l()) + " inside " + x.kind();
             case Expr.Quant q -> unparse(q.l()) + (q.all() ? " all " : " any ") + q.pred();
+            case Expr.Num n -> String.valueOf(n.v());
+            case Expr.Size s -> unparse(s.l()) + ".size()";
+            case Expr.Cmp c -> unparse(c.l()) + " " + c.op() + " " + unparse(c.r());
             case Expr.Eq q -> unparse(q.l()) + (q.neg() ? " != " : " == ") + unparse(q.r());
         };
     }

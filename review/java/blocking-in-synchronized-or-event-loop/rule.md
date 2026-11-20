@@ -30,6 +30,8 @@ OK: fetch outside the lock, then lock only to update `cache`.
 ## Implementation notes
 AST on `synchronized` and lambda bodies passed to reactive operators. Anchor to the blocking call.
 
+The blocking calls are `sleep`, `join`, `take`, `block*`, a no-argument `get()`, `Files.*` and calls on an HTTP client, `JdbcTemplate` or repository by declared type. A held `Lock` region and Netty handlers are not detected. A method that mentions `boundedElastic` or `subscribeOn(` is skipped.
+
 ## Required tests
 HTTP in synchronized (candidate), `block()` inside `map` (candidate), `boundedElastic` (none), no blocking (none).
 

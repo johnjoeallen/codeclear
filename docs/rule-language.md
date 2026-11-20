@@ -74,19 +74,21 @@ Loosest to tightest: `a ? b : c`, `||`, `&&`, `!`, then one comparison:
 | `x instanceof Kind` | x is a node of that kind (false if missing) |
 | `x == y`, `x != y` | equality; `x != null` and `x == null` test for presence |
 | `xs.isEmpty()` | list or string is empty (a missing value counts as empty) |
+| `xs.size()` | the number of elements of a list, or characters of a string (a missing value is 0) |
+| `n.isEqualTo(m)`, `n.isNotEqualTo(m)` (also `isNotEqual`), `n.isGreaterThan(m)`, `n.isGreaterThanOrEqualTo(m)`, `n.isLessThan(m)`, `n.isLessThanOrEqualTo(m)` | compare two numbers, for example `c.args.size().isGreaterThan(1)`. False when either side is missing or not a number |
 | `xs.every(p)`, `xs.any(p)` | every or some element satisfies the test `p`; also `xs.any { a -> ... }` |
 | `x.inside(Loop)` | the node has an ancestor of that kind |
 
 Field access is `x.field`, and `x?.field` is the same. Reading a field of a missing value gives a missing value. A
 field that exists for another kind of node also gives a missing value; a name that is no field of any kind is an
-error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'string'`, `"string"`, `/regex/` (only after
+error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'string'`, whole numbers (`0`, `2`; no negative numbers or decimals), `"string"`, `/regex/` (only after
 `==~`), `[list, of, values]`, `true`, `false`, `null`. `every` over an empty list is true.
 
 ## Node kinds and fields
 
 Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
 expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
-declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Annotation` (every annotation), `Comment` (every comment in the file: line, block and Javadoc) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
+declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Annotation` (every annotation), `Comment` (every comment in the file: line, block and Javadoc), `Jump` (any of `Return`, `Throw`, `Break`, `Continue`) and `Creation` (a `Call` or a `New`). `Loop` can be used in
 `instanceof` and `inside`, not iterated.
 
 | Node | Fields |
@@ -112,7 +114,8 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Call` (streams, holders) | `chainCalls`, `chainStartsStream`, `hasSideEffectStage`, `holderInitializer`, `releasedInMethodFinally(names)`, `pairedRelease(names)` |
 | any node (data) | `inDataClass` |
 | `Annotation` | `name` |
-| `Call` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource` |
+| `Call` and `New` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource`, `closedOrHandedOn` (the method closes that local, returns it, stores it or passes it to another call) |
+| any node (locks) | `inSynchronized` (inside a `synchronized` block or method) |
 | any node (logging) | `inLevelGuard` (inside an `if` whose condition calls `isDebugEnabled()`, `isTraceEnabled()`, `isEnabledFor(...)` or `isLoggable(...)`) |
 | any node (transactions) | `inReadOnlyTransaction` (the method says `@Transactional(readOnly = true)`, or has no `@Transactional` of its own and its class says so) |
 | `FieldDecl` (more) | `mutatedAfterInit` (`put`, `add`, `remove` and similar on it in a method that is not a constructor, initializer or `@PostConstruct`, outside `synchronized` code), `assignedAfterInit` (`x = ...`, `this.x = ...` or `x++` in such a method) |

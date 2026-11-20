@@ -90,11 +90,15 @@ final class DslSyntaxFacts {
             }
         } else if (n instanceof com.github.javaparser.ast.expr.AnnotationExpr a && name.equals("name")) {
             return a.getNameAsString();
-        } else if (n instanceof MethodCallExpr c && name.equals("assignedToLocal")) {
-            return c.getParentNode().orElse(null) instanceof VariableDeclarator v
+        } else if (name.equals("inSynchronized")) {
+            return inSynchronized(n);
+        } else if ((n instanceof MethodCallExpr || n instanceof ObjectCreationExpr) && name.equals("closedOrHandedOn")) {
+            return closedOrHandedOn(n);
+        } else if ((n instanceof MethodCallExpr || n instanceof ObjectCreationExpr) && name.equals("assignedToLocal")) {
+            return n.getParentNode().orElse(null) instanceof VariableDeclarator v
                     && v.getParentNode().orElse(null) instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr;
-        } else if (n instanceof MethodCallExpr c && name.equals("inTryResource")) {
-            return inTryResource(c);
+        } else if ((n instanceof MethodCallExpr || n instanceof ObjectCreationExpr) && name.equals("inTryResource")) {
+            return inTryResource(n);
         } else if (name.equals("inLevelGuard")) {
             return inLevelGuard(n);
         } else if (name.equals("inReadOnlyTransaction")) {
@@ -1088,6 +1092,43 @@ final class DslSyntaxFacts {
     }
 
     /** The call is, or is inside, a resource of a try-with-resources header (not its body). */
+    /**
+     * The value initialises a local variable that the method then closes ({@code v.close()}), returns, stores somewhere
+     * other than a local, or hands to another call: someone else owns it, or it is released.
+     */
+    private static boolean closedOrHandedOn(Node n) {
+        if (!(n.getParentNode().orElse(null) instanceof VariableDeclarator v)) {
+            return false;
+        }
+        String local = v.getNameAsString();
+        Optional<MethodDeclaration> m = n.findAncestor(MethodDeclaration.class);
+        Node scope = m.isPresent() ? m.get() : n.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).orElse(null);
+        if (scope == null) {
+            return false;
+        }
+        java.util.function.Predicate<com.github.javaparser.ast.expr.Expression> isLocal =
+                e -> e instanceof NameExpr x && x.getNameAsString().equals(local);
+        for (MethodCallExpr c : scope.findAll(MethodCallExpr.class)) {
+            if (c.getScope().filter(isLocal).isPresent() && c.getNameAsString().equals("close")) {
+                return true;
+            }
+            if (c.getArguments().stream().anyMatch(isLocal)) {
+                return true;
+            }
+        }
+        for (ReturnStmt r : scope.findAll(ReturnStmt.class)) {
+            if (r.getExpression().filter(isLocal).isPresent()) {
+                return true;
+            }
+        }
+        for (com.github.javaparser.ast.expr.AssignExpr a : scope.findAll(com.github.javaparser.ast.expr.AssignExpr.class)) {
+            if (isLocal.test(a.getValue())) {
+                return true;
+            }
+        }
+        return scope.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> o.getArguments().stream().anyMatch(isLocal));
+    }
+
     private static boolean inTryResource(Node n) {
         Node below = n;
         for (Optional<Node> parent = n.getParentNode(); parent.isPresent(); parent = parent.get().getParentNode()) {

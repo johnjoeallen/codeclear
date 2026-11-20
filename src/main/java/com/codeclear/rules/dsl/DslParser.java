@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
  */
 final class DslParser {
 
-    enum K { ID, STR, GSTR, RX, SYM, EOF }
+    enum K { ID, STR, GSTR, RX, SYM, NUM, EOF }
 
     record Tok(K k, String t, int pos) { }
 
@@ -123,6 +123,12 @@ final class DslParser {
                 }
                 i++;
                 out.add(new Tok(K.RX, b.toString(), start));
+            } else if (Character.isDigit(c)) {
+                int start = i;
+                while (i < n && Character.isDigit(s.charAt(i))) {
+                    i++;
+                }
+                out.add(new Tok(K.NUM, s.substring(start, i), start));
             } else if (Character.isLetter(c) || c == '_') {
                 int start = i;
                 while (i < n && (Character.isLetterOrDigit(s.charAt(i)) || s.charAt(i) == '_')) {
@@ -414,6 +420,12 @@ final class DslParser {
         return l;
     }
 
+    /** Comparison methods that follow {@code x.size()} or a number: {@code xs.size().isGreaterThan(2)}. */
+    private static final java.util.Map<String, String> COMPARISONS = java.util.Map.of(
+            "isEqualTo", "==", "isNotEqualTo", "!=", "isNotEqual", "!=",
+            "isGreaterThan", ">", "isGreaterThanOrEqualTo", ">=",
+            "isLessThan", "<", "isLessThanOrEqualTo", "<=");
+
     private Expr postfix() {
         Expr e = primary();
         while (isSym(".") || isSym("?.")) {
@@ -423,6 +435,15 @@ final class DslParser {
                 expectSym("(");
                 expectSym(")");
                 e = new Expr.IsEmpty(e, false);
+            } else if (name.equals("size") && isSym("(")) {
+                expectSym("(");
+                expectSym(")");
+                e = new Expr.Size(e);
+            } else if (COMPARISONS.containsKey(name) && isSym("(")) {
+                expectSym("(");
+                Expr n = expr();
+                expectSym(")");
+                e = new Expr.Cmp(e, COMPARISONS.get(name), n);
             } else if (name.equals("every") || name.equals("any")) {
                 e = quantifier(e, name.equals("every"));
             } else if (name.equals("inside") && isSym("(")) {
@@ -476,6 +497,14 @@ final class DslParser {
             case STR -> {
                 i++;
                 return new Expr.Str(t.t());
+            }
+            case NUM -> {
+                i++;
+                try {
+                    return new Expr.Num(Long.parseLong(t.t()));
+                } catch (NumberFormatException e) {
+                    throw err("the number " + t.t() + " is too large");
+                }
             }
             case GSTR -> {
                 i++;

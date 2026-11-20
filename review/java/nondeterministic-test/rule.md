@@ -34,6 +34,8 @@ OK: `assertEquals(LocalDate.of(2024,1,2), new Svc(fixedClock).nextDay())`.
 ## Implementation notes
 AST/regex candidates in `src/test`. Anchor to the call.
 
+Detected in test sources by call and constructor name. `@TestMethodOrder`, static mutable state shared between tests, and whether the time or random value is asserted on or only logged are not checked: left to the AI.
+
 ## Required tests
 `now()` in assertion (candidate), fixed clock (none), seeded Random (none), `Thread.sleep` (candidate), WireMock URL (none).
 

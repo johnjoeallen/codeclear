@@ -88,6 +88,7 @@ final class DslInterpreter {
     static {
         KINDS.forEach((k, c) -> KIND_TESTS.put(k, c::isInstance));
         KIND_TESTS.put("Jump", DslSyntaxFacts::isJump);
+        KIND_TESTS.put("Creation", n -> n instanceof MethodCallExpr || n instanceof ObjectCreationExpr);
         KIND_TESTS.put("Comment", n -> n instanceof com.github.javaparser.ast.comments.Comment);
         KIND_TESTS.put("Loop", n -> n instanceof ForStmt || n instanceof ForEachStmt || n instanceof WhileStmt
                 || n instanceof DoStmt);
@@ -276,6 +277,28 @@ final class DslInterpreter {
                 yield q.all()
                         ? list.stream().allMatch(item -> bool(applyPred(p, item, ctx)))
                         : list.stream().anyMatch(item -> bool(applyPred(p, item, ctx)));
+            }
+            case Expr.Num n -> n.v();
+            case Expr.Size s -> switch (eval(s.l(), env, ctx)) {
+                case List<?> l -> (long) l.size();
+                case String str -> (long) str.length();
+                case null -> 0L;
+                default -> throw new IllegalStateException("'size()' needs a list or string");
+            };
+            case Expr.Cmp c -> {
+                // A missing value, or a value that is not a number, is never equal to, greater than or less than anything.
+                if (!(eval(c.l(), env, ctx) instanceof Number a) || !(eval(c.r(), env, ctx) instanceof Number b)) {
+                    yield false;
+                }
+                int d = Long.compare(a.longValue(), b.longValue());
+                yield switch (c.op()) {
+                    case "==" -> d == 0;
+                    case "!=" -> d != 0;
+                    case ">" -> d > 0;
+                    case ">=" -> d >= 0;
+                    case "<" -> d < 0;
+                    default -> d <= 0;
+                };
             }
             case Expr.Eq q -> Objects.equals(eval(q.l(), env, ctx), eval(q.r(), env, ctx)) != q.neg();
         };

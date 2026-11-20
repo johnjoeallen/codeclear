@@ -130,7 +130,7 @@ final class DslFacts {
             "iteratedType", "followedByExit", "iterable", "updatesCurrentKey", "enclosingClassAnnotations", "isDiscarded", "sameClassTransactionalTarget", "assertions",
             "inDataClass", "chainCalls", "chainStartsStream", "hasSideEffectStage", "holderInitializer", "isLocal", "usedInArithmetic",
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
-            "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer");
+            "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
