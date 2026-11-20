@@ -64,7 +64,7 @@ class LauncherScriptTest {
         Result r = launch(dir, "review", "--help");
 
         assertThat(r.exit()).isZero();
-        assertThat(r.output()).contains("FAKEJAVA -jar").contains("review --help").doesNotContain("is required");
+        assertThat(r.output()).contains("FAKEJAVA --enable-native-access=ALL-UNNAMED -jar").contains("review --help").doesNotContain("is required");
     }
 
     @Test
@@ -123,7 +123,7 @@ class LauncherScriptTest {
         Result r = launch(dir, "../redkite");
 
         assertThat(r.exit()).isZero();
-        assertThat(r.output()).contains("FAKEJAVA -jar").contains(" review --rules=").contains("../redkite")
+        assertThat(r.output()).contains("FAKEJAVA --enable-native-access=ALL-UNNAMED -jar").contains(" review --rules=").contains("../redkite")
                 .doesNotContain("Starting CodeClear").doesNotContain("--server.port");
     }
 
