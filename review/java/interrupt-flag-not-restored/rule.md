@@ -23,6 +23,7 @@ A bare `return` is not sufficient on its own.
 ## Do not flag
 - The block rethrows `InterruptedException` or wraps it in another exception with the cause.
 - The method is `main` or a test.
+- The block only records the interruption (for example `interrupted = true`) and the method calls `Thread.currentThread().interrupt()` after the catch.
 
 ## Examples
 Flag:

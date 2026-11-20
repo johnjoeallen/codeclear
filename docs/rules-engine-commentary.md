@@ -291,6 +291,63 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 - Whether an AI generates rules correctly in the new syntax has not been re-measured; the earlier experiment used the
   old syntax.
 
+### The review service with no AI backend
+
+- No AI is integrated yet, so the review runs without it. `DummyAiDriver` (id `dummy`, now the default driver) reports
+  itself as not ready and returns nothing if called. `CCReviewService` runs every applicable rule's detector through
+  `CCRuleEngine`, turns hybrid candidates into findings only when a ready AI driver confirms them, and reports what it
+  could not check: skipped rules with a reason (`NEEDS_AI`, `NO_DETECTOR`, `NO_ANALYZER`, `FAILED`), unconfirmed
+  candidates and notes (files not analysed, AI unavailable).
+- `CCDriverCandidateConfirmer` is the one AI use built: it sends the rule's AI prompt, the evidence and the code around a
+  candidate and reads `{"confirmed": true|false}`. It is tested with a fake driver; no real model has been called. Whole-file
+  AI review (the `ai`-type rules) is not built and those rules are skipped.
+- Mutation testing is out of scope for the review: it is an external tool. See `targeted-mutation-design.md`.
+- Against the real rules on a one-file Java change the review runs the 4 detectors that exist, finds the empty catch, and
+  lists 35 applicable rules as needing the AI and 60 as having no detector yet (only rules that apply to the changed
+  files are listed). Across the whole catalogue 147 rules are AI-only and about 169 executable rules have no detector.
+
+### Command-line review
+
+- `codeclear.sh review [options] [path ...]` (and `codeclear.ps1`) runs `CCReviewService` in the terminal: no server, no
+  browser. The jar dispatches on the first argument and starts Spring without a web server; the launchers pass the
+  bundled rules folder. Options: `--diff=<rev>` (only changed lines, from `git diff --unified=0 --relative`),
+  `--format=text|json`, `--fail-on=<severity>`, `--config=k=v`, `--rules=<dir>`, `--show-skipped`, `--help`.
+- Tried end to end against a small project: two findings in about 0.9 s including startup, `--diff=HEAD` reduced it to
+  the one changed line, `--fail-on` gave exit codes 1 and 0, a bad option gave 2.
+- Not built: reading project configuration (`application.yml`, logback) into facts automatically, so cross-file rules rely
+  on `--config` for now; non-Java languages; packaging the rules folder with the jar.
+
+### Five more detectors (reference-equality-on-values, interrupt-flag-not-restored, exception-cause-dropped, shared-simpledateformat, return-or-throw-in-finally)
+
+- Picked as the easiest executable Java rules without a detector, in that order. Each is a `rule.dsl` with a `tests.md` and
+  passes the committed tests (12 to 17 cases each). 9 detectors now exist; 164 executable rules still have none.
+- **New language surface was small:** seven node kinds (`Binary`, `StringLit`, `New`, `Throw`, `FieldDecl`, `Return`,
+  `Break`, `Continue`) plus the pseudo-kind `Jump`, and about 20 fields and facts in `DslSyntaxFacts`
+  (`escapesFinally`, `carries`, `enclosingCatch`, `callsAfter`, `causeUnsupported`, ...). No new syntax. See
+  `rule-language.md`.
+- **Mutation testing found real gaps in the first drafts** (untested string concatenation, a sentinel on one side only,
+  an `Object` operand, an uninitialised declared field, three near-identical reports that only differed in text, which
+  I merged). All five now have no surviving mutants except three redundant null-skips in `reference-equality`.
+- **Running the rules on real code found what the tests did not.** Over 62 of the projects under `~/git` (all nine
+  detectors, no rule failures) the first drafts produced false positives that the hand-written cases never covered:
+  - `e.getMessage()` counted as passing the cause (replaced `mentions` with `carries`, which ignores message-only reads);
+  - a cause passed through a local variable (`Throwable cause = e.getCause() ...; throw new X(cause)`);
+  - a JDK exception such as `TimeoutException` that has no constructor taking a cause (now checked by reflection);
+  - `interrupted = true` in the catch with the flag restored after the loop, a very common idiom;
+  - `(this.a == rhs.a) || (this.a != null && this.a.equals(rhs.a))` inside generated `equals` methods, 11 findings.
+  The `rule.md` text of `interrupt-flag-not-restored`, `exception-cause-dropped` and `reference-equality-on-values` was
+  extended to say so, so the text, the detector and the tests agree.
+- **Sweep totals after the fixes (62 projects):** log-injection 224, exception-cause-dropped 113, interrupt-flag-not-restored
+  111, optional-get-without-check 76, empty-catch-block 47, reference-equality-on-values 35, shared-simpledateformat 16,
+  lazy-association-outside-session 10, return-or-throw-in-finally 6. Samples of the new rules were read by hand: the
+  `interrupt` and `cause` samples were all genuine; most of the `return-or-throw-in-finally` hits are demo code that shows
+  the pitfall on purpose; many `reference-equality` hits are tutorial tests that show `==` on purpose.
+- **Lesson:** hand-written cases test what the author thought of. Running on real code is the only check for what the author
+  did not. It cost minutes and found five false-positive patterns. Worth building into the process (R19).
+- Launcher fix: `codeclear.sh` and `codeclear.ps1` read the Java version from line 1 of `java -version`, which fails when
+  `JAVA_TOOL_OPTIONS` is set (java prints `Picked up JAVA_TOOL_OPTIONS: ...` first). They now take the first line that
+  contains `version "`; a test runs the bash launcher against a stub `java` to keep it fixed.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
@@ -326,7 +383,8 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 | R15 | Pass policy to host facts as predicates: the rule says what is a source and what is a sanitiser, the host walks the flow. | One reviewed taint engine serves every taint rule, and a generated rule cannot change how flow is computed. |
 | R16 | Only run mutation testing against a passing baseline. | A failing case makes every mutant look killed. |
 | R18 | Bound every analysis: cap name-and-arity ambiguity, memoise per query, limit interprocedural hops and give each query a work budget. | An unbounded taint search ran for over ten minutes on a 4,000-file project. Real symbol resolution will make calls exact, but the budget stays as a safety net. |
-| R17 | Cover test-quality rules with mutation testing as an opt-in option of the review tool (`--mutation`), run on the developer side or in CI: generic mutants for "tests omit the risk", rule-named targeted mutants for "mock-only tests cannot prove the guarantee". | Deterministic, and it does not depend on reading the merge request's prose. The tool only runs tests where they already run, so there is no new trust boundary. |
+| R19 | Before accepting a new detector, run it over a corpus of real code and read a sample of its findings. | The hand-written cases passed while five false-positive patterns were present; only real code showed them. |
+| R17 | Cover test-quality rules with mutation testing, as an external tool run by developers or CI (generic mutants for "tests omit the risk", rule-named targeted mutants for "mock-only tests cannot prove the guarantee"). The review tool does not run it. | Deterministic, and it does not depend on reading the merge request's prose. It executes the project's tests, so it stays outside the read-only review. |
 
 ## Open questions
 
@@ -342,7 +400,7 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 | Q8 | Groovy or a restricted rule language? | Both pass the same tests on the two Groovy rules; the language also expressed a tier 2 rule (lazy associations) and a taint rule (log injection) as 12 to 25 line rules over host facts. It removes the sandbox problem and enables automatic mutation testing; it costs the language plus every fact family in reviewed Java. Leaning: adopt the language. Not yet measured: speed, real RE2/J, project-wide engine, symbol resolution (Q3). |
 | Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Yes, with a project model and call-graph facts (see Discoveries). Open: replacing name-and-arity matching with real symbol resolution (Q3), and a project-wide engine instead of per-file. |
 | Q10 | Which model does review-time work? | Run the 548 `Evaluation cases` across models and compare accuracy, false-positive rate and cost per completed review. |
-| Q11 | With `--mutation` off, are the seven test-quality rules skipped, or does the AI judge them? | Leaning: skipped and listed as "not checked, needs --mutation", so the default review stays read-only and cheap. Decide when the option is built. |
+| Q11 | How do the external mutation tool's results reach a review? | The review skips the seven test-quality rules (listed as needing the AI). Mutation testing is an external tool, so the review has no `--mutation` option. Open: whether the review should read the tool's report. |
 | Q12 | Are AI calls batched by size (`design.md`, 100k characters) or per file and language (`ai-generated-deterministic-checks.md`)? | The two documents disagree. Per file makes deterministic triggers remove calls outright; by size does not. Decide before building the pipeline. |
 
 ## Log
@@ -372,7 +430,8 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 
 ### Next candidates
 
-- Build the review pipeline that calls `CCRuleEngine`, passes candidates to the AI, and decide the batching (Q12).
+- Write more detectors (about 169 executable rules have none), starting with the simplest, and measure candidates and triggers per rule on real code.
+- Decide the AI batching (Q12) before building whole-file AI review.
 - Decide Q8 (leaning to the restricted language, now wired into the engine). Open work either way: a project-wide engine, symbol resolution, and config parsing facts.
 - Measure the language's speed against the Groovy detector on a real project (speed is not a priority; it should be reasonable).
 - Build the mutant generator from `targeted-mutation-design.md` (no test execution needed for the first step).

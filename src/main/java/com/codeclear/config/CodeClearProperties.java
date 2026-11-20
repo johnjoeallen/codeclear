@@ -17,10 +17,11 @@ public record CodeClearProperties(
         @DefaultValue("codeClear/agent.md") String classpathFallback,
         @DefaultValue("~/.codeClear") String userDir,
         @DefaultValue(".codeClear") String repoDir,
+        @DefaultValue("review") String rulesDir,
         @DefaultValue Ai ai,
         @DefaultValue Copilot copilot) {
 
-    public record Ai(@DefaultValue("copilot") String driver) {}
+    public record Ai(@DefaultValue("dummy") String driver) {}
 
 
     public record Copilot(@DefaultValue("copilot.exe") String cliPath) {}

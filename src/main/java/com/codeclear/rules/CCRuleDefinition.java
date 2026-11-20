@@ -13,18 +13,25 @@ import java.util.Optional;
  * @param ruleHash hash of the sections of {@code rule.md} that affect the script (see {@link CCRuleLoader})
  * @param script   source of {@code rule.groovy}, when present
  * @param dsl      sources of the rule's {@code .dsl} files by file name ({@code rule.dsl} first), when present
+ * @param aiPrompt the rule's {@code ## AI prompt} section: the question put to the AI about a candidate, when present
  */
 public record CCRuleDefinition(
         String id, Optional<Path> dir, CCRuleMetadata metadata, String ruleHash, Optional<String> script,
-        Map<String, String> dsl) {
+        Map<String, String> dsl, Optional<String> aiPrompt) {
 
     /** Version of the restricted rule language. A {@code .dsl} file made for an older version is stale. */
     public static final int DSL_API_VERSION = 1;
 
-    /** A rule without {@code .dsl} files. */
+    /** A rule without {@code .dsl} files or an AI prompt. */
     public CCRuleDefinition(
             String id, Optional<Path> dir, CCRuleMetadata metadata, String ruleHash, Optional<String> script) {
-        this(id, dir, metadata, ruleHash, script, Map.of());
+        this(id, dir, metadata, ruleHash, script, Map.of(), Optional.empty());
+    }
+
+    /** A rule without an AI prompt. */
+    public CCRuleDefinition(String id, Optional<Path> dir, CCRuleMetadata metadata, String ruleHash,
+                            Optional<String> script, Map<String, String> dsl) {
+        this(id, dir, metadata, ruleHash, script, dsl, Optional.empty());
     }
 
     /** True when the rule has a Groovy script or at least one {@code .dsl} file. */

@@ -17,8 +17,8 @@ Throwing a new exception from a `catch` without passing the caught exception los
   and `initCause` / `addSuppressed` with it is not called.
 
 ## Do not flag
-- The cause is passed in any argument position, including `e.getCause()`.
-- The new exception type has no constructor accepting a cause (check when the class is in the same file).
+- The cause is passed in any argument position, including `e.getCause()` or a local variable assigned from it.
+- The new exception type has no constructor accepting a cause (checked when the class is in the same file or is a JDK class).
 - The catch parameter is deliberately discarded and a comment says why.
 
 ## Examples

@@ -16,7 +16,8 @@ codeclear:
   full-file-max-chars: 48000
   prompt-timeout-seconds: 300
   default-scope: COMMITTED
+  rules-dir: review
   ai:
-    driver: copilot
+    driver: dummy
   copilot:
     cli-path: copilot.exe

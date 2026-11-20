@@ -20,6 +20,7 @@ A `==` or `!=` where both operands have static type `String` or a boxed numeric/
 - Enum comparisons.
 - Either operand is a primitive (unboxing makes it a value comparison).
 - Comparison against a `static final` constant that is documented as an identity sentinel.
+- Comparisons inside an `equals` method, where an identity check before `.equals(...)` is the usual shortcut.
 
 ## Examples
 Flag:

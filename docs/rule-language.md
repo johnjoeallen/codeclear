@@ -84,12 +84,14 @@ error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'str
 
 ## Node kinds and fields
 
-Kinds: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`. `Loop` can be used in `instanceof` and
-`inside`.
+Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
+expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
+declaration, never a local variable) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
+`instanceof` and `inside`, not iterated.
 
 | Node | Fields |
 |---|---|
-| any node | `text`, `inTransaction` |
+| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName` |
 | `file` (always available) | `path`, `language`, `isTest` |
 | `Catch` | `param`, `body` |
 | `Param` | `name`, `type` (text), `annotations` (list of names) |
@@ -97,6 +99,12 @@ Kinds: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`. `Loop` c
 | `ExprStmt` | `expression` |
 | `Call` | `name`, `nameNode`, `args`, `firstArg`, `scope`, `lazyAssociation`, `dereferenced` |
 | `Name` | `name`, `declaredType` |
+| any expression | `isIdentitySentinel` (a `static final` field whose comment calls it an identity sentinel; false for anything else) |
+| `Binary` | `operator` (`==`, `!=`, `+`, ...), `left`, `right` |
+| `New` | `args`, `typeName`, `causeUnsupported` (the exception class is in the file or the JDK and no constructor takes a cause) |
+| `Throw` | `expression` |
+| `FieldDecl` | `name`, `typeName` (simple name, no generics or package), `initializerTypeName`, `isStatic`, `isFinal`, `isPrivate`, `classAnnotations`, `usedOnlyInSynchronized` |
+| `Jump` | `escapesFinally` (leaves a `finally` block: not through a nested lambda, class or method, not a break or continue whose loop is inside the finally, not a throw caught by a nested try) |
 | `Field` | `name`, `scope` |
 | any expression | `type` (qualified name, missing when unresolved), `fetched` |
 | `Method` | `name`, `nameNode`, `inController`, `returnedEntity`, `lazyAssociations`, `returnsFetched` |
@@ -115,6 +123,8 @@ Facts are reviewed Java that does the work a rule should not express itself. The
 | `expr.fetched` | The entity was produced by a join-fetch query or entity graph, possibly several calls away |
 | `node.inTransaction` | The node runs inside a transaction, directly or because every caller does |
 | `project.config('key')` | A project configuration value, for example `spring.jpa.open-in-view` |
+| `node.mentions(name)` | The node is, or contains, a use of that variable |
+| `node.carries(name)` | The node passes the variable on: it is the variable, a local variable assigned from it, or contains it as something other than the receiver of `getMessage()`, `toString()` and similar. `e` and `e.getCause()` carry `e`; `e.getMessage()` does not |
 
 Calls are resolved by the receiver's static type where the source states it, and otherwise by name and argument count.
 Interprocedural facts are bounded: a limited number of calls are followed and a work budget ends a query early, so an

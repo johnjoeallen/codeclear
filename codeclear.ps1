@@ -1,6 +1,9 @@
 <#
 CodeClear launcher (PowerShell). Bootstrap only: all behavior lives in the backend.
-Env: CODECLEAR_PORT (default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1
+Usage: codeclear.ps1                start the web application
+       codeclear.ps1 review [options] [path ...]   run a review in the terminal (see: codeclear.ps1 review --help)
+Env: CODECLEAR_PORT (default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1,
+     CODECLEAR_RULES (rules folder for review, default: review next to this script)
 #>
 $ErrorActionPreference = 'Stop'
 
@@ -23,10 +26,22 @@ if (-not $Jar -or -not (Test-Path $Jar)) {
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
     Write-Error "java not found on PATH; Java $RequiredJava or newer is required"
 }
-$verLine = (& java -version 2>&1 | Select-Object -First 1).ToString()
+# Read the first line that contains: version "NN...". Line 1 is not enough: JAVA_TOOL_OPTIONS makes java print
+# "Picked up JAVA_TOOL_OPTIONS: ..." first.
+$verLine = & java -version 2>&1 | ForEach-Object { $_.ToString() } | Where-Object { $_ -match 'version "(\d+)' } | Select-Object -First 1
 $javaMajor = if ($verLine -match 'version "(\d+)') { [int]$Matches[1] } else { 0 }
 if ($javaMajor -lt $RequiredJava) {
     Write-Error "Java $RequiredJava or newer is required (found: $(if ($javaMajor) { $javaMajor } else { 'unknown' }))"
+}
+
+# 2b. "codeclear.ps1 review ..." runs the command-line review and exits: no server, no browser.
+#     The rules folder defaults to the "review" folder next to this script (CODECLEAR_RULES overrides it).
+if ($args.Count -gt 0 -and $args[0] -eq 'review') {
+    $RulesDir = if ($env:CODECLEAR_RULES) { $env:CODECLEAR_RULES } else { Join-Path $Dir 'review' }
+    $extra = @()
+    if (Test-Path $RulesDir) { $extra = @("--codeclear.rules-dir=$RulesDir") }
+    & java -jar $Jar @args @extra
+    exit $LASTEXITCODE
 }
 
 # 3. Copilot CLI is optional (only needed for the Copilot provider), so warn rather than fail.

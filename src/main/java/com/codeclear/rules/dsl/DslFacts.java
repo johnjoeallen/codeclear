@@ -63,6 +63,10 @@ final class DslFacts {
         if (jpa != DslJpaFacts.NOT_HANDLED) {
             return jpa;
         }
+        Object syntax = DslSyntaxFacts.field(n, name, model);
+        if (syntax != DslSyntaxFacts.NOT_HANDLED) {
+            return syntax;
+        }
         if (n instanceof CatchClause c) {
             switch (name) {
                 case "param": return c.getParameter();
@@ -118,7 +122,10 @@ final class DslFacts {
     private static final java.util.Set<String> KNOWN = java.util.Set.of("path", "language", "isTest", "text", "param",
             "body", "name", "type", "statements", "hasComment", "expression", "nameNode", "args", "scope",
             "declaredType", "inTransaction", "lazyAssociation", "dereferenced", "fetched", "inController",
-            "returnedEntity", "lazyAssociations", "returnsFetched", "annotations", "firstArg");
+            "returnedEntity", "lazyAssociations", "returnsFetched", "annotations", "firstArg", "calls", "throws",
+            "enclosingCatch", "enclosingMethodName", "operator", "left", "right", "typeName", "causeUnsupported",
+            "initializerTypeName", "isStatic", "isFinal", "isPrivate", "classAnnotations", "usedOnlyInSynchronized",
+            "isIdentitySentinel", "escapesFinally", "assignments", "callsAfter");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -133,6 +140,10 @@ final class DslFacts {
                 && args.get(0) instanceof DslInterpreter.Pred src && args.get(1) instanceof DslInterpreter.Pred san
                 && project != null) {
             return new DslTaint(src, san, apply, project).tainted(e);
+        }
+        Object syntax = DslSyntaxFacts.fact(target, name, args);
+        if (syntax != DslSyntaxFacts.NOT_HANDLED) {
+            return syntax;
         }
         if (name.equals("config") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String k) {
             return p.config(k);

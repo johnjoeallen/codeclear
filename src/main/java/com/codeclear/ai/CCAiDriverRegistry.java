@@ -17,6 +17,15 @@ public class CCAiDriverRegistry {
         this.drivers = drivers.stream().collect(Collectors.toUnmodifiableMap(CCAiDriver::id, Function.identity()));
     }
 
+    /** The driver with this id, or empty when none is registered (for example a driver not yet implemented). */
+    public java.util.Optional<CCAiDriver> find(String id) {
+        return java.util.Optional.ofNullable(drivers.get(id));
+    }
+
+    public java.util.Set<String> ids() {
+        return drivers.keySet();
+    }
+
     public CCAiDriver get(String id) {
         CCAiDriver driver = drivers.get(id);
         if (driver == null) {

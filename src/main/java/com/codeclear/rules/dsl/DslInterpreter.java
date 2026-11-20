@@ -8,7 +8,15 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.stmt.BreakStmt;
+import com.github.javaparser.ast.stmt.ContinueStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
@@ -50,19 +58,28 @@ final class DslInterpreter {
         }
     }
 
-    private static final Map<String, Class<? extends Node>> KINDS = Map.of(
-            "Catch", CatchClause.class,
-            "Call", MethodCallExpr.class,
-            "Name", NameExpr.class,
-            "Field", FieldAccessExpr.class,
-            "Param", Parameter.class,
-            "ExprStmt", ExpressionStmt.class,
-            "Method", MethodDeclaration.class);
+    private static final Map<String, Class<? extends Node>> KINDS = Map.ofEntries(
+            Map.entry("Catch", CatchClause.class),
+            Map.entry("Call", MethodCallExpr.class),
+            Map.entry("Name", NameExpr.class),
+            Map.entry("Field", FieldAccessExpr.class),
+            Map.entry("Param", Parameter.class),
+            Map.entry("ExprStmt", ExpressionStmt.class),
+            Map.entry("Method", MethodDeclaration.class),
+            Map.entry("Binary", BinaryExpr.class),
+            Map.entry("StringLit", StringLiteralExpr.class),
+            Map.entry("New", ObjectCreationExpr.class),
+            Map.entry("Throw", ThrowStmt.class),
+            Map.entry("Return", ReturnStmt.class),
+            Map.entry("Break", BreakStmt.class),
+            Map.entry("Continue", ContinueStmt.class),
+            Map.entry("FieldDecl", FieldDeclaration.class));
 
     private static final Map<String, java.util.function.Predicate<Node>> KIND_TESTS = new HashMap<>();
 
     static {
         KINDS.forEach((k, c) -> KIND_TESTS.put(k, c::isInstance));
+        KIND_TESTS.put("Jump", DslSyntaxFacts::isJump);
         KIND_TESTS.put("Loop", n -> n instanceof ForStmt || n instanceof ForEachStmt || n instanceof WhileStmt
                 || n instanceof DoStmt);
     }
@@ -76,11 +93,14 @@ final class DslInterpreter {
 
     List<Finding> run(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
         Class<? extends Node> kind = KINDS.get(rule.kind());
-        if (kind == null) {
+        java.util.function.Predicate<Node> pseudo = KIND_TESTS.get(rule.kind());
+        if (kind == null && pseudo == null) {
             throw new IllegalArgumentException("unknown node kind '" + rule.kind() + "'");
         }
         List<Finding> out = new ArrayList<>();
-        for (Node n : file.ast().findAll(kind)) {
+        List<Node> nodes = kind != null ? new ArrayList<Node>(file.ast().findAll(kind))
+                : file.ast().findAll(Node.class).stream().filter(pseudo).toList();
+        for (Node n : nodes) {
             Map<String, Object> env = new HashMap<>();
             env.put(rule.var(), n);
             env.put("file", file.file());

@@ -55,6 +55,31 @@ The app runs **natively on Windows** (Linux/macOS are not a first target) and is
 - The backend invokes the Windows `copilot.exe` directly. It is not run inside WSL, which avoids Windows/Linux path translation.
 - The scripts contain bootstrap logic only; all behavior lives in the backend so the two scripts cannot drift apart.
 
+### 2.2 Command-Line Review
+
+The same launcher scripts run a review in the terminal, with no server and no browser:
+
+```
+codeclear.sh review [options] [path ...]       (codeclear.ps1 review ... on PowerShell)
+```
+
+The jar dispatches on the first argument: `review` starts the application without a web server, runs `CCReviewCli`
+through `CCReviewService`, prints the result and exits; anything else starts the web application. A path is a file or a
+folder (searched for `.java` files); the default is the current folder. Options are written `--name=value`:
+
+| Option | Meaning |
+|---|---|
+| `--diff=<rev>` | Review only the lines changed since a git revision (`git diff --unified=0 --relative <rev>`); files with no changed line are skipped |
+| `--format=<text\|json>` | Terminal report (default) or the whole result as JSON |
+| `--fail-on=<level>` | Exit 1 when a finding has this severity or worse (`critical`, `high`, `medium`, `low`, `info`); default `never` |
+| `--config=<key=value>` | A project configuration fact for cross-file rules, repeatable (for example `spring.jpa.open-in-view=false`) |
+| `--rules=<dir>` | The rules folder; default is the `review` folder next to the launcher (`CODECLEAR_RULES` also sets it) |
+| `--show-skipped` | List every rule that did not run, with the reason |
+
+Any `--codeclear.*`, `--spring.*` or `--logging.*` setting is passed through to the application. Exit codes: 0 reviewed,
+1 findings at or above `--fail-on`, 2 bad usage or an error (unknown option, missing path, nothing to review, git failure).
+With no AI backend the report says which rules were not checked and why; see 7.6.
+
 Two filesystem locations are used for persistent state:
 
 - `~/.codeClear/` — machine-level credentials and preferences; never committed.
@@ -298,12 +323,30 @@ Prompt building, batching, assessment parsing and finding validation live in a s
 
 Planned drivers:
 
-- **copilot** — runs the native `copilot.exe` CLI (the first driver implemented; see 7.5)
+- **dummy** — returns nothing and reports itself as not ready; the default until a real driver exists (see 7.6)
+- **copilot** — runs the native `copilot.exe` CLI (the first real driver; see 7.5)
 - **anthropic** — Claude via the HTTP API
 - **openai** — OpenAI, and any OpenAI-compatible endpoint
 
 The reviewer may be asked to use a different driver per review (the UI's provider picker); settings for each driver live in a namespaced config section.
 
+
+### 7.6 Running Without an AI Backend
+
+No AI backend is integrated yet, and the review does not need one. `CCReviewService` runs the deterministic detector of
+every applicable rule and reports what it could not check:
+
+- **Findings** from rules that have a detector (`rule.dsl` or `rule.groovy`).
+- **Unconfirmed candidates** from `hybrid` rules: with no AI they stay candidates and are not turned into findings.
+  With a ready driver, `CCDriverCandidateConfirmer` sends each one with the rule's AI prompt, the detector's evidence
+  and the surrounding code, and expects `{"confirmed": true|false, "reason": "..."}`; an empty, unreadable or failed
+  answer is "no verdict", never a guess.
+- **Skipped rules**, each with a reason: `NEEDS_AI` (judgement only; whole-file AI review is not built), `NO_DETECTOR`
+  (executable but no detector written yet), `NO_ANALYZER` (the language has no analyzer yet, only Java does) and
+  `FAILED` (the detector failed).
+
+The `dummy` driver reports itself as not ready, so the review makes no AI calls, and returns an empty response if it is
+called anyway. Mutation testing is not part of the review; it is an external tool.
 
 ### 7.5 Copilot Driver (`copilot.exe`)
 
@@ -504,7 +547,8 @@ CC is configured through the bundled application properties file. Values can be 
 | max-batches | 40 | Maximum batches per review |
 | full-file-max-chars | 48,000 | File content threshold; larger files are omitted from the prompt |
 | prompt-timeout-seconds | 300 | Per-prompt AI call timeout |
-| ai.driver | copilot | Default AI driver id (`copilot`, `anthropic`, `openai`) |
+| ai.driver | dummy | Default AI driver id (`dummy`, then `copilot`, `anthropic`, `openai` as they are built) |
+| rules-dir | review | Folder holding the rule folders (`review/<language>/<rule-id>/`) |
 | copilot.cli-path | `copilot.exe` | Path to the Copilot CLI; resolved from `PATH` by default |
 | default-scope | COMMITTED | Default diff scope for local-branch reviews |
 | agent-file | .codeClear/agent.md | Repo-level agent instruction file |

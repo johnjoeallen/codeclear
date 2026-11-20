@@ -33,6 +33,31 @@ class DslRulesTest {
         check("optional-get-without-check");
     }
 
+    @Test
+    void referenceEqualityOnValues() throws IOException {
+        check("reference-equality-on-values");
+    }
+
+    @Test
+    void interruptFlagNotRestored() throws IOException {
+        check("interrupt-flag-not-restored");
+    }
+
+    @Test
+    void exceptionCauseDropped() throws IOException {
+        check("exception-cause-dropped");
+    }
+
+    @Test
+    void sharedSimpleDateFormat() throws IOException {
+        check("shared-simpledateformat");
+    }
+
+    @Test
+    void returnOrThrowInFinally() throws IOException {
+        check("return-or-throw-in-finally");
+    }
+
     private void check(String id) throws IOException {
         Path dir = Path.of("review/java", id);
         RuleAst rule = DslParser.parse(Files.readString(dir.resolve("rule.dsl")));

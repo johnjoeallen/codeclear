@@ -38,10 +38,16 @@ public final class CCRuleLoader {
                     : Optional.empty();
             String id = ruleDir.getParent().getFileName() + "/" + ruleDir.getFileName();
             return new CCRuleDefinition(id, Optional.of(ruleDir), CCRuleMetadata.parse(markdown), hash(markdown), script,
-                    loadDsl(ruleDir));
+                    loadDsl(ruleDir), aiPrompt(markdown));
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read rule in " + ruleDir, e);
         }
+    }
+
+    /** The text of the {@code ## AI prompt} section, when the rule has one. */
+    private static Optional<String> aiPrompt(String markdown) {
+        Matcher m = Pattern.compile("(?s)## AI prompt\\n(.*?)(?=\\n## |\\z)").matcher(markdown);
+        return m.find() && !m.group(1).isBlank() ? Optional.of(m.group(1).strip()) : Optional.empty();
     }
 
     /** Reads every {@code .dsl} file in the folder, {@code rule.dsl} first and the rest by name. */

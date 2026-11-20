@@ -1,6 +1,7 @@
 # Targeted Mutation Testing for Test-Quality Rules
 
-Status: design only, nothing built. First worked example: `java/mocked-test-cannot-prove-transaction-guarantee`.
+Status: design only, nothing built. **This is an external tool, not part of the review tool.** First worked example:
+`java/mocked-test-cannot-prove-transaction-guarantee`.
 
 ## Table of Contents
 
@@ -25,21 +26,15 @@ broken? Mutation testing answers that directly.
 
 ## Where it runs
 
-A code review does not run mutation testing. It runs where the project's tests already run, on a developer's
-machine or in CI, in an environment that is already trusted to execute that code. The review tool offers it as an
-option that is part of an overall review, off by default:
+Mutation testing is a separate tool that a developer or CI runs where the project's tests already run, in an
+environment already trusted to execute that code. The review tool does not run it and has no `--mutation` option.
 
-```
-codeclear review                 reads code only; fast; no test execution
-codeclear review --mutation      also runs mutation testing on the changed code (developer machine or CI)
-```
-
-- **Off (default):** the seven test-quality rules are not evaluated. The report lists them as "not checked, needs
-  `--mutation`" so the gap is visible. Whether they instead fall back to the AI judgement is an open decision.
-- **On:** the tool detects constructs and changed lines as usual, generates mutants, runs the mapped tests in a
-  scratch copy of the workspace, and adds survivors to the report as ordinary findings.
-- Because it runs inside the trust boundary where tests already execute, it adds no new exposure. The tool never
-  runs the reviewed project's tests in a context that did not already run them.
+- The review tool only reads code. The seven test-quality rules need the AI or this external tool, so the review lists
+  them as skipped ("needs the AI") instead of judging them.
+- The external tool uses the same rule definitions: the constructs a rule detects (an outbox write, an after-commit
+  listener, an ack placed after a write) and the targeted mutants that break them. A rule can therefore feed both
+  tools, and a finding from either can be shown next to the other.
+- How the external tool's results reach a review (for example as a report the review can read) is not designed yet.
 
 ## Idea
 
@@ -166,9 +161,11 @@ applies here too.
 
 ## Build order
 
+For the external tool:
+
 1. **Mutant generator.** JavaParser rewrite of the five mutation operators with applicability checks and unit tests
    on snippets. Needs no test execution, so it can be built and verified on its own.
 2. **Runner.** Copy the workspace, apply one mutant, run mapped tests with Maven or Gradle in a temp directory,
    collect killed or survived.
-3. **Wire to rules.** Detectors supply constructs; survivors become findings.
+3. **Wire to rules.** Detectors supply constructs; survivors become findings in the tool's own report.
 4. **Evaluate** on the rule's three evaluation cases using real Mockito and Testcontainers fixtures.

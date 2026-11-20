@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # CodeClear launcher (bash / Git Bash). Bootstrap only: all behavior lives in the backend.
-# Env: CODECLEAR_PORT (default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1
+# Usage: codeclear.sh                 start the web application
+#        codeclear.sh review [options] [path ...]   run a review in the terminal (see: codeclear.sh review --help)
+# Env: CODECLEAR_PORT (default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1,
+#      CODECLEAR_RULES (rules folder for review, default: review next to this script)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,9 +21,20 @@ fi
 
 # 2. Java check.
 command -v java >/dev/null 2>&1 || { echo "error: java not found on PATH; Java $REQUIRED_JAVA or newer is required" >&2; exit 1; }
-JAVA_MAJOR="$(java -version 2>&1 | sed -n '1s/.*version "\([0-9]*\).*/\1/p')"
+# Read the first line that contains: version "NN...". Line 1 is not enough: JAVA_TOOL_OPTIONS makes java print
+# "Picked up JAVA_TOOL_OPTIONS: ..." first.
+JAVA_MAJOR="$(java -version 2>&1 | sed -n '/version "/{s/.*version "\([0-9]*\).*/\1/p;q;}')"
 if [[ -z "$JAVA_MAJOR" || "$JAVA_MAJOR" -lt "$REQUIRED_JAVA" ]]; then
   echo "error: Java $REQUIRED_JAVA or newer is required (found: ${JAVA_MAJOR:-unknown})" >&2; exit 1
+fi
+
+# 2b. "codeclear.sh review ..." runs the command-line review and exits: no server, no browser.
+#     The rules folder defaults to the "review" folder next to this script (CODECLEAR_RULES overrides it).
+if [[ "${1:-}" == "review" ]]; then
+  RULES_DIR="${CODECLEAR_RULES:-$DIR/review}"
+  EXTRA=()
+  [[ -d "$RULES_DIR" ]] && EXTRA+=("--codeclear.rules-dir=$RULES_DIR")
+  exec java -jar "$JAR" "$@" ${EXTRA[@]+"${EXTRA[@]}"}
 fi
 
 # 3. Copilot CLI is optional (only needed for the Copilot provider), so warn rather than fail.
