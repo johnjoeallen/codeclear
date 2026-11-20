@@ -34,6 +34,8 @@ DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 ## Implementation notes
 Python `ast`; anchor to the expression.
 
+Detected on calls. `bool(os.getenv(...))`; `int`/`float` of `os.getenv("X")` with one argument; an `os.getenv`/`environ.get` default string that contains `prod`, `://`, `.com`, `.io`, `amazonaws` or `live`; and, at module level (outside any function, class or lambda and outside `if __name__ == "__main__"`), calls to `requests.*`, `connect`, `create_engine`, `Thread`, `scheduler.start`, `subprocess.*`, `app.run`, `urlopen` and `socket`.
+
 ## AI prompt
 Question: "Does this default or import-time effect cause a demonstrated deployment/runtime failure (missing variable in prod, duplicate scheduler per worker)?" Supply the config source and worker model. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

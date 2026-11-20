@@ -38,6 +38,8 @@ class Cart:
 ## Implementation notes
 Python `ast` finds candidates; anchor to the mutable assignment or the cached function.
 
+Detected on a class-body assignment of a list, dict, set or `defaultdict(...)`/`deque(...)` that a method of the class changes through `self.<name>` (`append`, `update`, `[k] = v`, `+=` and similar); on `self.x = x` where `x` is a parameter and the class changes `self.x` in place; and on a function with `lru_cache`, `cache` or `cached_property` that returns a list, dict or set literal. A name that is only read is not flagged.
+
 ## AI prompt
 Question: "Is this mutable object reachable from more than one instance, call or request, and does a visible mutation change another caller's result?" Supply the class or function, the mutating sites, and callers if shown. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

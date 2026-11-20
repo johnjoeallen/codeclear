@@ -200,6 +200,7 @@ Windows; a file with a syntax error still gives a tree. `.tsx` and `.jsx` files 
 | `c.arg(0)`, `c.keyword('timeout')` | the i-th positional argument, and the value of the keyword argument, or missing |
 | `n.derivedFrom('request', scope)` | the node mentions that name, or an identifier in it is assigned in `scope` from something that does (one step) |
 | `n.usesParameterOf(f)` | an identifier in the node is a parameter of the function `f` |
+| `cls.mutatesSelfAttribute('items')` | the code at or below changes `self.items` in place (`.append(...)`, `[k] = v`, `+=`) |
 | `f.bindsByDefault('x')` | the function or lambda gives parameter `x` a default value |
 | `id.declaredAsNewIn(scope)` | the identifier is declared inside `scope` with a `new` expression |
 | `n.countOf('name')` | how many identifiers with that text are at or below the node |

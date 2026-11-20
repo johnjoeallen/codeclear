@@ -37,6 +37,8 @@ await asyncio.gather(*(bounded(u) for u in urls))
 ## Implementation notes
 Python `ast`; anchor to the spawning expression.
 
+Detected on `asyncio.gather(*[... for x in xs])` and a generator splat; on `create_task`, `submit`, `ensure_future` and `run_in_executor` inside a `for` loop or comprehension whose iterable is not a literal or `range(<small int>)`; and on `Queue()`, `Queue(0)` or `Queue(maxsize=0)`. A Semaphore used outside the coroutine that does the I/O is not detected.
+
 ## AI prompt
 Question: "Can the input size realistically exceed downstream/pool/memory capacity shown in the code or config?" Supply the source of the collection, pool and client limits. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

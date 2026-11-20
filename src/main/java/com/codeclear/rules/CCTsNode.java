@@ -277,6 +277,36 @@ public final class CCTsNode implements CCModelNode {
         return false;
     }
 
+    /**
+     * Code at or below this node changes {@code self.<name>} in place: a call such as {@code self.<name>.append(...)}, or an
+     * item assignment {@code self.<name>[k] = v}.
+     */
+    public boolean mutatesSelfAttribute(String name) {
+        java.util.Set<String> mutators = java.util.Set.of("append", "extend", "add", "update", "insert", "pop", "popitem", "remove",
+                "discard", "clear", "setdefault", "sort", "reverse", "appendleft", "popleft");
+        for (CCTsNode c : descendants("call")) {
+            CCTsNode f = c.field("function");
+            if (f != null && f.type().equals("attribute") && mutators.contains(f.field("attribute").text())
+                    && f.field("object").text().equals("self." + name)) {
+                return true;
+            }
+        }
+        for (CCTsNode a : descendants("assignment")) {
+            CCTsNode left = a.field("left");
+            if (left != null && left.type().equals("subscript") && left.field("value") != null
+                    && left.field("value").text().equals("self." + name)) {
+                return true;
+            }
+        }
+        for (CCTsNode a : descendants("augmented_assignment")) {
+            CCTsNode left = a.field("left");
+            if (left != null && left.text().equals("self." + name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** A function or lambda that gives this parameter name a default value ({@code lambda x=x: ...}). */
     public boolean bindsByDefault(String name) {
         CCTsNode parameters = field("parameters");

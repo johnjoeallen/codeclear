@@ -37,6 +37,8 @@ if errors: raise ExceptionGroup("failed", errors)
 ## Implementation notes
 Python `ast`; anchor to the `gather`/`TaskGroup` call. Account for the Python version.
 
+Two files. `rule.dsl` flags `asyncio.gather(...)` with two or more awaitables, one of them with a write-like name (`save`, `send`, `post`, `commit`, `charge`, ...), no `return_exceptions` and no enclosing `try`; and `return_exceptions=True` whose results are dropped or never checked with `isinstance`/`Exception`. `taskgroup.dsl` flags an `async with TaskGroup()` that creates a task for a write-like call.
+
 ## AI prompt
 Question: "After one task fails or is cancelled, can sibling side effects continue or be abandoned so the overall result is inconsistent or reported as success?" Supply the tasks' bodies and the handling after the call. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

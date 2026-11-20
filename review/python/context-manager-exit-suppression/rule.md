@@ -39,6 +39,8 @@ def __exit__(self, et, ev, tb):
 ## Implementation notes
 Python `ast`; anchor to the `return`/`except`/`suppress`.
 
+Detected on `__exit__`/`__aexit__` with a `return` of a true or non-constant value, or with an unguarded `close`/`release`/`rollback`/`commit` call; on a `@contextmanager` function with a `try` around a `yield` and an `except` that has no `raise`; and on `with suppress(Exception)` or `suppress(BaseException)`. A narrow `suppress(FileNotFoundError)` is not matched.
+
 ## AI prompt
 Question: "Does the suppressed or replaced exception represent a failure the caller must observe (rollback, error response, retry)?" Supply the context manager and its call sites. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 
