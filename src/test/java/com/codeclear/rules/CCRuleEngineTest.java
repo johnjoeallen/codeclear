@@ -20,9 +20,10 @@ class CCRuleEngineTest {
     private static final String HASH = "hash";
 
     private static final String DSL_FINDING = """
-            rule x
-            for c: Catch
-            flag at c "from dsl"
+            rule 'x'
+            Catch.each { c ->
+                report c, "from dsl"
+            }
             """;
 
     @AfterAll
@@ -75,9 +76,10 @@ class CCRuleEngineTest {
     @Test
     void aCandidateClauseHandsEvidenceToTheAiInsteadOfReportingAFinding() {
         CCRuleResult r = run(CCRuleEngine.Prefer.DSL, rule(CCDetectionType.HYBRID, CCRuleConfidence.MEDIUM, null, """
-                rule x
-                for c: Catch
-                candidate at c "catch of {c.param.type} to confirm"
+                rule 'x'
+                Catch.each { c ->
+                    candidate c, "catch of ${c.param.type} to confirm"
+                }
                 """), CCChangedLines.all()).get(0);
 
         assertThat(r.findings()).isEmpty();
@@ -96,8 +98,8 @@ class CCRuleEngineTest {
 
     @Test
     void aRuleMayLowerItsConfidenceButNeverRaiseIt() {
-        String raise = DSL_FINDING.replace("flag at c", "flag at c confidence high");
-        String lower = DSL_FINDING.replace("flag at c", "flag at c confidence low");
+        String raise = DSL_FINDING.replace("\"from dsl\"", "\"from dsl\", confidence: HIGH");
+        String lower = DSL_FINDING.replace("\"from dsl\"", "\"from dsl\", confidence: LOW");
 
         assertThat(run(CCRuleEngine.Prefer.DSL, rule(CCDetectionType.AST, CCRuleConfidence.MEDIUM, null, raise),
                 CCChangedLines.all()).get(0).findings().get(0).confidence()).isEqualTo(CCRuleConfidence.MEDIUM);
@@ -107,12 +109,13 @@ class CCRuleEngineTest {
 
     @Test
     void aBrokenRuleIsAFailureNotAnException() {
-        CCRuleResult parse = run(CCRuleEngine.Prefer.DSL, rule(CCDetectionType.AST, CCRuleConfidence.MEDIUM, null, "rule x for"),
+        CCRuleResult parse = run(CCRuleEngine.Prefer.DSL, rule(CCDetectionType.AST, CCRuleConfidence.MEDIUM, null, "rule 'x' for"),
                 CCChangedLines.all()).get(0);
         CCRuleResult field = run(CCRuleEngine.Prefer.DSL, rule(CCDetectionType.AST, CCRuleConfidence.MEDIUM, null, """
-                rule x
-                for c: Catch
-                flag at c when c.nonsenseField exists "x"
+                rule 'x'
+                Catch.each { c ->
+                    report c, "x", c.nonsenseField != null
+                }
                 """), CCChangedLines.all()).get(0);
 
         assertThat(parse.ok()).isFalse();
@@ -139,9 +142,9 @@ class CCRuleEngineTest {
 
     @Test
     void staleCoversTheDslHeaderToo() {
-        String current = "# rule-hash: " + HASH + "\n# api-version: " + CCRuleDefinition.DSL_API_VERSION + "\n" + DSL_FINDING;
-        String oldHash = "# rule-hash: other\n# api-version: " + CCRuleDefinition.DSL_API_VERSION + "\n" + DSL_FINDING;
-        String oldApi = "# rule-hash: " + HASH + "\n# api-version: 0\n" + DSL_FINDING;
+        String current = "// rule-hash: " + HASH + "\n// api-version: " + CCRuleDefinition.DSL_API_VERSION + "\n" + DSL_FINDING;
+        String oldHash = "// rule-hash: other\n// api-version: " + CCRuleDefinition.DSL_API_VERSION + "\n" + DSL_FINDING;
+        String oldApi = "// rule-hash: " + HASH + "\n// api-version: 0\n" + DSL_FINDING;
 
         assertThat(rule(CCDetectionType.AST, CCRuleConfidence.MEDIUM, null, current).stale()).isFalse();
         assertThat(rule(CCDetectionType.AST, CCRuleConfidence.MEDIUM, null, oldHash).stale()).isTrue();

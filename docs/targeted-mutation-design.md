@@ -117,22 +117,29 @@ changed files
 
 ## Rule syntax sketch
 
-Not implemented. A rule would declare the construct and its mutants next to its flags:
+Not implemented. A rule would declare the construct and its mutants next to its reports, in the same syntax as
+the other rules ([rule-language.md](rule-language.md)):
 
+```groovy
+rule 'transactional-outbox-write'
+
+Method.each { m ->
+    only m.annotations.any { a -> a == 'Transactional' }
+    def save = m.calls.find { c -> c.name == 'save' && c.scope.type == 'OutboxRepository' }
+    only save != null
+
+    mutant 'delete-outbox-write',    delete(save)
+    mutant 'outbox-own-transaction', annotate(save.target, "Transactional(propagation = REQUIRES_NEW)")
+    mutant 'remove-transactional',   removeAnnotation(m, 'Transactional')
+
+    report survivors, "Outbox write is not proven atomic with the business write: mutant '${mutant}' survived"
+}
 ```
-rule transactional-outbox-write
-for    m: Method
-where  m has annotation Transactional
-   and m contains Call c where c.name == "save" and c.scope.type is "OutboxRepository"
 
-mutant "delete-outbox-write"   delete c
-mutant "outbox-own-transaction" annotate c.target with Transactional(propagation = REQUIRES_NEW)
-mutant "remove-transactional"   remove annotation Transactional from m
+This sketch needs two things the language does not have yet: a `mutant` statement and a way to name the surviving
+mutants in `report`, and a fact for the calls inside a method (`m.calls`). Both are small additions.
 
-flag survivors "Outbox write is not proven atomic with the business write: mutant '{mutant}' survived"
-```
-
-`delete`, `annotate`, `remove annotation`, `swap` and `replace annotation` are the whole mutation vocabulary needed so
+`delete`, `annotate`, `removeAnnotation`, `swap` and `replaceAnnotation` are the whole mutation vocabulary needed so
 far. Mutants are data, so the existing automatic mutator and mutation-testing discipline for the rules themselves
 applies here too.
 

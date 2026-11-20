@@ -370,11 +370,12 @@ findings are passed to the model as already-reported so it does not repeat them.
 
 ## Restricted Rule Language (`rule.dsl`)
 
-A rule may have a detector in a restricted rule language, in `rule.dsl` beside or instead of `rule.groovy`. The
-language is declarative: `for` a node kind, `where` / `unless` / `require` filters, `let` bindings, and `flag` or
-`candidate` clauses. It has no statements, loops or recursion and can only read the fields and call the facts the
-host defines, so it needs no sandbox. `flag` reports a finding; `candidate` hands evidence to the AI reviewer to
-confirm, which is the output of a `hybrid` rule.
+A rule may have a detector in a restricted rule language, in `rule.dsl` beside or instead of `rule.groovy`. The syntax
+follows Groovy (`Catch.each { c -> ... }`, `only`, `skip`, `report`, `def`, closures) so a developer can read it,
+but it is a small language with its own parser and is never executed as Groovy: no loops, conditionals or arbitrary
+calls, only the fields and facts the host defines, so it needs no sandbox. `report` gives a finding; `candidate`
+hands evidence to the AI reviewer to confirm, which is the output of a `hybrid` rule. The reference is
+[rule-language.md](rule-language.md).
 
 `CCRuleEngine` runs a run's rules over all its files and picks a detector per rule: `.dsl` first by default, Groovy
 when a rule has no `.dsl` file or when Groovy is preferred. A rule with neither, whose type is executable, is

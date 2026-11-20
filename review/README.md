@@ -118,7 +118,7 @@ a ```` ```java prelude ```` block inside a case to replace it; `config: key=valu
 
 ### `rule.dsl`
 
-A few rules also have a detector written in the restricted rule language, beside or instead of `rule.groovy`. Each
+A few rules also have a detector written in the restricted rule language (`docs/rule-language.md`), beside or instead of `rule.groovy`. Each
 `.dsl` file carries the same `generated-from` / `rule-hash` header as a script and is checked against the rule's
 `tests.md`. The engine is `CCRuleEngine` (`src/main/java/com/codeclear/rules/`), which runs the `.dsl` detector first and
 falls back to Groovy; the language is in `com.codeclear.rules.dsl`. A rule that needs several detectors keeps them as

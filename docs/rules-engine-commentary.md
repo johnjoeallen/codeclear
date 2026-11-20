@@ -22,6 +22,7 @@ script-based rule engine. Newest entries go at the bottom of each section. The f
 | D4 | When a rule `.md` changes, the AI regenerates its script. | 2026-11-20 |
 | D5 | The tool regenerates stale scripts itself at review time, using the same AI driver as the review, because the AI is already required for `ai` and `hybrid` rules. | 2026-11-20 |
 | D6 | Every rule has its own folder, `review/<lang>/<id>/`, holding `rule.md`, `rule.groovy` and `tests.md`. Tests were `tests.json` at first and moved to Markdown on 2026-11-21 so people can review them and the AI can write them. | 2026-11-20 |
+| D7 | The restricted rule language uses a Groovy-flavoured surface syntax (`Catch.each { c -> ... }`, `only`, `skip`, `report`, `def`, closures) so developers can read it, parsed by a custom parser, not by Groovy (Groovy's parser is too heavy). Same rule tree underneath, so the interpreter, facts and mutation tooling did not change. | 2026-11-21 |
 
 ## Discoveries
 
@@ -118,7 +119,7 @@ changed-line filter).
 
 ### Experiment: the two Groovy rules in a restricted language (test scope only)
 
-Engine code under `src/test/java/com/codeclear/rules/dsl/`; the rules are `rule.dsl` files in their rule folders under `review/`, beside `rule.groovy` where one exists.
+Engine code is `com.codeclear.rules.dsl` (it started in test scope and moved to main when wired in); the rules are `rule.dsl` files in their rule folders under `review/`, beside `rule.groovy` where one exists.
 
 - Both rules pass their existing tests unchanged: 17 and 33 cases. Size: 53 to 15 lines and 160 to 22. The
   90 lines of guard logic in `optional-get-without-check` became one host fact, `c.guarded(recv, present)`,
@@ -274,6 +275,21 @@ There is no review pipeline yet, so the baseline is the design as written: the A
   entities held in parameters and locals but not fields; it now uses the project model. Both would have been invisible
   without running a rule through the real engine.
 - Nothing in the product calls the engine yet, because no review pipeline exists.
+
+### Rule language syntax
+
+- The first syntax read like SQL (`for c: Catch`, `where`, `unless`, `let quiet(s) = ...`, `and`/`or`/`is empty`). Feedback:
+  `let name(p) = ...` looks like an assignment but is a function, and a Java or Groovy developer would have to learn
+  the language to read a rule. The syntax now follows Groovy: `Catch.each { c -> ... }`, `only` and `skip` for filters,
+  `report` and `candidate`, `def name = { p -> ... }` for tests, `&&`, `||`, `!`, `in`, `==~`, `instanceof`,
+  `.isEmpty()`, `.every(...)`, `.any { ... }` and `${}` interpolation. See `rule-language.md`.
+- Built with a custom parser (14 parser tests). Using Groovy's own parser with a whitelisting evaluator was considered
+  and rejected as too heavy. The rule tree is unchanged, so all five rules passed their existing tests unchanged:
+  the same 17, 33, 37 and 34 cases.
+- The language says what it does not support: `if`, `for`, `while`, `return`, `new` and the like give an error that
+  points to `only`, `skip`, `any { }` and `every { }`.
+- Whether an AI generates rules correctly in the new syntax has not been re-measured; the earlier experiment used the
+  old syntax.
 
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
