@@ -103,6 +103,7 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Binary` | `operator` (`==`, `!=`, `+`, ...), `left`, `right` |
 | `New` | `args`, `firstArg`, `typeName`, `causeUnsupported` (the exception class is in the file or the JDK and no constructor takes a cause) |
 | `Throw` | `expression` |
+| `Return` | `expression` (missing for a bare `return;`) |
 | `Call` (more) | `isDiscarded` (an expression statement), `sameClassTransactionalTarget` |
 | `Method` (tests) | `assertions` (assertion calls, following helpers of the same class two hops), `isPrivate`, `isFinal`, `hasAnnotationMember('Test', 'expected')` |
 | any node (more) | `enclosingClassAnnotations` |
@@ -112,8 +113,9 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | any node (data) | `inDataClass` |
 | `Annotation` | `name` |
 | `Call` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource` |
+| any node (logging) | `inLevelGuard` (inside an `if` whose condition calls `isDebugEnabled()`, `isTraceEnabled()`, `isEnabledFor(...)` or `isLoggable(...)`) |
 | any node (transactions) | `inReadOnlyTransaction` (the method says `@Transactional(readOnly = true)`, or has no `@Transactional` of its own and its class says so) |
-| `FieldDecl` (more) | `mutatedAfterInit` (`put`, `add`, `remove` and similar on it in a method that is not a constructor, initializer or `@PostConstruct`, outside `synchronized` code) |
+| `FieldDecl` (more) | `mutatedAfterInit` (`put`, `add`, `remove` and similar on it in a method that is not a constructor, initializer or `@PostConstruct`, outside `synchronized` code), `assignedAfterInit` (`x = ...`, `this.x = ...` or `x++` in such a method) |
 | `Method` (JPA) | `usesGeneratedId` (reads a `@GeneratedValue` field of its class, or its getter) |
 | `StringLit` | `placeholders` (the number of unescaped `{}`) |
 | `Method` (more) | `isPublic` (interface methods count), `classIsPublic`, `throwsTypes`, `annotations` |

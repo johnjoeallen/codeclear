@@ -94,10 +94,14 @@ final class DslSyntaxFacts {
                     && v.getParentNode().orElse(null) instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr;
         } else if (n instanceof MethodCallExpr c && name.equals("inTryResource")) {
             return inTryResource(c);
+        } else if (name.equals("inLevelGuard")) {
+            return inLevelGuard(n);
         } else if (name.equals("inReadOnlyTransaction")) {
             return inReadOnlyTransaction(n);
         } else if (n instanceof FieldDeclaration f && name.equals("mutatedAfterInit")) {
             return mutatedAfterInit(f);
+        } else if (n instanceof FieldDeclaration f && name.equals("assignedAfterInit")) {
+            return assignedAfterInit(f);
         } else if (n instanceof Comment c && (name.equals("marker") || name.equals("markerText"))) {
             return commentMarker(c, name.equals("marker"));
         } else if (n instanceof VariableDeclarator v) {
@@ -141,6 +145,10 @@ final class DslSyntaxFacts {
         } else if (n instanceof ThrowStmt t) {
             if (name.equals("expression")) {
                 return t.getExpression();
+            }
+        } else if (n instanceof ReturnStmt r) {
+            if (name.equals("expression")) {
+                return r.getExpression().orElse(null);
             }
         } else if (n instanceof FieldDeclaration f) {
             switch (name) {
@@ -1048,6 +1056,23 @@ final class DslSyntaxFacts {
         return uses > 0;
     }
 
+    private static final Pattern LEVEL_GUARD = Pattern.compile("(?s).*\\b(isDebugEnabled|isTraceEnabled|isEnabledFor|isLoggable|isEnabled)\\b.*");
+
+    /** The node is inside the then-branch of an {@code if} whose condition asks whether a log level is enabled. */
+    private static boolean inLevelGuard(Node n) {
+        Node child = n;
+        for (Optional<Node> a = n.getParentNode(); a.isPresent(); child = a.get(), a = a.get().getParentNode()) {
+            if (a.get() instanceof MethodDeclaration) {
+                return false;
+            }
+            if (a.get() instanceof com.github.javaparser.ast.stmt.IfStmt i && i.getThenStmt() == child
+                    && LEVEL_GUARD.matcher(i.getCondition().toString()).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean inSynchronized(Node n) {
         for (Optional<Node> a = n.getParentNode(); a.isPresent(); a = a.get().getParentNode()) {
             if (a.get() instanceof SynchronizedStmt) {
@@ -1114,6 +1139,31 @@ final class DslSyntaxFacts {
             }
             Optional<MethodDeclaration> m = c.findAncestor(MethodDeclaration.class);
             if (m.isPresent() && m.get().getAnnotationByName("PostConstruct").isEmpty() && !inSynchronized(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The field is assigned ({@code x = ...}, {@code this.x = ...}, {@code x++}) in a method that is not a constructor, an
+     * initializer or a {@code @PostConstruct} method, outside {@code synchronized} code.
+     */
+    private static boolean assignedAfterInit(FieldDeclaration f) {
+        String name = f.getVariable(0).getNameAsString();
+        Optional<ClassOrInterfaceDeclaration> cls = f.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (cls.isEmpty()) {
+            return false;
+        }
+        java.util.List<Node> writes = new java.util.ArrayList<>();
+        cls.get().findAll(com.github.javaparser.ast.expr.AssignExpr.class).stream()
+                .filter(a -> refersTo(a.getTarget(), name)).forEach(writes::add);
+        cls.get().findAll(com.github.javaparser.ast.expr.UnaryExpr.class).stream()
+                .filter(u -> u.getOperator().name().contains("INCREMENT") || u.getOperator().name().contains("DECREMENT"))
+                .filter(u -> refersTo(u.getExpression(), name)).forEach(writes::add);
+        for (Node w : writes) {
+            Optional<MethodDeclaration> m = w.findAncestor(MethodDeclaration.class);
+            if (m.isPresent() && m.get().getAnnotationByName("PostConstruct").isEmpty() && !inSynchronized(w)) {
                 return true;
             }
         }
