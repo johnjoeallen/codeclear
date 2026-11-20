@@ -239,21 +239,23 @@ public final class CCTsNode implements CCModelNode {
         if (mentions(name)) {
             return true;
         }
-        for (CCTsNode id : descendants("identifier")) {
-            for (CCTsNode a : scope.descendants("assignment")) {
-                CCTsNode left = a.field("left");
-                CCTsNode right = a.field("right");
-                if (left != null && right != null && left.text().equals(id.text()) && right.mentions(name)) {
-                    return true;
-                }
-            }
-        }
+        List<CCTsNode> ids = new ArrayList<>(descendants("identifier"));
         if (type().equals("identifier")) {
-            for (CCTsNode a : scope.descendants("assignment")) {
-                CCTsNode left = a.field("left");
-                CCTsNode right = a.field("right");
-                if (left != null && right != null && left.text().equals(text()) && right.mentions(name)) {
-                    return true;
+            ids.add(this);
+        }
+        // Python: x = value. TypeScript: const x = value, and x = value.
+        for (String[] kind : new String[][] {{"assignment", "left", "right"}, {"variable_declarator", "name", "value"},
+                {"assignment_expression", "left", "right"}}) {
+            for (CCTsNode a : scope.descendants(kind[0])) {
+                CCTsNode left = a.field(kind[1]);
+                CCTsNode right = a.field(kind[2]);
+                if (left == null || right == null || !right.mentions(name)) {
+                    continue;
+                }
+                for (CCTsNode id : ids) {
+                    if (left.text().equals(id.text())) {
+                        return true;
+                    }
                 }
             }
         }

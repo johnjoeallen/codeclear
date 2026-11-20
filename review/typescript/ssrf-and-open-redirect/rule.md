@@ -32,6 +32,8 @@ const u = new URL(raw); if (!ALLOWED.has(u.hostname)) throw new Error('blocked')
 ## Implementation notes
 Anchor to the request call. Taint-based; no standard ESLint equivalent.
 
+Detected on `fetch`, `axios.*`, `got`, `request`, `needle`, `superagent` and `http(s).request/get` calls, and on `redirect(...)`, whose first argument is not a literal and is derived from `req`, `request`, `message` or `query` (one step through a variable). A function that mentions an allow-list (`allowlist`, `allowedHosts`, `ALLOWED`), `isPrivate`, `ipaddr`, `isIP` or `dns.lookup` is treated as checking hosts; for a redirect, `startsWith("/")` or `new URL` counts as a check.
+
 ## Required tests
 Request URL to `fetch` (finding), allow-list check (no finding), `redirect(req.query.next)` (finding), constant URL (no finding).
 

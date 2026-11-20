@@ -32,6 +32,8 @@ execFile('convert', [file, 'out.png']);
 ## Implementation notes
 Anchor to the call. Equivalent: `security/detect-child-process`.
 
+Only in files that mention `child_process`, `shelljs` or `execa`. `exec`/`execSync` (also `shelljs.exec`) is flagged when its first argument is a template literal with `${}` or a `+` concatenation containing a name; `spawn`/`execFile` when an options object has `shell: true` and the command is not a string literal. A constant command, and `execFile`/`spawn` with an argument array and no shell, are not matched.
+
 ## Required tests
 Interpolated `exec` (finding), `execFile` array (no finding), `spawn` with `shell: true` and variable (finding), constant command (no finding).
 

@@ -33,6 +33,8 @@ db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
 ## Implementation notes
 Anchor to the query call. Equivalent: `sonarjs/sql-queries`, `security/detect-sql-injection`.
 
+Detected on `query`, `execute`, `raw`, `$queryRawUnsafe`, `$executeRawUnsafe`, `run`, `all`, `get` and `prepare` calls whose first argument is a template literal with `${}` or a `+` concatenation with a name, and starts like SQL (`select`, `insert`, `update`, `delete`, `with`, `create`, `alter`, `drop`). A tagged template (`sql`...``, `prisma.$queryRaw`...``) is skipped, and so is a function that mentions an allow-list, `includes(`, `escapeId` or `format(`.
+
 ## Required tests
 Interpolated value (finding), parameterized (no finding), dynamic ORDER BY without allow-list (finding), allow-listed column (no finding).
 

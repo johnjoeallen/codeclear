@@ -32,6 +32,8 @@ const p = path.resolve(UPLOADS, name); if (!p.startsWith(UPLOADS + path.sep)) th
 ## Implementation notes
 Anchor to the filesystem call.
 
+Detected on `fs.*` read/write/remove calls and `sendFile`/`download`, when the first argument is not a literal and is derived from `req`, `request`, `params` or `message` (through a variable, one step), or is named like a file or path and is a parameter of the enclosing function. A function that mentions `basename`, `startsWith(`, `realpath`, `relative(`, `isSubPath`, `isPathInside` or a `root:` option is skipped as a whole.
+
 ## Required tests
 Joined request value (finding), `basename` (no finding), resolve + startsWith guard (no finding), `sendFile` with `root` (no finding).
 

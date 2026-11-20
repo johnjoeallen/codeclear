@@ -31,6 +31,8 @@ ejs.render(fs.readFileSync('t.ejs', 'utf8'), { name: req.body.name });
 ## Implementation notes
 Anchor to the compile/render call.
 
+Detected on `ejs.render`, `pug.render/compile`, `Handlebars.compile`, `_.template`, `nunjucks.renderString`, `mustache.render`, `vm.runIn*Context` and `new vm.Script` whose first argument is not a literal, and on `res.render(name)` where the name is derived from `req` or `request` and the function mentions no allow-list.
+
 ## Required tests
 Request-derived template string (finding), literal template with data (no finding), `res.render(req.query.view)` (finding), allow-listed view (no finding).
 
