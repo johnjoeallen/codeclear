@@ -35,5 +35,7 @@ Python `ast`; variables of unknown type are not flagged. Equivalent: Ruff `RUF03
 ## Why deterministic
 A `Decimal(...)` call with a float literal or float-typed argument is a syntactic fact.
 
+Detected on tree-sitter `call` nodes named `Decimal` or `decimal.Decimal` with an argument that is, or contains, a float literal or a `float(...)` call. A variable is never flagged, because its type is unknown.
+
 ## Required tests
 Float literal (finding), `float(x)` (finding), string literal (no finding), `from_float` (no finding).

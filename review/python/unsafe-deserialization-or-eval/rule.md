@@ -39,5 +39,7 @@ Whether the input is attacker-controlled is context; the AI reviewer can confirm
 ## Why deterministic
 Calls to `pickle.loads`, `yaml.load` without a safe loader, `eval` and `exec` are syntactic facts.
 
+`yaml.load` is safe only with a `SafeLoader`/`CSafeLoader`/`BaseLoader` given as `Loader=` or as the second argument. `eval`/`exec` of a string literal (no f-string substitution) is skipped. The low-confidence case for pickle of a file the function wrote itself is not detected.
+
 ## Required tests
 `yaml.load` (finding), `safe_load` (no finding), `pickle.loads` (finding), `eval(user)` (finding), `eval("1+1")` (no finding).

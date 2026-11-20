@@ -37,5 +37,7 @@ Python `ast`. Equivalent: Bandit `B602`, `B605`, `B501`; Ruff `S602`, `S501`.
 ## Why deterministic
 `shell=True` with a non-constant command and `verify=False`/unverified SSL contexts are syntactic facts.
 
+Detected on tree-sitter `call`, `attribute` and `assignment` nodes. A command is "constant" when it is a string literal or a concatenation of them with no f-string substitution; `%` and `.format()` building is not told apart from a constant. `shell=True` with no argument at all is not flagged.
+
 ## Required tests
 f-string with `shell=True` (finding), list arguments (no finding), `verify=False` (finding), test path (no finding).

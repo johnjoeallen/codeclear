@@ -35,5 +35,7 @@ Python `ast`. Equivalent: Ruff `DTZ001`-`DTZ006`. `utcnow` is deprecated since P
 ## Why deterministic
 A `datetime` constructor call without a timezone argument is a syntactic fact.
 
+Detected on `datetime.<method>` and `datetime.datetime.<method>` calls. `now()` and `fromtimestamp(x)` are flagged without `tz=`/`tzinfo=` or a second positional argument; `utcnow()` and `utcfromtimestamp()` always. A `from datetime import now` style call is not seen.
+
 ## Required tests
 `now()` (finding), `utcnow()` (finding), `now(timezone.utc)` (no finding), `fromtimestamp(x, tz=UTC)` (no finding).

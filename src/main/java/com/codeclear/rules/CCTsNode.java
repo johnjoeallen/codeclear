@@ -97,6 +97,28 @@ public final class CCTsNode implements CCModelNode {
         return null;
     }
 
+    /** The arguments of a call: the named children of its {@code arguments} field, or an empty list. */
+    public List<CCTsNode> args() {
+        CCTsNode a = field("arguments");
+        return a == null ? List.of() : a.children();
+    }
+
+    /** The arguments of a Python call that are neither {@code name=value} nor a {@code *}/{@code **} splat. */
+    public List<CCTsNode> positional() {
+        return args().stream().filter(x -> !x.type().equals("keyword_argument") && !x.type().endsWith("splat")
+                && !x.type().equals("comment")).toList();
+    }
+
+    /** The value of the Python keyword argument {@code name=value} of a call, or null. */
+    public CCTsNode keyword(String name) {
+        for (CCTsNode a : args()) {
+            if (a.type().equals("keyword_argument") && a.field("name") != null && a.field("name").text().equals(name)) {
+                return a.field("value");
+            }
+        }
+        return null;
+    }
+
     /** The last of the named children, or null. */
     public CCTsNode lastChild() {
         int n = node.getNamedChildCount();

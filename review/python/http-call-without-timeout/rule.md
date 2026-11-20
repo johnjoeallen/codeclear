@@ -36,5 +36,7 @@ Python `ast`. Equivalent: Ruff `S113`. `timeout=None` is also a finding.
 ## Why deterministic
 A known HTTP client call lacking a `timeout` argument is a syntactic fact.
 
+`requests.<verb>()`, `urlopen()` and `<name>session.<verb>()` calls (the last only in a file that mentions `requests`) are flagged when `timeout=` is missing or `None`. A call that passes `**kwargs` is skipped, since the options may hold the timeout; a file that mentions `HTTPAdapter` is trusted to set one for its sessions.
+
 ## Required tests
 No timeout (finding), `timeout=5` (no finding), `timeout=None` (finding), `httpx.get` default (no finding).

@@ -188,6 +188,8 @@ so the JSX in them becomes error nodes. A rule iterates the grammar's own node t
 | `n.child('block')` | the first named child of that type, or missing |
 | `n.descendants('call')` | every node below with that type, in source order |
 | `n.ancestor('try_statement')`, `n.ancestorOf(['a', 'b'])` | the nearest ancestor with that type, or with one of those types |
+| `c.args`, `c.positional` | the arguments of a call, and those that are not `name=value` or a `*`/`**` splat |
+| `c.arg(0)`, `c.keyword('timeout')` | the i-th positional argument, and the value of the keyword argument, or missing |
 | `n.mentions('name')` | an identifier with that text appears at or below the node |
 | `n.hasNearbyComment` | a comment starts on the last line of the node, or ends on the line above its first |
 | `n.isError` | the node is a syntax error or a missing token |
