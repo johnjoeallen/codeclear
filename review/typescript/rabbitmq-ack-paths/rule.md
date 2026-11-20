@@ -32,6 +32,8 @@ ch.consume(q, async (m) => { try { await handle(m); ch.ack(m); } catch { ch.nack
 ## Implementation notes
 Anchor to `consume`.
 
+Detected on `channel.consume(queue, callback)` without `noAck: true`: a callback with no `ack`/`nack`/`reject` at all; a callback that awaits and has no `try` whose catch or finally settles the delivery; and one that calls `ack` before its first `await`. Early `return` branches without a settle are not followed separately.
+
 ## Required tests
 Unsettled throw path (finding), try/catch settle (no finding), ack before await (finding), `noAck: true` (no finding).
 

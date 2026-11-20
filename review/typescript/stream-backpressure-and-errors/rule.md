@@ -34,6 +34,8 @@ await pipeline(fs.createReadStream(p), res);
 ## Implementation notes
 Anchor to the `pipe` call or write loop.
 
+Detected on `.pipe(` in a file with no `.on("error")` and no `pipeline(`, `finished(` or `stream/promises`; on a `write(...)` statement directly inside a loop in a function that never mentions `drain`; and on `.on("data", ...)` whose callback writes and never pauses. A leak is not reported just because no `close` appears.
+
 ## Required tests
 `pipe` without error handling (finding), `pipeline` (no finding), write loop ignoring return value (finding), `drain` awaited (no finding).
 

@@ -33,6 +33,8 @@ const o = await prisma.$transaction((tx) => tx.order.create(d)); await fetch(pay
 ## Implementation notes
 Anchor to the remote call.
 
+Detected on `fetch`, `axios.*`, `got`, `request`, `http(s).request/get`, a producer, queue, SNS, SQS, mailer or channel `send/publish`, `sendMail` and `setTimeout`, inside the callback of a call named `transaction`, `$transaction`, `withTransaction`, `runInTransaction`, `startTransaction` or `inTransaction`. A call inside `afterCommit`, `onCommit` or an outbox helper is skipped. A transaction written as `BEGIN` ... `COMMIT` statements is not followed.
+
 ## Required tests
 `fetch` in callback (finding), after transaction (no finding), `producer.send` in callback (finding), DB-only (no finding).
 

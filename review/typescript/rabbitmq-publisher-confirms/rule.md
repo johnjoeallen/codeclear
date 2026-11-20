@@ -34,6 +34,8 @@ const ch = await conn.createConfirmChannel(); await new Promise((r, j) => ch.sen
 ## Implementation notes
 Anchor to the publish call.
 
+Detected on `createChannel()` in a file that publishes and never mentions `createConfirmChannel`, `waitForConfirms` or `confirm:`; on `publish`/`sendToQueue` without `persistent: true` in a file that declares a `durable: true` queue; and on `connect`/`createChannel` inside a function that never calls `close` or `disconnect` and is not named like an init function. A file that mentions telemetry, metrics, analytics, best-effort or transient is skipped.
+
 ## Required tests
 Plain channel publish (finding), confirm channel with callback (no finding), ignored callback (finding), persistent flag set (no finding).
 

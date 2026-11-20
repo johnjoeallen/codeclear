@@ -32,6 +32,8 @@ catch { ch.nack(m, false, attempts(m) < 3); } // false routes to the DLX
 ## Implementation notes
 Anchor to the nack/reject.
 
+Detected on `nack(msg, _, true)`, `reject(msg, true)` and a `requeue: true` option inside a `catch` clause, in a function that mentions no retry marker (`x-death`, `attempts`, `retry`, `redelivered`, `delay`, `headers[`); and on `assertQueue` with no dead-letter option in a file that calls `nack` or `reject` and never mentions `deadLetterExchange`. A dead-letter exchange declared in infrastructure is not visible.
+
 ## Required tests
 Unconditional requeue (finding), conditional with attempts counter (no finding), `requeue=false` (no finding).
 

@@ -34,6 +34,8 @@ await producer.send({ topic: 't', messages: [m] });
 ## Implementation notes
 Anchor to the send call. Overlaps `floating-promise` for TS with types; this rule also covers JS and callbacks.
 
+Detected on an expression statement `x.send/produce/sendBatch/publish/sendToQueue(...)` with no `await`, where `x` has `producer`, `sqs`, `sns`, `kafka`, `publisher`, `channel`, `eventbridge`, `kinesis`, `pubsub` or `queue` in its name; and on `process.exit()` as the statement after such a send. A function that mentions telemetry, metrics, analytics, best-effort or fire-and-forget is skipped. Callback-style publish and a missing `flush` on shutdown are not detected.
+
 ## Required tests
 Unawaited send (finding), awaited (no finding), callback ignoring error (finding), publish confirm channel callback handling error (no finding).
 
