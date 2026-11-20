@@ -86,7 +86,7 @@ error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'str
 
 Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
 expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
-declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Comment` (every comment in the file: line, block and Javadoc) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
+declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Annotation` (every annotation), `Comment` (every comment in the file: line, block and Javadoc) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
 `instanceof` and `inside`, not iterated.
 
 | Node | Fields |
@@ -110,6 +110,11 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Param` (more) | `inPublicMethod`, `usedInArithmetic` |
 | `Call` (streams, holders) | `chainCalls`, `chainStartsStream`, `hasSideEffectStage`, `holderInitializer`, `releasedInMethodFinally(names)`, `pairedRelease(names)` |
 | any node (data) | `inDataClass` |
+| `Annotation` | `name` |
+| `Call` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource` |
+| any node (transactions) | `inReadOnlyTransaction` (the method says `@Transactional(readOnly = true)`, or has no `@Transactional` of its own and its class says so) |
+| `FieldDecl` (more) | `mutatedAfterInit` (`put`, `add`, `remove` and similar on it in a method that is not a constructor, initializer or `@PostConstruct`, outside `synchronized` code) |
+| `Method` (JPA) | `usesGeneratedId` (reads a `@GeneratedValue` field of its class, or its getter) |
 | `StringLit` | `placeholders` (the number of unescaped `{}`) |
 | `Method` (more) | `isPublic` (interface methods count), `classIsPublic`, `throwsTypes`, `annotations` |
 | `Catch` (more) | `tryCalls` (the calls in the try block it belongs to) |
@@ -135,6 +140,7 @@ Facts are reviewed Java that does the work a rule should not express itself. The
 | `expr.fetched` | The entity was produced by a join-fetch query or entity graph, possibly several calls away |
 | `node.inTransaction` | The node runs inside a transaction, directly or because every caller does |
 | `project.config('key')` | A project configuration value, for example `spring.jpa.open-in-view` |
+| `call.guardedByCallers(expr, PRESENT)` | `expr` is a parameter of the method around `call`, the method has callers in the project, and every caller passes `Optional.of(...)` or a variable that is guarded at the call or is a parameter whose callers all guard it. Followed for a few hops; a method with no caller in the project proves nothing |
 | `call.releasedInNextFinally(['unlock', 'release'])` | The call is a statement, the next statement is a `try`, and its `finally` calls one of those methods on the same receiver |
 | `call.releasedInEnclosingFinally(names)` | The call is inside the `try` block of a `try` whose `finally` calls one of those methods on the same receiver |
 | `call.releasedElsewhere(names)` | Another method of the class releases the same receiver without acquiring it itself (acquire and release split across methods) |

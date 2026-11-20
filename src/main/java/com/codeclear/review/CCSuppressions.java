@@ -21,17 +21,14 @@ import java.util.regex.Pattern;
  * A comment alone on its line covers the next non-blank line, and a comment after code covers its own line. {@code //} and
  * {@code /* *}{@code /} comments are recognised in every file, and {@code #} comments in files that use them.
  *
- * <p>Every finding on a covered line is ignored, unless the reason starts with rule ids, which limits the comment to those rules:
- * {@code // CodeClear: java/empty-catch-block, java/log-and-rethrow the caller handles it}.
+ * <p>Every finding on a covered line is ignored, unless the keyword is followed by rule ids in parentheses, which limit the comment to
+ * those rules: {@code // CodeClear(java/empty-catch-block, java/log-and-rethrow): the caller handles it}.
  */
 final class CCSuppressions {
 
-    private static final Pattern SLASH = Pattern.compile("(//|/\\*)\\s*CodeClear:", Pattern.CASE_INSENSITIVE);
-    private static final Pattern HASH = Pattern.compile("#\\s*CodeClear:", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SLASH = Pattern.compile("(//|/\\*)\\s*CodeClear\\s*(?:\\(([^)]*)\\))?\\s*:", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HASH = Pattern.compile("#\\s*CodeClear\\s*(?:\\(([^)]*)\\))?\\s*:", Pattern.CASE_INSENSITIVE);
     private static final Set<String> HASH_EXTENSIONS = Set.of(".py", ".yml", ".yaml", ".properties", ".sh", ".toml", ".conf");
-
-    /** Rule ids at the start of the reason: {@code java/a, java/b because ...}. */
-    private static final Pattern RULE_IDS = Pattern.compile("\\s*([a-z]+/[a-z0-9-]+(?:\\s*,\\s*[a-z]+/[a-z0-9-]+)*)(?=[\\s*]|$)");
 
     /** Line number to the rules the comment names; an empty set means every rule. */
     private final Map<Integer, Set<String>> lines;
@@ -67,7 +64,7 @@ final class CCSuppressions {
                 continue;
             }
             int at = m.start();
-            Set<String> rules = ruleIds(text[i].substring(m.end()));
+            Set<String> rules = ruleIds(m.group(m.groupCount()));
             if (!text[i].substring(0, at).isBlank()) {
                 add(covered, i + 1, rules); // a trailing comment covers its own line
                 continue;
@@ -90,12 +87,14 @@ final class CCSuppressions {
         return new CCSuppressions(covered);
     }
 
-    private static Set<String> ruleIds(String reason) {
-        Matcher m = RULE_IDS.matcher(reason);
+    /** The rule ids inside the parentheses, {@code CodeClear(java/a, java/b):}; none means every rule. */
+    private static Set<String> ruleIds(String inParentheses) {
         Set<String> ids = new HashSet<>();
-        if (m.lookingAt()) {
-            for (String id : m.group(1).split("\\s*,\\s*")) {
-                ids.add(id.strip());
+        if (inParentheses != null) {
+            for (String id : inParentheses.split(",")) {
+                if (!id.isBlank()) {
+                    ids.add(id.strip());
+                }
             }
         }
         return ids;

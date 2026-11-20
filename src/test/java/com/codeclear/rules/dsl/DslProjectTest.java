@@ -74,6 +74,36 @@ class DslProjectTest {
     }
 
     @Test
+    void unboundedFindall() throws Exception {
+        check("unbounded-findall", Path.of("review/java/unbounded-findall"), List.of("rule.dsl"));
+    }
+
+    @Test
+    void awsClientNotReused() throws Exception {
+        check("aws-client-not-reused", Path.of("review/java/aws-client-not-reused"), List.of("rule.dsl"));
+    }
+
+    @Test
+    void readonlyTransactionWithWrites() throws Exception {
+        check("readonly-transaction-with-writes", Path.of("review/java/readonly-transaction-with-writes"), List.of("rule.dsl"));
+    }
+
+    @Test
+    void sharedUnsafeCollection() throws Exception {
+        check("shared-unsafe-collection", Path.of("review/java/shared-unsafe-collection"), List.of("rule.dsl"));
+    }
+
+    @Test
+    void jpaEntityEqualsHashcode() throws Exception {
+        check("jpa-entity-equals-hashcode", Path.of("review/java/jpa-entity-equals-hashcode"), List.of("rule.dsl", "hash.dsl"));
+    }
+
+    @Test
+    void optionalGetWithoutCheck() throws Exception {
+        check("optional-get-without-check", Path.of("review/java/optional-get-without-check"), List.of("rule.dsl"));
+    }
+
+    @Test
     void logInjection() throws Exception {
         check("log-injection", Path.of("review/common/log-injection"), List.of("rule.dsl"));
     }

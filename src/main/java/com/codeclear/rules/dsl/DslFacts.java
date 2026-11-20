@@ -129,7 +129,8 @@ final class DslFacts {
             "isPublic", "classIsPublic", "throwsTypes", "tryCalls", "enclosingMethod", "enclosingIterations", "iteratedCollection",
             "iteratedType", "followedByExit", "iterable", "updatesCurrentKey", "enclosingClassAnnotations", "isDiscarded", "sameClassTransactionalTarget", "assertions",
             "inDataClass", "chainCalls", "chainStartsStream", "hasSideEffectStage", "holderInitializer", "isLocal", "usedInArithmetic",
-            "neverReferenced", "inPublicMethod", "marker", "markerText");
+            "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
+            "inReadOnlyTransaction", "mutatedAfterInit");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -156,6 +157,12 @@ final class DslFacts {
                 && args.get(0) instanceof Node v && args.get(1) instanceof DslInterpreter.Atom a
                 && a.name().equals("present")) {
             return isGuarded(call, v.toString());
+        }
+        if (name.equals("guardedByCallers") && target instanceof MethodCallExpr call && args.size() == 2
+                && args.get(0) instanceof Node v && args.get(1) instanceof DslInterpreter.Atom a
+                && a.name().equals("present")) {
+            return project != null && v instanceof NameExpr n
+                    && paramGuarded(call, n.getNameAsString(), project, 0, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
         }
         throw new IllegalArgumentException("no fact '" + name + "' for those arguments");
     }
@@ -300,6 +307,47 @@ final class DslFacts {
                 }
             }
             child = p;
+        }
+    }
+
+    // ---- guardedByCallers(v, present): v is a parameter and every caller passes something present -----------------
+
+    /**
+     * The Optional is a parameter of the method around {@code use}, the method has callers in the project, and every
+     * caller passes {@code Optional.of(...)}, or a variable that is guarded at the call or is itself a parameter that
+     * every one of its callers guards. Followed for a few hops; a method nobody in the project calls proves nothing.
+     */
+    private static boolean paramGuarded(Node use, String v, DslProject project, int hops, java.util.Set<Parameter> visiting) {
+        Optional<MethodDeclaration> m = use.findAncestor(MethodDeclaration.class);
+        if (m.isEmpty() || hops >= DslTaint.MAX_HOPS) {
+            return false;
+        }
+        Parameter p = m.get().getParameters().stream().filter(x -> x.getNameAsString().equals(v)).findFirst().orElse(null);
+        if (p == null || !visiting.add(p)) {
+            return false;
+        }
+        try {
+            int index = m.get().getParameters().indexOf(p);
+            List<MethodCallExpr> calls = project.callsTo(m.get());
+            if (calls.isEmpty()) {
+                return false;
+            }
+            for (MethodCallExpr call : calls) {
+                if (index >= call.getArguments().size()) {
+                    return false;
+                }
+                Expression arg = call.getArgument(index);
+                boolean present = arg instanceof MethodCallExpr o && o.getNameAsString().equals("of")
+                        && o.getScope().map(x -> x.toString().equals("Optional")).orElse(false)
+                        || arg instanceof NameExpr n && (isGuarded(call, n.getNameAsString())
+                                || paramGuarded(call, n.getNameAsString(), project, hops + 1, visiting));
+                if (!present) {
+                    return false;
+                }
+            }
+            return true;
+        } finally {
+            visiting.remove(p);
         }
     }
 }

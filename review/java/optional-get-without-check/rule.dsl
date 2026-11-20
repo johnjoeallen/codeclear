@@ -1,5 +1,5 @@
 // generated-from: review/java/optional-get-without-check/rule.md
-// rule-hash: b714e80c6a48f20f9c06556b6ecb4a14eb4c5ea3cdf17276e2b55d49944bb020
+// rule-hash: ea620cfc905c1a71ba198b8d84c700bd3eb21b752058179ae336fb183e9eb249
 // api-version: 1
 // generator: claude-sonnet-5-5   generated: 2026-11-21
 rule 'optional-get-without-check'
@@ -22,6 +22,8 @@ Call.each { c ->
     only resolved || guess
 
     skip (recv instanceof Name || recv instanceof Field) && c.guarded(recv, PRESENT)
+    // A parameter that every caller in the project passes present (guarded there, or Optional.of) is guarded too.
+    skip recv instanceof Name && c.guardedByCallers(recv, PRESENT)
 
     report c.nameNode,
         "${c.name}() on an Optional without a presence check; use orElseThrow(...) or guard it",

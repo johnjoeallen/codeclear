@@ -29,11 +29,6 @@ class DslRulesTest {
     }
 
     @Test
-    void optionalGetWithoutCheck() throws IOException {
-        check("optional-get-without-check");
-    }
-
-    @Test
     void referenceEqualityOnValues() throws IOException {
         check("reference-equality-on-values");
     }

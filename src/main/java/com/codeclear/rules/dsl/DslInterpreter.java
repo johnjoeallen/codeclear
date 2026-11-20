@@ -80,6 +80,7 @@ final class DslInterpreter {
             Map.entry("Var", com.github.javaparser.ast.body.VariableDeclarator.class),
             Map.entry("Lambda", com.github.javaparser.ast.expr.LambdaExpr.class),
             Map.entry("MethodRef", com.github.javaparser.ast.expr.MethodReferenceExpr.class),
+            Map.entry("Annotation", com.github.javaparser.ast.expr.AnnotationExpr.class),
             Map.entry("If", IfStmt.class));
 
     private static final Map<String, java.util.function.Predicate<Node>> KIND_TESTS = new HashMap<>();

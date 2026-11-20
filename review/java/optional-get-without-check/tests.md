@@ -466,6 +466,97 @@ class S {
 interface R { Optional<User> lookup(long id); }
 ```
 
+## Case: a parameter that every caller guards (Do not flag)
+
+covers: do-not-flag:callers-guard,required:callers-guard
+
+```java path=src/main/java/S.java
+class S {
+  private void show(Optional<User> o) {
+    System.out.println(o.get());
+  }
+  void a(Optional<User> u) {
+    if (u.isPresent()) {
+      show(u);
+    }
+  }
+  void b(Optional<User> u) {
+    if (u.isEmpty()) {
+      return;
+    }
+    show(u);
+  }
+  void c() {
+    show(Optional.of(new User()));
+  }
+}
+```
+
+## Case: one caller does not guard, or the method has no caller in the project
+
+covers: detect:callers-guard
+
+```java path=src/main/java/S.java
+class S {
+  private void show(Optional<User> o) {
+    System.out.println(o.get());  // FLAG
+  }
+  void a(Optional<User> u) {
+    if (u.isPresent()) {
+      show(u);
+    }
+  }
+  void b(Optional<User> u) {
+    show(u);
+  }
+  public void api(Optional<User> o) {
+    System.out.println(o.get());  // FLAG
+  }
+}
+```
+
+## Case: a caller passes Optional.ofNullable or an empty Optional
+
+covers: detect:callers-guard
+
+```java path=src/main/java/S.java
+class S {
+  private void show(Optional<User> o) {
+    System.out.println(o.get());  // FLAG
+  }
+  void a(User u) {
+    show(Optional.ofNullable(u));
+  }
+}
+```
+
+## Case: the guard is two calls away, and a cycle proves nothing
+
+covers: detect:callers-guard,do-not-flag:callers-guard
+
+```java path=src/main/java/S.java
+class S {
+  private void inner(Optional<User> o) {
+    System.out.println(o.get());
+  }
+  private void middle(Optional<User> o) {
+    inner(o);
+  }
+  void outer(Optional<User> u) {
+    if (u.isPresent()) {
+      middle(u);
+    }
+  }
+  private void ping(Optional<User> o) {
+    System.out.println(o.get());  // FLAG
+    pong(o);
+  }
+  private void pong(Optional<User> o) {
+    ping(o);
+  }
+}
+```
+
 ## Mutations
 
 - `chained findById().get() (Examples: Flag)` -> `orElseThrow (Examples: OK)`

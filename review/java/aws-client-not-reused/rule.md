@@ -30,6 +30,8 @@ OK: `private final S3Client s3;` injected and reused.
 ## Implementation notes
 AST with type resolution. Anchor to the creation expression.
 
+A service client is a class named `<Service>Client` or `<Service>ClientBuilder`, other than HTTP, web, REST, OkHttp, Feign, gRPC, Kafka, Redis, Mongo, Elasticsearch, JDBC, FTP, SMTP, Rabbit and Cassandra clients. A creation that is returned or passed on, not assigned to a local, is not reported.
+
 ## Required tests
 Per-call `create()` (finding), `@Bean` method (none), field initialisation (none), try-with-resources in a loop (finding, LOW).
 

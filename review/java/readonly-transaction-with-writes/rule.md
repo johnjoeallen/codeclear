@@ -30,6 +30,8 @@ OK: separate non-readOnly method for the write.
 ## Implementation notes
 AST with repository type resolution. Anchor to the write call.
 
+A write is recognised by the declared type of the receiver: a type ending in `Repository`, `EntityManager`, `Dao` or `DAO` for `save*`, `delete*`, `persist`, `merge`, `flush` and `remove`, and a type containing `Jdbc` for `update` and `batchUpdate`. `@Modifying` repository methods and setters on managed entities are not detected.
+
 ## Required tests
 `save` in readOnly (candidate), read-only query (none), method-level override (none).
 

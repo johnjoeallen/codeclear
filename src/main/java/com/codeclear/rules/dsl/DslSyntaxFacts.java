@@ -84,8 +84,20 @@ final class DslSyntaxFacts {
                 case "isPrivate": return m.isPrivate();
                 case "isFinal": return m.isFinal();
                 case "assertions": return assertions(m);
+                case "usesGeneratedId": return usesGeneratedId(m);
                 default: break;
             }
+        } else if (n instanceof com.github.javaparser.ast.expr.AnnotationExpr a && name.equals("name")) {
+            return a.getNameAsString();
+        } else if (n instanceof MethodCallExpr c && name.equals("assignedToLocal")) {
+            return c.getParentNode().orElse(null) instanceof VariableDeclarator v
+                    && v.getParentNode().orElse(null) instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr;
+        } else if (n instanceof MethodCallExpr c && name.equals("inTryResource")) {
+            return inTryResource(c);
+        } else if (name.equals("inReadOnlyTransaction")) {
+            return inReadOnlyTransaction(n);
+        } else if (n instanceof FieldDeclaration f && name.equals("mutatedAfterInit")) {
+            return mutatedAfterInit(f);
         } else if (n instanceof Comment c && (name.equals("marker") || name.equals("markerText"))) {
             return commentMarker(c, name.equals("marker"));
         } else if (n instanceof VariableDeclarator v) {
@@ -1043,6 +1055,92 @@ final class DslSyntaxFacts {
             }
             if (a.get() instanceof MethodDeclaration m) {
                 return m.isSynchronized();
+            }
+        }
+        return false;
+    }
+
+    /** The call is, or is inside, a resource of a try-with-resources header (not its body). */
+    private static boolean inTryResource(Node n) {
+        Node below = n;
+        for (Optional<Node> parent = n.getParentNode(); parent.isPresent(); parent = parent.get().getParentNode()) {
+            if (parent.get() instanceof com.github.javaparser.ast.stmt.TryStmt t) {
+                return t.getResources().contains(below);
+            }
+            below = parent.get();
+        }
+        return false;
+    }
+
+    private static boolean isTrueMember(com.github.javaparser.ast.expr.AnnotationExpr a, String member) {
+        return a instanceof com.github.javaparser.ast.expr.NormalAnnotationExpr na
+                && na.getPairs().stream().anyMatch(p -> p.getNameAsString().equals(member)
+                        && p.getValue() instanceof com.github.javaparser.ast.expr.BooleanLiteralExpr b && b.getValue());
+    }
+
+    /**
+     * The node runs in a method whose {@code @Transactional} says {@code readOnly = true}, or in a method without its
+     * own {@code @Transactional} whose class says so. A method with its own {@code @Transactional} decides for itself.
+     */
+    private static boolean inReadOnlyTransaction(Node n) {
+        Optional<MethodDeclaration> m = n.findAncestor(MethodDeclaration.class);
+        if (m.isEmpty()) {
+            return false;
+        }
+        Optional<com.github.javaparser.ast.expr.AnnotationExpr> own = m.get().getAnnotationByName("Transactional");
+        if (own.isPresent()) {
+            return isTrueMember(own.get(), "readOnly");
+        }
+        return m.get().findAncestor(ClassOrInterfaceDeclaration.class)
+                .flatMap(c -> c.getAnnotationByName("Transactional")).map(a -> isTrueMember(a, "readOnly")).orElse(false);
+    }
+
+    private static final java.util.Set<String> MUTATORS = java.util.Set.of("put", "putAll", "putIfAbsent", "add", "addAll",
+            "addFirst", "addLast", "push", "pop", "poll", "offer", "remove", "removeIf", "clear", "computeIfAbsent", "merge", "set");
+
+    /**
+     * A mutating call on the field's name in a method of its class that is neither a constructor, an initializer nor a
+     * {@code @PostConstruct} method, and not inside {@code synchronized} code.
+     */
+    private static boolean mutatedAfterInit(FieldDeclaration f) {
+        String name = f.getVariable(0).getNameAsString();
+        Optional<ClassOrInterfaceDeclaration> cls = f.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (cls.isEmpty()) {
+            return false;
+        }
+        for (MethodCallExpr c : cls.get().findAll(MethodCallExpr.class)) {
+            if (!MUTATORS.contains(c.getNameAsString()) || c.getScope().isEmpty() || !refersTo(c.getScope().get(), name)) {
+                continue;
+            }
+            Optional<MethodDeclaration> m = c.findAncestor(MethodDeclaration.class);
+            if (m.isPresent() && m.get().getAnnotationByName("PostConstruct").isEmpty() && !inSynchronized(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean refersTo(com.github.javaparser.ast.expr.Expression e, String field) {
+        return e instanceof NameExpr x && x.getNameAsString().equals(field)
+                || e instanceof FieldAccessExpr a && a.getNameAsString().equals(field) && a.getScope().isThisExpr();
+    }
+
+    /** The method mentions a field of its class annotated {@code @GeneratedValue}, by name or through its getter. */
+    private static boolean usesGeneratedId(MethodDeclaration m) {
+        Optional<ClassOrInterfaceDeclaration> cls = m.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (cls.isEmpty()) {
+            return false;
+        }
+        for (FieldDeclaration f : cls.get().getFields()) {
+            if (f.getAnnotationByName("GeneratedValue").isEmpty()) {
+                continue;
+            }
+            String field = f.getVariable(0).getNameAsString();
+            String getter = "get" + Character.toUpperCase(field.charAt(0)) + field.substring(1);
+            if (m.findAll(NameExpr.class).stream().anyMatch(x -> x.getNameAsString().equals(field))
+                    || m.findAll(FieldAccessExpr.class).stream().anyMatch(x -> x.getNameAsString().equals(field))
+                    || m.findAll(MethodCallExpr.class).stream().anyMatch(x -> x.getNameAsString().equals(getter))) {
+                return true;
             }
         }
         return false;

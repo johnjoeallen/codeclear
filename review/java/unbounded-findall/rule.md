@@ -37,6 +37,8 @@ Page<Order> page = orderRepository.findAll(PageRequest.of(0, 100));
 Candidate detection is syntactic. Table size is not knowable, so use `hybrid` and
 `confidence: LOW`; the AI reviewer decides whether the context makes it a real risk.
 
+Receiver types come from the declared type of the variable; `InputStream.readAllBytes()` is matched on `InputStream`, `FileInputStream` and `BufferedInputStream`. A `Files` read is skipped when its argument mentions a classpath resource or a `config`, `.properties` or `.yml` file.
+
 ## AI prompt
 For each candidate call: is the table or file plausibly large or growing, given entity names, usage and any size evidence in the MR? Report only when unbounded loading can cause memory exhaustion in a shown path. Evidence: the call site, the entity or file source, any visible size or retention information.
 

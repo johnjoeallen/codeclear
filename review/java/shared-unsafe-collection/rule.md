@@ -31,6 +31,8 @@ OK: `new ConcurrentHashMap<>()`.
 ## Implementation notes
 AST. Anchor to the field declaration.
 
+A lambda handed to an executor or `parallelStream`, and mutations guarded by a `Lock` rather than `synchronized`, are not detected: a field changed only inside `synchronized` code is skipped, and one changed under a `Lock` is left to the AI.
+
 ## Required tests
 Mutated `HashMap` in `@Component` (candidate), `ConcurrentHashMap` (none), read-only after `@PostConstruct` (none), synchronized accessors (none).
 

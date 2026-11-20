@@ -91,8 +91,8 @@ class CCReviewServiceTest {
 
     @Test
     void aCommentThatNamesARuleIgnoresOnlyThatRule() {
-        String named = "class A {\n  void f() {\n    // CodeClear: java/r on purpose\n    try { g(); } catch (Exception e) { }\n  }\n}\n";
-        String other = named.replace("java/r on purpose", "java/other on purpose");
+        String named = "class A {\n  void f() {\n    // CodeClear(java/r): on purpose\n    try { g(); } catch (Exception e) { }\n  }\n}\n";
+        String other = named.replace("(java/r)", "(java/other)");
         CCReviewService svc = service(List.of(rule("java/r", CCDetectionType.AST, REPORT)),
                 new FakeConfirmer(false, CCCandidateVerdict.Kind.NO_VERDICT));
 

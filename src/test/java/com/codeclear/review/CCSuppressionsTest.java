@@ -75,8 +75,8 @@ class CCSuppressionsTest {
     }
 
     @Test
-    void ruleIdsAtTheStartOfTheReasonLimitTheCommentToThoseRules() {
-        CCSuppressions s = java("// CodeClear: java/empty-catch-block the caller handles it\nb();\n");
+    void ruleIdsInParenthesesLimitTheCommentToThoseRules() {
+        CCSuppressions s = java("// CodeClear(java/empty-catch-block): the caller handles it\nb();\n");
 
         assertThat(s.covers(2, "java/empty-catch-block")).isTrue();
         assertThat(s.covers(2, "java/log-and-rethrow")).isFalse();
@@ -85,7 +85,7 @@ class CCSuppressionsTest {
 
     @Test
     void severalRuleIdsCanBeListed() {
-        CCSuppressions s = java("b(); // CodeClear: java/a, java/b-c reason\n");
+        CCSuppressions s = java("b(); // CodeClear(java/a, java/b-c): reason\n");
 
         assertThat(s.covers(1, "java/a")).isTrue();
         assertThat(s.covers(1, "java/b-c")).isTrue();
@@ -93,16 +93,16 @@ class CCSuppressionsTest {
     }
 
     @Test
-    void aReasonWithoutRuleIdsCoversEveryRuleEvenIfItMentionsASlash() {
-        CCSuppressions s = java("// CodeClear: fine because of a/b testing and java/x later\nb();\n");
+    void aReasonWithoutParenthesesCoversEveryRuleEvenIfItStartsWithAnId() {
+        CCSuppressions s = java("// CodeClear: java/x is fine because of a/b testing\nb();\n");
 
         assertThat(s.covers(2, "java/anything")).isTrue();
         assertThat(s.covers(2)).isTrue();
     }
 
     @Test
-    void ruleIdsInABlockCommentEndAtTheCommentEnd() {
-        CCSuppressions s = java("/* CodeClear: java/a*/\nb();\n");
+    void ruleIdsInABlockCommentAreRead() {
+        CCSuppressions s = java("/* CodeClear(java/a): x */\nb();\n");
 
         assertThat(s.covers(2, "java/a")).isTrue();
         assertThat(s.covers(2, "java/b")).isFalse();
@@ -110,13 +110,21 @@ class CCSuppressionsTest {
 
     @Test
     void twoCommentsOnOneLineAddUpAndOneWithoutRulesCoversAll() {
-        CCSuppressions named = java("// CodeClear: java/a x\nb(); // CodeClear: java/b y\n");
-        CCSuppressions open = java("// CodeClear: java/a x\nb(); // CodeClear: y\n");
+        CCSuppressions named = java("// CodeClear(java/a): x\nb(); // CodeClear(java/b): y\n");
+        CCSuppressions open = java("// CodeClear(java/a): x\nb(); // CodeClear: y\n");
 
         assertThat(named.covers(2, "java/a")).isTrue();
         assertThat(named.covers(2, "java/b")).isTrue();
         assertThat(named.covers(2, "java/c")).isFalse();
         assertThat(open.covers(2, "java/c")).isTrue();
+    }
+
+    @Test
+    void emptyParenthesesAndSpacesAroundThemStillParse() {
+        assertThat(java("// CodeClear(): x\nb();\n").covers(2)).isTrue();
+        assertThat(java("// CodeClear ( java/a ) : x\nb();\n").covers(2, "java/a")).isTrue();
+        assertThat(java("// CodeClear ( java/a ) : x\nb();\n").covers(2, "java/b")).isFalse();
+        assertThat(CCSuppressions.parse("a.yml", "# CodeClear(java/a): x\nk: v\n").covers(2, "java/a")).isTrue();
     }
 
     @Test

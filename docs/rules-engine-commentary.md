@@ -475,6 +475,17 @@ There is no review pipeline yet, so the baseline is the design as written: the A
   `double` is not reported); record components are not `FieldDecl` nodes, so records are not checked by
   `optional-field-or-parameter` or `timezone-ambiguity`.
 
+### Five more detectors (unbounded-findall, aws-client-not-reused, readonly-transaction-with-writes, shared-unsafe-collection, jpa-entity-equals-hashcode)
+
+- Detectors now number 34; 139 executable rules still have none. Chosen as the easiest remaining Java rules: each needs
+  only syntax and declared types. `aws-client-not-reused` reports findings; the other four report candidates.
+- New language surface: the `Annotation` kind and the facts `assignedToLocal`, `inTryResource`, `inReadOnlyTransaction`,
+  `mutatedAfterInit` and `usesGeneratedId`.
+- Narrowed on purpose, and stated in each `rule.md`: writes are recognised by the receiver's declared type;
+  `shared-unsafe-collection` does not look at lambdas handed to executors; `jpa-entity-equals-hashcode` covers Lombok
+  annotations and a `hashCode` over a generated id only.
+- Not yet run over a corpus of real code (R19): read a sample of findings before relying on them.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
