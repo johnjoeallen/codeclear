@@ -122,6 +122,7 @@ final class DslMutator {
             case Expr.IsKind k -> out.add(new Expr.IsKind(k.l(), k.kind(), !k.neg()));
             case Expr.IsEmpty x -> out.add(new Expr.IsEmpty(x.l(), !x.neg()));
             case Expr.Exists x -> out.add(new Expr.Not(x));
+            case Expr.Inside x -> out.add(new Expr.Not(x));
             case Expr.Quant q -> out.add(new Expr.Quant(!q.all(), q.l(), q.pred()));
             case Expr.FactCall f -> out.add(new Expr.Not(f));
             default -> { }
@@ -158,6 +159,7 @@ final class DslMutator {
             case Expr.IsKind k -> unparse(k.l()) + " is " + (k.neg() ? "not " : "") + k.kind();
             case Expr.IsEmpty x -> unparse(x.l()) + " is " + (x.neg() ? "not " : "") + "empty";
             case Expr.Exists x -> unparse(x.l()) + " exists";
+            case Expr.Inside x -> unparse(x.l()) + " inside " + x.kind();
             case Expr.Quant q -> unparse(q.l()) + (q.all() ? " all " : " any ") + q.pred();
             case Expr.Eq q -> unparse(q.l()) + (q.neg() ? " != " : " == ") + unparse(q.r());
         };

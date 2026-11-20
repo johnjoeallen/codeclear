@@ -13,17 +13,15 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
+import com.codeclear.rules.CCRuleTests;
 
 /**
  * Throwaway proof that the rule language can express the two Groovy rules: parse each {@code .rule} file and run it
- * against the same {@code tests.json} the Groovy versions pass.
+ * against the same {@code tests.md} the Groovy versions pass.
  */
 class DslRulesTest {
 
     private static final JavaFileAnalyzer ANALYZER = new JavaFileAnalyzer();
-    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Test
     void emptyCatchBlock() throws IOException {
@@ -40,20 +38,15 @@ class DslRulesTest {
         Path dir = Path.of("review/java", id);
         CCRuleDefinition def = CCRuleLoader.load(dir);
         String confidence = def.metadata().confidence().name();
-        JsonNode tests = JSON.readTree(dir.resolve("tests.json"));
-        String shared = tests.has("prelude") ? tests.get("prelude").asString() : "";
+        CCRuleTests.Tests tests = CCRuleTests.load(dir);
 
         List<String> failures = new ArrayList<>();
         int n = 0;
-        for (JsonNode c : tests.get("cases")) {
+        for (CCRuleTests.Case c : tests.cases()) {
             n++;
-            String got = actual(rule, c, shared, confidence).toString();
-            List<String> exp = new ArrayList<>();
-            for (JsonNode e : c.get("expect")) {
-                exp.add(e.get("line").asInt() + ":" + (e.has("confidence") ? e.get("confidence").asString() : confidence));
-            }
-            if (!got.equals(exp.toString())) {
-                failures.add(c.get("name").asString() + ": got " + got + ", expected " + exp);
+            String got = actual(rule, c, tests.sharedPrelude(), confidence).toString();
+            if (!got.equals(expected(c, confidence).toString())) {
+                failures.add(c.name() + ": got " + got + ", expected " + expected(c, confidence));
             }
         }
         System.out.println("DSL " + id + ": " + (n - failures.size()) + "/" + n + " cases pass");
@@ -66,13 +59,10 @@ class DslRulesTest {
         int errored = 0;
         for (DslMutator.Mutant m : mutants) {
             boolean caught = false;
-            for (JsonNode c : tests.get("cases")) {
-                List<String> exp = new ArrayList<>();
-                for (JsonNode e : c.get("expect")) {
-                    exp.add(e.get("line").asInt() + ":" + (e.has("confidence") ? e.get("confidence").asString() : confidence));
-                }
+            for (CCRuleTests.Case c : tests.cases()) {
                 try {
-                    if (!actual(m.rule(), c, shared, confidence).toString().equals(exp.toString())) {
+                    if (!actual(m.rule(), c, tests.sharedPrelude(), confidence).toString()
+                            .equals(expected(c, confidence).toString())) {
                         caught = true;
                         break;
                     }
@@ -95,12 +85,18 @@ class DslRulesTest {
         assertThat(failures).isEmpty();
     }
 
-    private static List<String> actual(RuleAst rule, JsonNode c, String shared, String confidence) {
-        String prelude = c.has("prelude") ? c.get("prelude").asString() : shared;
-        int offset = (int) prelude.chars().filter(ch -> ch == '\n').count() + 1;
-        CCFileAnalysis file = ANALYZER.analyze(c.get("path").asString(), prelude + "\n" + c.get("source").asString(),
+    static List<String> expected(CCRuleTests.Case c, String confidence) {
+        return c.expect().stream()
+                .map(e -> e.line() + ":" + (e.confidence() != null ? e.confidence() : confidence)).toList();
+    }
+
+    static List<String> actual(RuleAst rule, CCRuleTests.Case c, String shared, String confidence) {
+        CCRuleTests.SourceFile f = c.files().get(0);
+        String prelude = c.prelude() != null ? c.prelude() : shared;
+        int offset = CCRuleTests.lineOffset(prelude);
+        CCFileAnalysis file = ANALYZER.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()),
                 CCChangedLines.all());
         return new DslInterpreter().run(rule, file, confidence).stream()
-                .map(f -> (f.line() - offset) + ":" + f.confidence()).toList();
+                .map(x -> (x.line() - offset) + ":" + x.confidence()).toList();
     }
 }

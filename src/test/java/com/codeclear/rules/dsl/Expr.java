@@ -23,6 +23,7 @@ sealed interface Expr {
     record IsKind(Expr l, String kind, boolean neg) implements Expr { }
     record IsEmpty(Expr l, boolean neg) implements Expr { }
     record Exists(Expr l) implements Expr { }
+    record Inside(Expr l, String kind) implements Expr { }
     record Quant(boolean all, Expr l, String pred) implements Expr { }
     record Eq(Expr l, Expr r, boolean neg) implements Expr { }
 }

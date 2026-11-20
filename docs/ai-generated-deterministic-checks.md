@@ -88,7 +88,7 @@ Executable rules (`ast`, `regex`, `linter`, `hybrid`) have two companion files n
 ```
 review/java/empty-catch-block/rule.md       rule (source of truth)
 review/java/empty-catch-block/rule.groovy   generated detector
-review/java/empty-catch-block/tests.json    cases: source snippet, expected findings
+review/java/empty-catch-block/tests.md      cases: source snippets, `// FLAG` marks expected findings
 ```
 
 An `ai` rule's folder holds only `rule.md`. The rule id is the folder name, so the finding id stays
@@ -177,7 +177,7 @@ sandbox of its own, so the engine adds one:
 
 ### Testing
 
-`tests.json` in the rule's folder holds snippets and expected findings (line, rule id). A test runner loads the
+`tests.md` in the rule's folder holds Markdown test cases: fenced source snippets, with `// FLAG` on each line that must produce a finding (see `review/README.md`). A test runner loads the
 script, runs each case through the engine, and asserts the result. It is the "Required tests"
 section of the rule file in executable form, and it is what the mutation and determinism checks
 in [Quality Controls](#quality-controls) run on.
@@ -196,7 +196,7 @@ At the start of a review, the rule loader checks every executable rule:
 2. Look for a script for that rule in the **script store** (below). A script is stale if it is
    missing, or its header `rule-hash` or API version differs.
 3. For each stale script, send the rule file and the `ast` and `CodeModel` API reference for its
-   language to the AI driver, with a fixed prompt: produce the Groovy script and `tests.json`,
+   language to the AI driver, with a fixed prompt: produce the Groovy script and `tests.md`,
    covering every example and every "do not flag" item.
 4. Gate the result (see [Acceptance gate](#acceptance-gate)). Accepted scripts are written to the
    script store and used for this review. Rejected ones are not used.
@@ -222,13 +222,13 @@ Because no human reviews a script generated at review time, the gate must be str
 A generated script is accepted only if all of these hold:
 
 1. It compiles under the sandbox (`SecureASTCustomizer`, import allowlist, `@CompileStatic`).
-2. Every case in its `tests.json` passes, and the cases cover every `Examples` entry and every
+2. Every case in its `tests.md` passes, and the cases cover every `Examples` entry and every
    `Do not flag` bullet in the rule. The tool checks coverage by case labels, not by trusting the
    generator.
 3. Two runs on the same input give identical output (determinism).
 4. It finishes within the per-script time budget.
 5. A mutation check passes: each "Flag" example, edited to its "OK" form, produces no finding.
-6. For a rule that has a previous accepted script, the previous `tests.json` also passes, unless the
+6. For a rule that has a previous accepted script, the previous `tests.md` also passes, unless the
    rule's behaviour sections changed.
 
 On failure the errors go back to the generator for a limited number of attempts. If it still fails

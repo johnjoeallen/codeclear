@@ -297,6 +297,9 @@ final class DslParser {
         if (acceptId("exists")) {
             return new Expr.Exists(l);
         }
+        if (acceptId("inside")) {
+            return new Expr.Inside(l, ident());
+        }
         if (isId("all") || isId("any")) {
             boolean all = next().t().equals("all");
             return new Expr.Quant(all, l, ident());

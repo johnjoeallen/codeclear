@@ -41,7 +41,7 @@ final class DslFacts {
 
     private DslFacts() { }
 
-    static Object field(Object t, String name, CCCodeModel model) {
+    static Object field(Object t, String name, CCCodeModel model, DslProject project) {
         if (t == null) {
             return null;
         }
@@ -58,6 +58,10 @@ final class DslFacts {
         }
         if (name.equals("text")) {
             return n.toString();
+        }
+        Object jpa = DslJpaFacts.field(n, name, project);
+        if (jpa != DslJpaFacts.NOT_HANDLED) {
+            return jpa;
         }
         if (n instanceof CatchClause c) {
             switch (name) {
@@ -111,7 +115,8 @@ final class DslFacts {
     /** Every field name the schema defines for some kind. A known name on the wrong kind is missing, not an error. */
     private static final java.util.Set<String> KNOWN = java.util.Set.of("path", "language", "isTest", "text", "param",
             "body", "name", "type", "statements", "hasComment", "expression", "nameNode", "args", "scope",
-            "declaredType");
+            "declaredType", "inTransaction", "lazyAssociation", "dereferenced", "fetched", "inController",
+            "returnedEntity", "lazyAssociations", "returnsFetched");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -121,6 +126,9 @@ final class DslFacts {
     }
 
     static Object fact(Object target, String name, List<Object> args) {
+        if (name.equals("config") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String k) {
+            return p.config(k);
+        }
         if (name.equals("guarded") && target instanceof MethodCallExpr call && args.size() == 2
                 && args.get(0) instanceof Node v && args.get(1) instanceof DslInterpreter.Atom a
                 && a.name().equals("present")) {

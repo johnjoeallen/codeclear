@@ -4,20 +4,14 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Runs the {@code tests.json} of a rule through the real {@link GroovyRuleDetector}.
+ * Runs the {@code tests.md} of a rule through the real {@link GroovyRuleDetector}.
  *
- * <p>Each case is a Java snippet and the findings it must produce. A case passes when the rule produces exactly
- * the expected lines and confidences, twice in a row (determinism). Each mutation names a flagged case and a fixed
- * case: the first must produce a finding and the second none.
- *
- * <p>Case fields: {@code name}, {@code path}, {@code source}, optional {@code prelude} (a line of declarations placed
- * before the source and excluded from line numbers), {@code expect} (list of {@code line}, optional
- * {@code confidence}; the rule's own confidence when omitted) and {@code covers} (labels tying the case to a rule
- * section).
+ * <p>Each case is a Java snippet with {@code // FLAG} markers on the lines that must produce findings (see
+ * {@link CCRuleTests}). A case passes when the rule produces exactly those lines and confidences, twice in a row
+ * (determinism). Each mutation names a flagged case and a fixed case: the first must produce a finding and the
+ * second none.
  */
 public final class CCRuleTestRunner {
 
@@ -33,7 +27,6 @@ public final class CCRuleTestRunner {
 
     private final GroovyRuleDetector detector;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
-    private final JsonMapper json = JsonMapper.builder().build();
 
     public CCRuleTestRunner(GroovyRuleDetector detector) {
         this.detector = detector;
@@ -41,56 +34,47 @@ public final class CCRuleTestRunner {
 
     public Report run(CCRuleDefinition rule) {
         Path dir = rule.dir().orElseThrow(() -> new IllegalArgumentException(rule.id() + " has no folder"));
-        JsonNode tests;
+        CCRuleTests.Tests tests;
         try {
-            tests = json.readTree(dir.resolve("tests.json"));
+            tests = CCRuleTests.load(dir);
         } catch (RuntimeException e) {
-            return new Report(rule.id(), List.of(new CaseResult("tests.json", false, "cannot read: " + e.getMessage())));
+            return new Report(rule.id(), List.of(new CaseResult("tests.md", false, "cannot read: " + e.getMessage())));
         }
-        String sharedPrelude = tests.has("prelude") ? tests.get("prelude").asString() : "";
         List<CaseResult> results = new ArrayList<>();
-        JsonNode cases = tests.get("cases");
-        for (JsonNode c : cases) {
-            results.add(runCase(rule, c, sharedPrelude));
+        for (CCRuleTests.Case c : tests.cases()) {
+            results.add(runCase(rule, c, tests.sharedPrelude()));
         }
-        if (tests.has("mutations")) {
-            for (JsonNode m : tests.get("mutations")) {
-                results.add(runMutation(rule, cases, m, sharedPrelude));
-            }
+        for (CCRuleTests.Mutation m : tests.mutations()) {
+            results.add(runMutation(rule, tests, m));
         }
         return new Report(rule.id(), results);
     }
 
-    private CaseResult runCase(CCRuleDefinition rule, JsonNode c, String sharedPrelude) {
-        String name = c.get("name").asString();
+    private CaseResult runCase(CCRuleDefinition rule, CCRuleTests.Case c, String sharedPrelude) {
         try {
             List<String> first = actual(rule, c, sharedPrelude);
             List<String> second = actual(rule, c, sharedPrelude);
             List<String> expected = new ArrayList<>();
-            for (JsonNode e : c.get("expect")) {
-                String confidence = e.has("confidence")
-                        ? e.get("confidence").asString()
-                        : rule.metadata().confidence().name();
-                expected.add(e.get("line").asInt() + ":" + confidence);
+            for (CCRuleTests.Expect e : c.expect()) {
+                String confidence = e.confidence() != null ? e.confidence() : rule.metadata().confidence().name();
+                expected.add(e.line() + ":" + confidence);
             }
             if (!first.equals(second)) {
-                return new CaseResult(name, false, "not deterministic: " + first + " then " + second);
+                return new CaseResult(c.name(), false, "not deterministic: " + first + " then " + second);
             }
             return first.equals(expected)
-                    ? new CaseResult(name, true, "")
-                    : new CaseResult(name, false, "got " + first + ", expected " + expected);
+                    ? new CaseResult(c.name(), true, "")
+                    : new CaseResult(c.name(), false, "got " + first + ", expected " + expected);
         } catch (RuntimeException e) {
-            return new CaseResult(name, false, e.getMessage());
+            return new CaseResult(c.name(), false, e.getMessage());
         }
     }
 
-    private CaseResult runMutation(CCRuleDefinition rule, JsonNode cases, JsonNode m, String sharedPrelude) {
-        String from = m.get("from").asString();
-        String to = m.get("to").asString();
-        String name = "mutation: " + from + " -> " + to;
+    private CaseResult runMutation(CCRuleDefinition rule, CCRuleTests.Tests tests, CCRuleTests.Mutation m) {
+        String name = "mutation: " + m.from() + " -> " + m.to();
         try {
-            boolean flagged = !actual(rule, find(cases, from), sharedPrelude).isEmpty();
-            boolean cleared = actual(rule, find(cases, to), sharedPrelude).isEmpty();
+            boolean flagged = !actual(rule, find(tests, m.from()), tests.sharedPrelude()).isEmpty();
+            boolean cleared = actual(rule, find(tests, m.to()), tests.sharedPrelude()).isEmpty();
             if (flagged && cleared) {
                 return new CaseResult(name, true, "");
             }
@@ -100,29 +84,29 @@ public final class CCRuleTestRunner {
         }
     }
 
-    private static JsonNode find(JsonNode cases, String name) {
-        for (JsonNode c : cases) {
-            if (c.get("name").asString().equals(name)) {
-                return c;
-            }
-        }
-        throw new IllegalArgumentException("mutation refers to unknown case '" + name + "'");
+    private static CCRuleTests.Case find(CCRuleTests.Tests tests, String name) {
+        return tests.cases().stream().filter(c -> c.name().equals(name)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("mutation refers to unknown case '" + name + "'"));
     }
 
     /** Findings as {@code line:confidence}, with lines relative to the snippet. Fails if the rule failed. */
-    private List<String> actual(CCRuleDefinition rule, JsonNode c, String sharedPrelude) {
+    private List<String> actual(CCRuleDefinition rule, CCRuleTests.Case c, String sharedPrelude) {
         if (!rule.language().equals("java")) {
             throw new IllegalArgumentException("the test runner supports Java rules only");
         }
-        String prelude = c.has("prelude") ? c.get("prelude").asString() : sharedPrelude;
-        int offset = (int) prelude.chars().filter(ch -> ch == '\n').count() + 1;
-        CCFileAnalysis file = analyzer.analyze(c.get("path").asString(), prelude + "\n" + c.get("source").asString(),
+        if (c.files().size() != 1) {
+            throw new IllegalArgumentException("the Groovy runner supports single-file cases only");
+        }
+        CCRuleTests.SourceFile f = c.files().get(0);
+        String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
+        int offset = CCRuleTests.lineOffset(prelude);
+        CCFileAnalysis file = analyzer.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()),
                 CCChangedLines.all());
         CCRuleResult result = detector.detect(rule, file);
         if (!result.ok()) {
             throw new IllegalStateException("rule failed: " + result.failure().get());
         }
-        return result.findings().stream().map(f -> (f.line() - offset) + ":" + f.confidence()).toList();
+        return result.findings().stream().map(x -> (x.line() - offset) + ":" + x.confidence()).toList();
     }
 
     /** Convenience for callers that read a rule from disk. */

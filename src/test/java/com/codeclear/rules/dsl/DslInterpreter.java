@@ -8,7 +8,12 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.DoStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -50,12 +56,25 @@ final class DslInterpreter {
             "Name", NameExpr.class,
             "Field", FieldAccessExpr.class,
             "Param", Parameter.class,
-            "ExprStmt", ExpressionStmt.class);
+            "ExprStmt", ExpressionStmt.class,
+            "Method", MethodDeclaration.class);
+
+    private static final Map<String, java.util.function.Predicate<Node>> KIND_TESTS = new HashMap<>();
+
+    static {
+        KINDS.forEach((k, c) -> KIND_TESTS.put(k, c::isInstance));
+        KIND_TESTS.put("Loop", n -> n instanceof ForStmt || n instanceof ForEachStmt || n instanceof WhileStmt
+                || n instanceof DoStmt);
+    }
 
     private static final Set<String> ATOMS = Set.of("present", "default", "low", "medium", "high");
 
     /** @param ruleConfidence the confidence the rule's metadata declares, used for the atom {@code default} */
     List<Finding> run(RuleAst rule, CCFileAnalysis file, String ruleConfidence) {
+        return run(rule, file, ruleConfidence, null);
+    }
+
+    List<Finding> run(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
         Class<? extends Node> kind = KINDS.get(rule.kind());
         if (kind == null) {
             throw new IllegalArgumentException("unknown node kind '" + rule.kind() + "'");
@@ -65,7 +84,10 @@ final class DslInterpreter {
             Map<String, Object> env = new HashMap<>();
             env.put(rule.var(), n);
             env.put("file", file.file());
-            Ctx ctx = new Ctx(file, ruleConfidence);
+            if (project != null) {
+                env.put("project", project);
+            }
+            Ctx ctx = new Ctx(file, ruleConfidence, project);
             if (!passes(rule, env, ctx)) {
                 continue;
             }
@@ -96,7 +118,7 @@ final class DslInterpreter {
         return List.copyOf(sorted);
     }
 
-    private record Ctx(CCFileAnalysis file, String ruleConfidence) { }
+    private record Ctx(CCFileAnalysis file, String ruleConfidence, DslProject project) { }
 
     private boolean passes(RuleAst rule, Map<String, Object> env, Ctx ctx) {
         for (Clause c : rule.clauses()) {
@@ -161,7 +183,7 @@ final class DslInterpreter {
                 }
                 throw new IllegalArgumentException("unknown name '" + id.name() + "'");
             }
-            case Expr.Field f -> DslFacts.field(eval(f.target(), env, ctx), f.name(), ctx.file().model());
+            case Expr.Field f -> DslFacts.field(eval(f.target(), env, ctx), f.name(), ctx.file().model(), ctx.project());
             case Expr.FactCall c -> DslFacts.fact(eval(c.target(), env, ctx), c.name(),
                     c.args().stream().map(a -> eval(a, env, ctx)).toList());
             case Expr.Apply a -> {
@@ -182,11 +204,24 @@ final class DslInterpreter {
             }
             case Expr.Matches m -> eval(m.l(), env, ctx) instanceof String s && m.r().p().matcher(s).matches();
             case Expr.IsKind k -> {
-                Class<? extends Node> cls = KINDS.get(k.kind());
-                if (cls == null) {
+                var test = KIND_TESTS.get(k.kind());
+                if (test == null) {
                     throw new IllegalArgumentException("unknown node kind '" + k.kind() + "'");
                 }
-                yield cls.isInstance(eval(k.l(), env, ctx)) != k.neg();
+                yield (eval(k.l(), env, ctx) instanceof Node nd && test.test(nd)) != k.neg();
+            }
+            case Expr.Inside x -> {
+                var test = KIND_TESTS.get(x.kind());
+                if (test == null) {
+                    throw new IllegalArgumentException("unknown node kind '" + x.kind() + "'");
+                }
+                boolean found = false;
+                if (eval(x.l(), env, ctx) instanceof Node nd) {
+                    for (Optional<Node> a = nd.getParentNode(); a.isPresent() && !found; a = a.get().getParentNode()) {
+                        found = test.test(a.get());
+                    }
+                }
+                yield found;
             }
             case Expr.IsEmpty x -> {
                 Object v = eval(x.l(), env, ctx);

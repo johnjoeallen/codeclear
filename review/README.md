@@ -22,7 +22,7 @@ Each rule has its own folder, `<folder>/<rule-id>/`, with kebab-case rule ids un
 review/java/empty-catch-block/
   rule.md         the rule (source of truth)
   rule.groovy     generated detector (executable rules only)
-  tests.json      generated cases (executable rules only)
+  tests.md        test cases as Markdown (executable rules only)
 ```
 
 ## Template
@@ -63,7 +63,7 @@ The cases the generator must produce.
 
 Rules of type `ast`, `regex`, `linter` and `hybrid` run as Groovy scripts through the Java scripting
 API (JSR-223), with a sandbox and a read-only `CodeModel`. Each has two files beside the rule:
-`rule.groovy` (the detector) and `tests.json` (cases) in the rule's folder. `ai` rules have neither.
+`rule.groovy` (the detector) and `tests.md` (cases) in the rule's folder. `ai` rules have neither.
 The tool regenerates a script automatically when its rule file changes (the script header holds a
 `rule-hash`). See `docs/ai-generated-deterministic-checks.md#script-engine` and `#generation-workflow`.
 
@@ -85,3 +85,32 @@ Rules of type `ai` have no `## Required tests` for a detector; they have `## Eva
 
 `INDEX.md` lists every rule, its detection type, and whether the tool makes an AI call for it.
 All findings must anchor to a changed line.
+
+### `tests.md` format
+
+Test cases are Markdown so that a person can review them and an AI can write them. Each case is a heading, a
+`covers:` line tying it to a section of `rule.md` (`example:flag`, `do-not-flag:<name>`, `detect:<name>`), and one
+or more fenced source files. A line that must produce a finding ends in `// FLAG` (or `// FLAG LOW`); lines
+without a marker must produce none. Markers are stripped before analysis.
+
+````markdown
+# Tests: java/empty-catch-block
+
+## Prelude
+```java
+import java.util.*;
+```
+
+## Case: empty block (Examples: Flag)
+covers: example:flag, required:empty-block
+```java path=src/main/java/A.java
+class A { void f() { try { run(); } catch (Exception e) { } } }  // FLAG
+```
+
+## Mutations
+- `empty block (Examples: Flag)` -> `parameter named ignored (Examples: OK)`
+````
+
+Optional pieces: a `## Prelude` section (declarations placed before every source, not counted in line numbers);
+a ```` ```java prelude ```` block inside a case to replace it; `config: key=value` lines for a project-wide case; several
+`path=` blocks for a case spanning files; a `## Mutations` list of `flagged case` -> `fixed case` pairs.

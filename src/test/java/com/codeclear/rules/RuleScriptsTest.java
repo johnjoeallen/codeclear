@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
-/** Runs every committed rule script against its own tests.json, through the real detector and sandbox. */
+/** Runs every committed rule script against its own tests.md, through the real detector and sandbox. */
 class RuleScriptsTest {
 
     private static final Path REVIEW_ROOT = Path.of("review");
@@ -51,12 +51,9 @@ class RuleScriptsTest {
                     String md = java.nio.file.Files.readString(dir.resolve("rule.md"));
                     var m = java.util.regex.Pattern.compile("(?s)## Do not flag\\n(.*?)(\\n## |\\z)").matcher(md);
                     long bullets = m.find() ? m.group(1).lines().filter(l -> l.startsWith("- ")).count() : 0;
-                    String tests = java.nio.file.Files.readString(dir.resolve("tests.json"));
                     var labels = new java.util.HashSet<String>();
-                    var lm = java.util.regex.Pattern.compile("\"(do-not-flag:[^\"]+)\"").matcher(tests);
-                    while (lm.find()) {
-                        labels.add(lm.group(1));
-                    }
+                    CCRuleTests.load(dir).cases().forEach(c -> c.covers().stream()
+                            .filter(l -> l.startsWith("do-not-flag:")).forEach(labels::add));
                     assertThat((long) labels.size()).as("distinct do-not-flag labels vs bullets").isGreaterThanOrEqualTo(bullets);
                 }));
     }

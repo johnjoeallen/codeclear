@@ -21,7 +21,7 @@ script-based rule engine. Newest entries go at the bottom of each section. The f
 | D3 | The core engine parses the source and passes the AST to the script. Scripts never parse files. | 2026-11-20 |
 | D4 | When a rule `.md` changes, the AI regenerates its script. | 2026-11-20 |
 | D5 | The tool regenerates stale scripts itself at review time, using the same AI driver as the review, because the AI is already required for `ai` and `hybrid` rules. | 2026-11-20 |
-| D6 | Every rule has its own folder, `review/<lang>/<id>/`, holding `rule.md`, `rule.groovy` and `tests.json`. | 2026-11-20 |
+| D6 | Every rule has its own folder, `review/<lang>/<id>/`, holding `rule.md`, `rule.groovy` and `tests.md`. Tests were `tests.json` at first and moved to Markdown on 2026-11-21 so people can review them and the AI can write them. | 2026-11-20 |
 
 ## Discoveries
 
@@ -120,7 +120,7 @@ changed-line filter).
 
 Code under `src/test/java/com/codeclear/rules/dsl/`, rules under `src/test/resources/dsl/`.
 
-- Both rules pass their existing `tests.json` unchanged: 17 and 33 cases. Size: 53 to 15 lines and 160 to 22. The
+- Both rules pass their existing tests unchanged: 17 and 33 cases. Size: 53 to 15 lines and 160 to 22. The
   90 lines of guard logic in `optional-get-without-check` became one host fact, `c.guarded(recv, present)`,
   reusable by about 8 other rules.
 - **Findings that changed the design:** statement wrappers must be explicit (`ExprStmt.expression`; the Groovy had
@@ -137,7 +137,7 @@ Code under `src/test/java/com/codeclear/rules/dsl/`, rules under `src/test/resou
 ### Experiment: can an AI write the language from a grammar page
 
 Fresh Sonnet 5.5 agents, one shot, given only a grammar page and `rule.md`. 3 attempts per rule. Test results
-decide pass or fail; the tests are held out from the generator.
+decide pass or fail; the tests are held out from the generator (they were `tests.json` then, `tests.md` now).
 
 - **Syntax is not the risk.** All attempts parsed, including predicates, ternary confidence and a regex.
 - **Round 0:** `empty-catch-block` 3/3 passed all 16 cases; `optional-get-without-check` 0/3 (29, 29, 28 of 30).
@@ -154,6 +154,23 @@ decide pass or fail; the tests are held out from the generator.
 - **Conclusion:** failures came from vague rule text and untested exclusions, not syntax. A generator that sees
   the failing case fixes itself, so the gate's test coverage is the real control. Caveats: two rules, N=3, easy
   rules, schema built for them, and hand-written tests decided pass or fail.
+
+### Experiment: a tier 2 rule, `lazy-association-outside-session` (test scope only)
+
+- Split into two restricted-language rules of about 12 lines each (reads of a lazy association; controllers returning
+  entities with lazy associations), run over small multi-file projects. 33 cases in
+  `review/java/lazy-association-outside-session/tests.md`; mutation testing leaves one redundant-clause survivor.
+- Needs a project model and about 10 host facts: entity and association index, `lazyAssociation`, `dereferenced`,
+  `inTransaction`, `fetched`, `returnsFetched`, `inController`, `returnedEntity`, `lazyAssociations`,
+  `project.config(key)`. One new operator, `x inside Loop`.
+- **Interprocedural analysis is deterministic, not an AI job.** An early version stopped at one call and I wrongly
+  suggested handing deeper flows to the AI. The `fetched` and `inTransaction` facts now walk the project call graph:
+  through return statements, local variables, `Optional` unwrapping, parameters (every caller's argument must be
+  fetched) and callers (every caller must run in a transaction), with cycle guards. Matching is by method name and
+  arity as a stand-in for real symbol resolution.
+- Remaining AI-only part: judgement the call graph cannot make (whether a serializer view hides a field, Lombok
+  getters, reflective or framework-generated calls).
+- A spec ambiguity surfaced: the N+1 flag does not need a transaction, so the condition was dropped.
 
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
@@ -200,7 +217,7 @@ decide pass or fail; the tests are held out from the generator.
 | Q6 | Should the rollout order change to build the sandbox and gate first? | The doc's Rollout section still reads as if only maintainers generate. Not yet updated. |
 | Q7 | Should `Detection type` collapse to a single `script` type later? | Possible bulk edit plus regenerating `INDEX.md`. |
 | Q8 | Groovy or a restricted rule language? | Both pass the same tests on two rules. The language removes the sandbox problem and enables automatic mutation testing; it costs about 1,150 lines of host code plus every fact family, and is unproven on tier 2 rules. Decide after porting a harder rule. |
-| Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Needs entity, session and call-graph facts. Next experiment. |
+| Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Yes, with a project model and call-graph facts (see Discoveries). Open: replacing name-and-arity matching with real symbol resolution (Q3), and a project-wide engine instead of per-file. |
 | Q10 | Which model does review-time work? | Run the 548 `Evaluation cases` across models and compare accuracy, false-positive rate and cost per completed review. |
 
 ## Log
@@ -214,13 +231,13 @@ decide pass or fail; the tests are held out from the generator.
 - Updated `docs/ai-generated-deterministic-checks.md`: Script Engine, script contract, `CodeModel`
   facade, sandbox, generation workflow with staleness hash, script store, acceptance gate and fallback.
   Committed and pushed (`36df946`).
-- Wrote `review/java/empty-catch-block/rule.groovy` and `tests.json` (16 cases plus a mutation check). All pass in a
+- Wrote `review/java/empty-catch-block/rule.groovy` and its tests (16 cases plus a mutation check). All pass in a
   throwaway harness. Committed and pushed.
-- Wrote `review/java/optional-get-without-check/rule.groovy` and `tests.json` (30 cases plus 3 mutation checks). All
+- Wrote `review/java/optional-get-without-check/rule.groovy` and its tests (30 cases plus 3 mutation checks). All
   pass; three deliberate script mutants failed the expected tests. Added `model.typeOf` and the
   confidence argument to the doc. **Not yet committed.**
 - Created this file.
-- Moved every rule into its own folder (`rule.md`, `rule.groovy`, `tests.json`) and built the real
+- Moved every rule into its own folder (`rule.md`, `rule.groovy`, `tests.md`) and built the real
   `GroovyRuleDetector`, sandbox, loader and test runner under `com.codeclear.rules`.
 - Analysed the Distill idea, classified the 172 executable rules into tiers, and answered the model-choice question
   (see Discoveries).
@@ -230,6 +247,6 @@ decide pass or fail; the tests are held out from the generator.
 
 ### Next candidates
 
-- Port a tier 2 rule (`lazy-association-outside-session`) to the restricted language (Q9), then decide Q8.
+- Decide Q8. Next experiment: a taint rule (source to sink) to test the other large fact family.
 - Update the design doc's Rollout section (Q6) and the regex-timeout gap in the sandbox.
 - Run the model comparison on the `Evaluation cases` (Q10).
