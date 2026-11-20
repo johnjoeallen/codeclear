@@ -32,6 +32,8 @@ await prisma.$transaction(async (tx) => { await tx.order.create(d); await tx.sto
 ## Implementation notes
 Anchor to the escaping query. Helpers need cross-file resolution.
 
+Detected on a call made on `prisma`, `db`, `knex`, `dataSource`, `sequelize`, `connection`, `pool`, `em`, a `*Repo`/`*Repository`, or a capitalised model name, inside the callback of a call named `transaction`, `$transaction`, `withTransaction` or `runInTransaction`, when no argument mentions `transaction`, `session`, `trx`, `tx`, `manager` or `t`. A helper that is passed the handle is not seen as outer.
+
 ## Required tests
 Outer client in callback (finding), all `tx` (no finding), unawaited `tx` call (finding), helper receiving `tx` (no finding).
 

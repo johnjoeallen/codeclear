@@ -35,6 +35,8 @@ const limit = pLimit(10); await Promise.all(userIds.map((id) => limit(() => fetc
 ## Implementation notes
 Anchor to the fan-out call.
 
+Detected on `Promise.all(xs.map(async ...))` where `xs` looks like a query result, a request value or a list (`req.`, `rows`, `results`, `records`, `files`, `items`, `ids`, `messages`, `users`), `new Worker`, `spawn` and `fork` inside a request or message handler, an `on("data")` listener that appends with no size check, and `on(...)`/`addListener(...)` in a handler or a loop with no `off`, `removeListener` or `once`. A file that mentions `p-limit`, `p-map`, `chunk`, `Semaphore`, `bottleneck`, `p-queue`, `concurrency` or `batch` is treated as limiting.
+
 ## Required tests
 Unbounded map over query result (finding), `pLimit` (no finding), literal 3-element array (no finding), listener added in loop (finding).
 

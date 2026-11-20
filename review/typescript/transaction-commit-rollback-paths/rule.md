@@ -34,6 +34,8 @@ const c = await pool.connect(); try { await c.query('BEGIN'); ...; await c.query
 ## Implementation notes
 Anchor to the `BEGIN`/transaction start. Also covers failed commit paths.
 
+Detected on a function that starts a transaction (`BEGIN`, `beginTransaction`, `startTransaction`, `.begin()`) and mentions no `rollback`; on a function that calls `pool.connect()`, `getConnection()` or `.connect()` with no `finally` that releases, ends, closes or destroys; on a `try` with a `catch` that does not throw inside the callback of a `transaction` call; and on a `commit()` statement that is not awaited.
+
 ## Required tests
 No release in finally (finding), swallowed catch in callback (finding), full try/catch/finally (no finding), rethrow (no finding).
 

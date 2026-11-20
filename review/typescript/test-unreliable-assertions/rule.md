@@ -36,6 +36,8 @@ it('saves', async () => { await expect(save(x)).resolves.toBe(1); });
 ## Implementation notes
 Equivalent: `jest/valid-expect`, `jest/expect-expect`, `jest/no-focused-tests`. Anchor to the test.
 
+Two files. `rule.dsl` flags `it.only`/`test.only`/`describe.only`/`fit`/`fdescribe`; a `test`/`it` callback with no `expect`, `assert`, `should`, `verify` or `check(`; `expect(true).toBe(true)`; a callback whose only assertion is `toBeDefined`/`toBeTruthy`/`not.toBeNull`; and `Date.now()`, `Math.random()`, `setTimeout` and a `fetch` to a non-local host in a file that mentions no fake timers, `jest.mock`, `nock`, `msw`, `sinon` or seeded random. `resolves.dsl` flags an `expect(...).resolves/rejects` statement that is not awaited. An async test that calls an async function without `await`, and assertions inside helpers, are not followed.
+
 ## Required tests
 Unawaited `resolves` (finding), no assertions (finding), awaited (no finding), fake timers (no finding), `.only` (finding).
 

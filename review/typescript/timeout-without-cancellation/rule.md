@@ -32,6 +32,8 @@ await fetch(url, { signal: AbortSignal.timeout(5000) });
 ## Implementation notes
 Anchor to `Promise.race`.
 
+Two files. `rule.dsl` flags `Promise.race([...])` where one element mentions `setTimeout`, `delay(`, `sleep(`, `timeout(` or `wait(` and another does not, with no `signal`, `AbortSignal` or `AbortController` in the array. `params.dsl` flags a function with a parameter named `timeout`, `timeoutMs` or `deadline` that is never used again in the function.
+
 ## Required tests
 Race without signal (finding), `AbortSignal.timeout` (no finding), signal forwarded to driver (no finding).
 
