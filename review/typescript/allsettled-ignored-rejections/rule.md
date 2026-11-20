@@ -34,6 +34,8 @@ const failed = r.filter((x) => x.status === 'rejected');
 ## Implementation notes
 Anchor to the `allSettled` call. Single-file dataflow only.
 
+A `Promise.allSettled(...)` statement whose result is dropped is flagged. When the result goes into a variable, it is flagged if the variable is never used again or if the enclosing function never mentions `status` or `reason`; where it is read is not followed. A result that is returned or passed on is not flagged. A function whose name contains `cleanup`, `dispose`, `teardown` or `shutdown` is skipped.
+
 ## Required tests
 Discarded result (finding), result never inspected (finding), filter on `status` (no finding), `.reason` read (no finding).
 

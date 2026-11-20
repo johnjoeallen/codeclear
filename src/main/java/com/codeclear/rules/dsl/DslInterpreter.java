@@ -173,6 +173,10 @@ final class DslInterpreter {
         }
         Class<? extends Node> kind = KINDS.get(rule.kind());
         java.util.function.Predicate<Node> pseudo = KIND_TESTS.get(rule.kind());
+        // A rule written for a tree-sitter grammar can apply to a file of another language (a .json next to the .ts): nothing to see.
+        if (kind == null && pseudo == null && file.tree() == null && !"java".equals(file.file().getLanguage())) {
+            return List.of();
+        }
         if (kind == null && pseudo == null) {
             throw new IllegalArgumentException("unknown node kind '" + rule.kind() + "'");
         }

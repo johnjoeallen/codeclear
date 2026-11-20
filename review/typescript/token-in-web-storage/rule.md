@@ -34,5 +34,7 @@ localStorage.setItem('theme', 'dark');
 ## Implementation notes
 AST for `setItem` calls with string-literal key; fall back to regex on dynamic keys with `confidence: LOW`.
 
+Detected on `localStorage`/`sessionStorage` (and `window.` forms) `setItem` calls and on property or index assignments. A key matches when a sensitive word is a whole word of it: split by a non-letter (`x-auth-token`, `auth_token`) or by a capital (`accessToken`), so `authorName` and `theme` do not match.
+
 ## Required tests
 `accessToken` (finding), `theme` (no finding), `sessionStorage` token (finding), dynamic key (no finding).

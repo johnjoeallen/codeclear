@@ -33,6 +33,8 @@ const apiKey = process.env.STRIPE_KEY;
 ## Implementation notes
 Regex plus entropy filter; anchor to the line. Equivalent: gitleaks, `no-secrets`. Token storage in web storage: `token-in-web-storage`.
 
+Known formats are matched in any string. A name-based finding needs a secret-looking name (variable, property, assignment target or class field) and a string value of 12 or more characters with no spaces, with both a letter and a digit and no placeholder word: that replaces the entropy check. Only `.ts`/`.js` files are read; secrets in `.json` are `config/secret-in-config`. The finding names the name and never the value.
+
 ## Required tests
 AWS key (finding), private key header (finding), env read (no finding), `password = 'changeme'` (no finding), fake test value (no finding).
 

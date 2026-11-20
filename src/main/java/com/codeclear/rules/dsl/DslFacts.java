@@ -223,6 +223,9 @@ final class DslFacts {
             if (name.equals("child") && args.size() == 1 && args.get(0) instanceof String ty) {
                 return n.child(ty);
             }
+            if (name.equals("countOf") && args.size() == 1 && args.get(0) instanceof String id) {
+                return n.countOf(id);
+            }
             if (name.equals("mentions") && args.size() == 1 && args.get(0) instanceof String id) {
                 return n.mentions(id);
             }

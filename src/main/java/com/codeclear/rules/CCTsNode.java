@@ -180,6 +180,17 @@ public final class CCTsNode implements CCModelNode {
         return false;
     }
 
+    /** How many times an identifier with this text appears at or below this node. */
+    public long countOf(String name) {
+        long n = type().equals("identifier") && text().equals(name) ? 1 : 0;
+        for (CCTsNode d : descendants("identifier")) {
+            if (d.text().equals(name)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** The previous named sibling, or null. */
     public CCTsNode previous() {
         TSNode s = node.getPrevNamedSibling();
