@@ -89,6 +89,8 @@ final class DslInterpreter {
         KINDS.forEach((k, c) -> KIND_TESTS.put(k, c::isInstance));
         KIND_TESTS.put("Jump", DslSyntaxFacts::isJump);
         KIND_TESTS.put("Creation", n -> n instanceof MethodCallExpr || n instanceof ObjectCreationExpr);
+        KIND_TESTS.put("Text", n -> n instanceof com.github.javaparser.ast.expr.StringLiteralExpr
+                || n instanceof com.github.javaparser.ast.comments.Comment);
         KIND_TESTS.put("Comment", n -> n instanceof com.github.javaparser.ast.comments.Comment);
         KIND_TESTS.put("Loop", n -> n instanceof ForStmt || n instanceof ForEachStmt || n instanceof WhileStmt
                 || n instanceof DoStmt);
@@ -109,8 +111,12 @@ final class DslInterpreter {
         }
         List<Finding> out = new ArrayList<>();
         List<Node> nodes;
-        if (rule.kind().equals("Comment") && file.ast() instanceof com.github.javaparser.ast.CompilationUnit cu) {
+        if ((rule.kind().equals("Comment") || rule.kind().equals("Text"))
+                && file.ast() instanceof com.github.javaparser.ast.CompilationUnit cu) {
             nodes = new ArrayList<Node>(cu.getAllComments()); // comments hang off the tree, so a walk of the nodes misses them
+            if (rule.kind().equals("Text")) {
+                nodes.addAll(cu.findAll(com.github.javaparser.ast.expr.StringLiteralExpr.class));
+            }
         } else {
             nodes = kind != null ? new ArrayList<Node>(file.ast().findAll(kind))
                     : file.ast().findAll(Node.class).stream().filter(pseudo).toList();

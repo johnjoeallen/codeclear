@@ -35,6 +35,8 @@ private final String apiKey = System.getenv("API_KEY");
 ## Implementation notes
 Regex with an entropy check on the value (Shannon entropy above 3.0 for 16 or more characters) to cut false positives. Never print the value; mask all but the first 4 characters. Consider wrapping `gitleaks` or `detect-secrets`.
 
+Rule language: string literals and comments are checked, a literal is tied to a name only when it initialises a variable or field or is assigned (`boundName`), and a secret-named argument (`connect("password", ...)`) is not seen. There is no entropy check: a value must be 8 or more characters and not look like a placeholder or a key name. The message never contains the value.
+
 ## Required tests
 Hardcoded key (finding), env lookup (no finding), token inside a comment (finding), placeholder (no finding), masked output.
 

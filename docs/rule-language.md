@@ -88,7 +88,7 @@ error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'str
 
 Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
 expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
-declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Annotation` (every annotation), `Comment` (every comment in the file: line, block and Javadoc), `Jump` (any of `Return`, `Throw`, `Break`, `Continue`) and `Creation` (a `Call` or a `New`). `Loop` can be used in
+declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Annotation` (every annotation), `Comment` (every comment in the file: line, block and Javadoc), `Jump` (any of `Return`, `Throw`, `Break`, `Continue`) `Creation` (a `Call` or a `New`) and `Text` (a `StringLit` or a `Comment`). `Loop` can be used in
 `instanceof` and `inside`, not iterated.
 
 | Node | Fields |
@@ -120,7 +120,7 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | any node (transactions) | `inReadOnlyTransaction` (the method says `@Transactional(readOnly = true)`, or has no `@Transactional` of its own and its class says so) |
 | `FieldDecl` (more) | `mutatedAfterInit` (`put`, `add`, `remove` and similar on it in a method that is not a constructor, initializer or `@PostConstruct`, outside `synchronized` code), `assignedAfterInit` (`x = ...`, `this.x = ...` or `x++` in such a method) |
 | `Method` (JPA) | `usesGeneratedId` (reads a `@GeneratedValue` field of its class, or its getter) |
-| `StringLit` | `placeholders` (the number of unescaped `{}`) |
+| `StringLit` | `boundName` (the variable, field or assignment target it is stored under, or missing), `placeholders` (the number of unescaped `{}`) |
 | `Method` (more) | `isPublic` (interface methods count), `classIsPublic`, `throwsTypes`, `annotations` |
 | `Catch` (more) | `tryCalls` (the calls in the try block it belongs to) |
 | any expression (more) | `isThrowable` (by its type, or a catch parameter, or a variable declared with an exception type or an exception-bounded type variable) |

@@ -127,6 +127,8 @@ final class DslSyntaxFacts {
             return c.findAncestor(TryStmt.class).map(t -> (Object) List.copyOf(t.getTryBlock().findAll(MethodCallExpr.class))).orElse(List.of());
         } else if (n instanceof com.github.javaparser.ast.stmt.ForEachStmt f && name.equals("iterable")) {
             return f.getIterable();
+        } else if (n instanceof com.github.javaparser.ast.expr.StringLiteralExpr && name.equals("boundName")) {
+            return boundName(n);
         } else if (n instanceof com.github.javaparser.ast.expr.StringLiteralExpr s && name.equals("placeholders")) {
             return placeholders(s.asString());
         } else if (n instanceof MethodCallExpr c && name.equals("logArguments")) {
@@ -1127,6 +1129,19 @@ final class DslSyntaxFacts {
             }
         }
         return scope.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> o.getArguments().stream().anyMatch(isLocal));
+    }
+
+    /** The name a string literal is stored under: the variable or field it initialises, or the target it is assigned to. */
+    private static String boundName(Node n) {
+        Node parent = n.getParentNode().orElse(null);
+        if (parent instanceof VariableDeclarator v && v.getInitializer().orElse(null) == n) {
+            return v.getNameAsString();
+        }
+        if (parent instanceof com.github.javaparser.ast.expr.AssignExpr a && a.getValue() == n) {
+            return a.getTarget() instanceof NameExpr x ? x.getNameAsString()
+                    : a.getTarget() instanceof FieldAccessExpr f ? f.getNameAsString() : null;
+        }
+        return null;
     }
 
     private static boolean inTryResource(Node n) {
