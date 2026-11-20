@@ -46,6 +46,17 @@ final class DslTaint {
     private final BiPredicate<DslInterpreter.Pred, Object> apply;
     private final DslProject project;
     private final Set<Object> visiting = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final java.util.Map<MethodDeclaration, Boolean> returnMemo = new IdentityHashMap<>();
+    private final java.util.Map<Parameter, Boolean> paramMemo = new IdentityHashMap<>();
+    private final java.util.Map<Node, Boolean> sourceMemo = new IdentityHashMap<>();
+    private final java.util.Map<Node, Boolean> sanitizerMemo = new IdentityHashMap<>();
+
+    /** Work allowed for one query. A pathological flow ends as "not proven tainted" rather than running for minutes. */
+    static final int STEP_BUDGET = 5_000;
+    /** Interprocedural hops followed (a call's return value, a parameter's callers) before giving up. */
+    static final int MAX_HOPS = 3;
+    private int steps;
+    private int hops;
 
     DslTaint(DslInterpreter.Pred source, DslInterpreter.Pred sanitizer,
              BiPredicate<DslInterpreter.Pred, Object> apply, DslProject project) {
@@ -56,10 +67,13 @@ final class DslTaint {
     }
 
     boolean tainted(Expression e) {
-        if (apply.test(sanitizer, e)) {
+        if (++steps > STEP_BUDGET) {
             return false;
         }
-        if (apply.test(source, e)) {
+        if (sanitizerMemo.computeIfAbsent(e, n -> apply.test(sanitizer, n))) {
+            return false;
+        }
+        if (sourceMemo.computeIfAbsent(e, n -> apply.test(source, n))) {
             return true;
         }
         if (e instanceof EnclosedExpr x) {
@@ -109,13 +123,21 @@ final class DslTaint {
     }
 
     private boolean returnsTainted(MethodDeclaration m) {
-        if (!visiting.add(m)) {
+        Boolean known = returnMemo.get(m);
+        if (known != null) {
+            return known;
+        }
+        if (hops >= MAX_HOPS || !visiting.add(m)) {
             return false;
         }
+        hops++;
         try {
-            return m.findAll(ReturnStmt.class).stream()
+            boolean result = m.findAll(ReturnStmt.class).stream()
                     .anyMatch(r -> r.getExpression().map(this::tainted).orElse(false));
+            returnMemo.put(m, result);
+            return result;
         } finally {
+            hops--;
             visiting.remove(m);
         }
     }
@@ -126,14 +148,21 @@ final class DslTaint {
 
     private boolean nameTainted(NameExpr use) {
         Optional<MethodDeclaration> method = use.findAncestor(MethodDeclaration.class);
-        if (method.isEmpty()) {
-            return false;
+        if (method.isEmpty() || !visiting.add(use)) {
+            return false; // no method, or already resolving this very use (a cycle)
         }
-        MethodDeclaration m = method.get();
+        try {
+            return resolveName(use, method.get());
+        } finally {
+            visiting.remove(use);
+        }
+    }
+
+    private boolean resolveName(NameExpr use, MethodDeclaration m) {
         String name = use.getNameAsString();
         List<Def> defs = new ArrayList<>();
         for (VariableDeclarator d : m.findAll(VariableDeclarator.class)) {
-            if (d.getNameAsString().equals(name) && before(d, use)) {
+            if (d.getNameAsString().equals(name) && before(d, use) && !contains(d, use)) {
                 Optional<Expression> init = d.getInitializer();
                 if (init.isEmpty() && d.getParentNode().flatMap(Node::getParentNode).orElse(null) instanceof ForEachStmt f) {
                     init = Optional.of(f.getIterable());
@@ -142,7 +171,8 @@ final class DslTaint {
             }
         }
         for (AssignExpr a : m.findAll(AssignExpr.class)) {
-            if (a.getTarget() instanceof NameExpr t && t.getNameAsString().equals(name) && before(a, use)) {
+            if (a.getTarget() instanceof NameExpr t && t.getNameAsString().equals(name) && before(a, use)
+                    && !contains(a, use)) {
                 boolean plain = a.getOperator() == AssignExpr.Operator.ASSIGN;
                 defs.add(new Def(a, a.getValue(), plain && dominates(a, use)));
             }
@@ -171,19 +201,38 @@ final class DslTaint {
         if (apply.test(source, p)) {
             return true;
         }
-        if (!visiting.add(p)) {
+        Boolean known = paramMemo.get(p);
+        if (known != null) {
+            return known;
+        }
+        if (hops >= MAX_HOPS || !visiting.add(p)) {
             return false;
         }
+        hops++;
         try {
+            boolean result = false;
             for (MethodCallExpr call : project.callsTo(m)) {
                 if (index < call.getArguments().size() && tainted(call.getArgument(index))) {
-                    return true;
+                    result = true;
+                    break;
                 }
             }
-            return false;
+            paramMemo.put(p, result);
+            return result;
         } finally {
+            hops--;
             visiting.remove(p);
         }
+    }
+
+    /** The definition's own value mentions the use, as in {@code s = s + x}: it refers to the previous definition. */
+    private static boolean contains(Node def, Node use) {
+        for (Optional<Node> a = use.getParentNode(); a.isPresent(); a = a.get().getParentNode()) {
+            if (a.get() == def) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean before(Node def, Node use) {

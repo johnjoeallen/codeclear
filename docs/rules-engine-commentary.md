@@ -198,6 +198,43 @@ decide pass or fail; the tests are held out from the generator (they were `tests
   LOGGING/INFO otherwise. That split is deterministic too (run `tainted` twice with narrower source predicates) and
   was not built; how attacker-controlled a value really is stays with the AI.
 
+### Test-quality rules: mutation testing instead of AI judgement
+
+- Estimate of what still needs the AI (by rule count, from a title-level reading of the 148 AI-only rules; not a
+  measurement): about 55% fully deterministic (about 175 rules), about 30% deterministic candidates with an AI verdict
+  (about 95), about 15% AI-only (about 50). Roughly 45% (38 to 50%) still need the model for the final verdict.
+- 7 of the 8 test-quality rules are covered by mutation testing, which moves the "still needs AI" figure to about
+  43%. Four ("tests omit the risks of the change") by generic mutants on changed lines; three (mock-only tests offered
+  as proof of a guarantee) by targeted mutants that break the guarantee, such as removing `@Transactional` or acking
+  before the write. A mock cannot observe such a mutant, so it survives. `mock-verifies-implementation-details` is
+  not caught by mutants and stays partly AI. Design in `targeted-mutation-design.md`, worked example
+  `java/mocked-test-cannot-prove-transaction-guarantee`.
+- Where it runs: a code review does not run mutation testing. It runs on the developer side or in CI, where the tests
+  already execute. The review tool exposes it as an opt-in option (`--mutation`) of an overall review, off by
+  default. With the option off, the seven rules are reported as not checked. A claim in prose with no recognisable
+  construct in the code stays with the AI.
+
+### Performance sanity check (speed is not a priority; it should be reasonable)
+
+- On 3,990 files and 284k lines of real Java: parsing 1.9 s once, the project model 0.14 s, then each
+  restricted-language rule over the whole project 46 to 165 ms (log-injection, the slowest, 165 ms). The two Groovy
+  rules took 94 and 158 ms. Both engines found the same 19 and 14 findings on that code.
+- **The benchmark found a real flaw.** The taint engine's return-value analysis was exponential: with no memoisation,
+  a call such as `get(x)` matched hundreds of project methods by name and arity, and each was followed in turn. A run
+  over 4,000 files exceeded ten minutes. Fixed with an ambiguity cap (calls matching more than 6 methods are treated
+  as unresolved), per-query memoisation, a limit of 3 interprocedural hops and a work budget of 5,000 steps per
+  query; a regression test (`DslTaintBudgetTest`) guards it. A second bug, found earlier by the same benchmark, was
+  infinite recursion on `s = s + x`.
+- **Receiver-type narrowing** now resolves a call by the receiver's static type where the source states it (a
+  parameter, local, field, `this`, `new T()`, a static call, or another call's return type): only methods in that type,
+  its project supertypes and its project subtypes remain, and a receiver that is a JDK or library type has no project
+  target. The 3,990-file timings stayed in the same range (log-injection 143 ms) and results changed: 80 findings
+  became 76, 6 removed and 2 added. The 3 removed ones I read looked like name collisions (for example
+  `connection.remote()` matching an unrelated project method). The 2 added ones are plausible, because a call that was
+  over the ambiguity cap now resolves, but I did not confirm them. `-Ddsl.nonarrow=true` switches narrowing off for
+  comparison; `DslBenchTest` (`-Dbench.dir`, `-Dbench.n`, `-Dbench.out`) reproduces the numbers.
+- Not measured: cold-start timings, memory, or the Groovy detector at the lazy-association scale.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
@@ -232,6 +269,8 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 | R14 | If a restricted language is adopted, put computation in hand-written host facts (`guarded`, types, taint, framework classification) and keep the language itself tiny. | Rules then stay short, and the dangerous analysis is reviewed Java rather than generated code. |
 | R15 | Pass policy to host facts as predicates: the rule says what is a source and what is a sanitiser, the host walks the flow. | One reviewed taint engine serves every taint rule, and a generated rule cannot change how flow is computed. |
 | R16 | Only run mutation testing against a passing baseline. | A failing case makes every mutant look killed. |
+| R18 | Bound every analysis: cap name-and-arity ambiguity, memoise per query, limit interprocedural hops and give each query a work budget. | An unbounded taint search ran for over ten minutes on a 4,000-file project. Real symbol resolution will make calls exact, but the budget stays as a safety net. |
+| R17 | Cover test-quality rules with mutation testing as an opt-in option of the review tool (`--mutation`), run on the developer side or in CI: generic mutants for "tests omit the risk", rule-named targeted mutants for "mock-only tests cannot prove the guarantee". | Deterministic, and it does not depend on reading the merge request's prose. The tool only runs tests where they already run, so there is no new trust boundary. |
 
 ## Open questions
 
@@ -247,6 +286,7 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 | Q8 | Groovy or a restricted rule language? | Both pass the same tests on the two Groovy rules; the language also expressed a tier 2 rule (lazy associations) and a taint rule (log injection) as 12 to 25 line rules over host facts. It removes the sandbox problem and enables automatic mutation testing; it costs the language plus every fact family in reviewed Java. Leaning: adopt the language. Not yet measured: speed, real RE2/J, project-wide engine, symbol resolution (Q3). |
 | Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Yes, with a project model and call-graph facts (see Discoveries). Open: replacing name-and-arity matching with real symbol resolution (Q3), and a project-wide engine instead of per-file. |
 | Q10 | Which model does review-time work? | Run the 548 `Evaluation cases` across models and compare accuracy, false-positive rate and cost per completed review. |
+| Q11 | With `--mutation` off, are the seven test-quality rules skipped, or does the AI judge them? | Leaning: skipped and listed as "not checked, needs --mutation", so the default review stays read-only and cheap. Decide when the option is built. |
 
 ## Log
 
@@ -276,6 +316,7 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 ### Next candidates
 
 - Decide Q8 (leaning to the restricted language). Open work either way: a project-wide engine, symbol resolution, and config parsing facts.
-- Measure the language's speed against the Groovy detector on a real project.
+- Measure the language's speed against the Groovy detector on a real project (speed is not a priority; it should be reasonable).
+- Build the mutant generator from `targeted-mutation-design.md` (no test execution needed for the first step).
 - Update the design doc's Rollout section (Q6) and the regex-timeout gap in the sandbox.
 - Run the model comparison on the `Evaluation cases` (Q10).

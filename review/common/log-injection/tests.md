@@ -409,3 +409,105 @@ class C {
   }
 }
 ```
+
+## Case: self-referential assignment in a loop, untainted
+
+covers: detect:flow-sensitive
+
+```java path=src/main/java/C.java
+class C {
+  void f() {
+    String s = "";
+    for (int i = 0; i < 3; i++) {
+      s = s + i;
+    }
+    log.info(s);
+  }
+}
+```
+
+## Case: self-referential assignment in a loop, tainted
+
+covers: detect:flow-sensitive
+
+```java path=src/main/java/C.java
+class C {
+  void f(HttpServletRequest request) {
+    String s = "";
+    for (int i = 0; i < 3; i++) {
+      s = s + request.getParameter("x");
+    }
+    log.info(s);  // FLAG
+  }
+}
+```
+
+## Case: receiver type narrows a common method name: the JDK Map is not a project method
+
+covers: detect:receiver-type
+
+```java path=src/main/java/C.java
+class Source {
+  HttpServletRequest request;
+  String get(String k) { return request.getParameter(k); }
+}
+class C {
+  void f(Map<String, String> m, Source s) {
+    log.info(m.get("a"));
+    log.info(s.get("a"));  // FLAG
+  }
+}
+```
+
+## Case: receiver type picks the right class among many with the same method
+
+covers: detect:receiver-type
+
+```java path=src/main/java/C.java
+class A0 { String get(String k) { return k; } }
+class A1 { String get(String k) { return k; } }
+class A2 { String get(String k) { return k; } }
+class A3 { String get(String k) { return k; } }
+class A4 { String get(String k) { return k; } }
+class A5 { String get(String k) { return k; } }
+class A6 { String get(String k) { return k; } }
+class A7 { HttpServletRequest request; String get(String k) { return request.getParameter(k); } }
+class C {
+  void f(A3 safe, A7 leaky) {
+    log.info(safe.get("a"));
+    log.info(leaky.get("a"));  // FLAG
+  }
+}
+```
+
+## Case: a call on an interface type reaches its implementations
+
+covers: detect:receiver-type
+
+```java path=src/main/java/C.java
+interface Reader { String read(); }
+class HttpReader implements Reader {
+  HttpServletRequest request;
+  public String read() { return request.getHeader("X"); }
+}
+class C {
+  void f(Reader r) {
+    log.info(r.read());  // FLAG
+  }
+}
+```
+
+## Case: a new object and a static call are typed
+
+covers: detect:receiver-type
+
+```java path=src/main/java/C.java
+class Safe { String name() { return "x"; } }
+class Util { static String clean(String s) { return s; } }
+class C {
+  void f() {
+    log.info(new Safe().name());
+    log.info(Util.clean("x"));
+  }
+}
+```
