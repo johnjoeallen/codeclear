@@ -63,7 +63,7 @@ public final class CCRuleTestRunner {
             List<String> expected = new ArrayList<>();
             for (CCRuleTests.Expect e : c.expect()) {
                 String confidence = e.confidence() != null ? e.confidence() : rule.metadata().confidence().name();
-                expected.add(e.path() + ":" + e.line() + ":" + confidence);
+                expected.add(e.path() + ":" + e.line() + ":" + (e.candidate() ? "CANDIDATE" : confidence));
             }
             expected.sort(null);
             if (!first.equals(second)) {
@@ -109,7 +109,10 @@ public final class CCRuleTestRunner {
         int offset = CCRuleTests.lineOffset(prelude);
         List<CCFileAnalysis> files = new ArrayList<>();
         for (CCRuleTests.SourceFile f : c.files()) {
-            files.add(analyzer.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()), CCChangedLines.all()));
+            // Lines in a case's "changed:" list are source lines; the prelude shifts them in the analysed text.
+            CCChangedLines changed = c.changedLines() == null ? CCChangedLines.all()
+                    : CCChangedLines.of(c.changedLines().stream().map(l -> l + offset).collect(java.util.stream.Collectors.toSet()));
+            files.add(analyzer.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()), changed));
         }
         List<String> out = new ArrayList<>();
         for (CCRuleResult result : engine.run(List.of(rule), files, c.config())) {
@@ -117,6 +120,7 @@ public final class CCRuleTestRunner {
                 throw new IllegalStateException("rule failed: " + result.failure().get());
             }
             result.findings().forEach(x -> out.add(x.path() + ":" + (x.line() - offset) + ":" + x.confidence()));
+            result.candidates().forEach(x -> out.add(x.path() + ":" + (x.line() - offset) + ":CANDIDATE"));
         }
         return out.stream().sorted().toList();
     }

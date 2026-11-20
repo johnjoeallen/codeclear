@@ -112,6 +112,9 @@ class A { void f() { try { run(); } catch (Exception e) { } } }  // FLAG
 - `empty block (Examples: Flag)` -> `parameter named ignored (Examples: OK)`
 ````
 
+A line ending in `// CANDIDATE` must produce a candidate for the AI to confirm instead (what a `hybrid` rule reports with `candidate`).
+A case may say which lines the change touches with `changed: 3,5-7`: findings elsewhere are dropped, as in a real review.
+
 Optional pieces: a `## Prelude` section (declarations placed before every source, not counted in line numbers);
 a ```` ```java prelude ```` block inside a case to replace it; `config: key=value` lines for a project-wide case; several
 `path=` blocks for a case spanning files; a `## Mutations` list of `flagged case` -> `fixed case` pairs.

@@ -78,6 +78,26 @@ class DslRulesTest {
         check("lock-not-released-in-finally");
     }
 
+    @Test
+    void unownedTodo() throws IOException {
+        checkAt("common", "unowned-todo");
+    }
+
+    @Test
+    void logPlaceholderMismatch() throws IOException {
+        checkAt("common", "log-placeholder-mismatch");
+    }
+
+    @Test
+    void catchLogAndContinue() throws IOException {
+        check("catch-log-and-continue");
+    }
+
+    @Test
+    void collectionModifiedDuringIteration() throws IOException {
+        check("collection-modified-during-iteration");
+    }
+
     private void check(String id) throws IOException {
         checkAt("java", id);
     }
@@ -136,16 +156,17 @@ class DslRulesTest {
 
     static List<String> expected(CCRuleTests.Case c, String confidence) {
         return c.expect().stream()
-                .map(e -> e.line() + ":" + (e.confidence() != null ? e.confidence() : confidence)).toList();
+                .map(e -> e.line() + ":" + (e.candidate() ? "CANDIDATE" : e.confidence() != null ? e.confidence() : confidence)).toList();
     }
 
     static List<String> actual(RuleAst rule, CCRuleTests.Case c, String shared, String confidence) {
         CCRuleTests.SourceFile f = c.files().get(0);
         String prelude = c.prelude() != null ? c.prelude() : shared;
         int offset = CCRuleTests.lineOffset(prelude);
-        CCFileAnalysis file = ANALYZER.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()),
-                CCChangedLines.all());
-        return new DslInterpreter().run(rule, file, confidence).stream()
-                .map(x -> (x.line() - offset) + ":" + x.confidence()).toList();
+        CCChangedLines changed = c.changedLines() == null ? CCChangedLines.all()
+                : CCChangedLines.of(c.changedLines().stream().map(l -> l + offset).collect(java.util.stream.Collectors.toSet()));
+        CCFileAnalysis file = ANALYZER.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()), changed);
+        return new DslInterpreter().run(rule, file, confidence).stream().filter(x -> changed.contains(x.line()))
+                .map(x -> (x.line() - offset) + ":" + (x.candidate() ? "CANDIDATE" : x.confidence())).toList();
     }
 }

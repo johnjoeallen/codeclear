@@ -17,6 +17,8 @@ Calls to SLF4J/Log4j2/Logback style loggers (`{}`), Python `logging` (`%s`/`%d` 
 
 ## Do not flag
 - Non-literal format strings.
+- Formats with numbered placeholders (`{0}`, `{0.00}`), which belong to `java.util.logging`, `MessageFormat` and Tinylog.
+- A single `Object[]` argument, which SLF4J takes as the whole argument array (its elements are counted).
 - `String.format`/`printf`, which are not logging calls.
 - Argument order, which is not decidable deterministically (see `common/misleading-log-message`).
 - Tests.

@@ -34,6 +34,11 @@ class DslProjectTest {
     }
 
     @Test
+    void genericExceptionInPublicApi() throws Exception {
+        check("generic-exception-in-public-api", Path.of("review/java/generic-exception-in-public-api"), List.of("rule.dsl", "throw.dsl"));
+    }
+
+    @Test
     void logInjection() throws Exception {
         check("log-injection", Path.of("review/common/log-injection"), List.of("rule.dsl"));
     }
@@ -90,7 +95,7 @@ class DslProjectTest {
     }
 
     private static List<String> expected(CCRuleTests.Case c) {
-        return c.expect().stream().map(e -> e.path() + ":" + e.line()).sorted().toList();
+        return c.expect().stream().map(e -> e.path() + ":" + e.line() + (e.candidate() ? ":CANDIDATE" : "")).sorted().toList();
     }
 
     private static List<String> run(List<RuleAst> rules, CCRuleTests.Case c, String sharedPrelude) {
@@ -108,7 +113,7 @@ class DslProjectTest {
         for (RuleAst rule : rules) {
             for (CCFileAnalysis fa : files) {
                 new DslInterpreter().run(rule, fa, "MEDIUM", project)
-                        .forEach(f -> out.add(fa.file().getPath() + ":" + (f.line() - offset)));
+                        .forEach(f -> out.add(fa.file().getPath() + ":" + (f.line() - offset) + (f.candidate() ? ":CANDIDATE" : "")));
             }
         }
         return out.stream().sorted().toList();

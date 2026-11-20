@@ -18,6 +18,7 @@ Public methods that declare or throw `Exception`, `RuntimeException` or `Throwab
 
 ## Do not flag
 - Overrides of interface methods that already declare `throws Exception` (`AutoCloseable.close`, `Callable.call`).
+- Methods whose signature the framework dictates: `@Bean` factories, `@Around`/`@Before`/`@After` advice, lifecycle callbacks (`afterPropertiesSet`, `destroy`, `close`, `run`, `call`) and test hooks.
 - `main`, test sources, and private/package-private methods.
 
 ## Examples

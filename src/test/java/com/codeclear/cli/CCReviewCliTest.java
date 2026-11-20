@@ -169,6 +169,64 @@ class CCReviewCliTest {
     }
 
     @Test
+    void aMarkdownReportWithCodeSnippetsIsWrittenToTheDefaultPlace(@TempDir Path dir) throws Exception {
+        Run r = run(cli(EMPTY_CATCH_RULE), project(dir), "src");
+
+        Path report = dir.resolve("target/codeclear/report.md");
+        assertThat(report).exists();
+        String md = Files.readString(report);
+        assertThat(md).contains("# CodeClear review", "### `src/main/java/A.java`", "**Line 3** · MEDIUM · `java/empty-catch`",
+                "> 3 |     try { g(); } catch (Exception e) { }", "```java");
+        assertThat(r.out()).contains("Report: target/codeclear/report.md");
+    }
+
+    @Test
+    void theReportPathCanBeChangedOrSwitchedOff(@TempDir Path dir) throws Exception {
+        project(dir);
+        CCReviewCli cli = cli(EMPTY_CATCH_RULE);
+
+        Run custom = run(cli, dir, "src", "--report=out/review.md");
+        Run off = run(cli, dir, "src", "--report=none");
+
+        assertThat(dir.resolve("out/review.md")).exists();
+        assertThat(custom.out()).contains("Report: out/review.md");
+        assertThat(off.out()).doesNotContain("Report:");
+        assertThat(dir.resolve("target")).doesNotExist(); // neither run wrote the default
+    }
+
+    @Test
+    void jsonOnStdoutStaysPureJsonWhileTheReportNoticeGoesToStderr(@TempDir Path dir) throws Exception {
+        Run r = run(cli(EMPTY_CATCH_RULE), project(dir), "src", "--format=json");
+
+        assertThat(r.out().strip()).startsWith("{").endsWith("}").doesNotContain("Report:");
+        assertThat(r.err()).contains("Report: target/codeclear/report.md");
+        assertThat(dir.resolve("target/codeclear/report.md")).exists();
+    }
+
+    @Test
+    void aReportThatCannotBeWrittenIsAWarningNotAFailedReview(@TempDir Path dir) throws Exception {
+        project(dir);
+        Files.writeString(dir.resolve("blocker"), "a file where the report folder should be");
+
+        Run r = run(cli(EMPTY_CATCH_RULE), dir, "src", "--report=blocker/report.md", "--fail-on=never");
+
+        assertThat(r.exit()).isEqualTo(CCReviewCli.OK);
+        assertThat(r.out()).contains("1 finding"); // the review itself still printed
+        assertThat(r.err()).contains("warning: could not write the report");
+    }
+
+    @Test
+    void theReportCoversOnlyWhatWasReviewed(@TempDir Path dir) throws Exception {
+        project(dir);
+        Files.writeString(dir.resolve("src/main/java/B.java"), "class B { }\n");
+
+        run(cli(EMPTY_CATCH_RULE), dir, "src/main/java/A.java");
+
+        String md = Files.readString(dir.resolve("target/codeclear/report.md"));
+        assertThat(md).contains("| Files reviewed | 1 |").doesNotContain("B.java");
+    }
+
+    @Test
     void helpPrintsUsageAndSucceeds(@TempDir Path dir) {
         Run r = run(cli(), dir, "--help");
 

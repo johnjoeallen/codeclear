@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,21 +37,27 @@ import java.util.regex.Pattern;
  * </pre>
  *
  * <p>A source line ending in {@code // FLAG} must produce a finding on that line; {@code // FLAG LOW} also states the
- * confidence (otherwise the rule's own). Lines without a marker must produce none. Markers are stripped before the
+ * confidence (otherwise the rule's own). A line ending in {@code // CANDIDATE} must produce a candidate for the AI to
+ * confirm (what a hybrid rule reports). Lines without a marker must produce nothing. A case may say which lines the change
+ * touches with {@code changed: 3,5-7}; findings elsewhere are dropped, as in a real review. Markers are stripped before the
  * source is analysed, so they never change what the rule sees.
  */
 public final class CCRuleTests {
 
-    /** A finding the case requires: file, line within the source, and confidence ({@code null}: the rule's own). */
-    public record Expect(String path, int line, String confidence) { }
+    /**
+     * What the case requires: file, line within the source, confidence ({@code null}: the rule's own) and whether it is a
+     * candidate for the AI instead of a finding.
+     */
+    public record Expect(String path, int line, String confidence, boolean candidate) { }
 
     public record SourceFile(String path, String source) { }
 
     /**
-     * @param prelude {@code null} to use the shared prelude
+     * @param prelude      {@code null} to use the shared prelude
+     * @param changedLines the lines the change touches, or {@code null} when every line counts as changed
      */
     public record Case(String name, List<String> covers, Map<String, String> config, String prelude,
-                       List<SourceFile> files, List<Expect> expect) { }
+                       List<SourceFile> files, List<Expect> expect, Set<Integer> changedLines) { }
 
     public record Mutation(String from, String to) { }
 
@@ -58,7 +65,7 @@ public final class CCRuleTests {
 
     public static final String DEFAULT_PATH = "src/main/java/Test.java";
 
-    private static final Pattern MARKER = Pattern.compile("\\s*//\\s*FLAG(?:\\s+(LOW|MEDIUM|HIGH))?\\s*$");
+    private static final Pattern MARKER = Pattern.compile("\\s*//\\s*(FLAG|CANDIDATE)(?:\\s+(LOW|MEDIUM|HIGH))?\\s*$");
     private static final Pattern MUTATION = Pattern.compile("^\\s*[-*]\\s*`(.+?)`\\s*(?:->|→)\\s*`(.+?)`\\s*$");
 
     private CCRuleTests() { }
@@ -126,6 +133,8 @@ public final class CCRuleTests {
                             current.covers.add(c.trim());
                         }
                     }
+                } else if (line.startsWith("changed:")) {
+                    current.changed = lines(line.substring(8));
                 } else if (line.startsWith("config:")) {
                     String kv = line.substring(7).trim();
                     int eq = kv.indexOf('=');
@@ -144,6 +153,26 @@ public final class CCRuleTests {
             cases.add(current.build());
         }
         return new Tests(title, shared, List.copyOf(cases), List.copyOf(mutations));
+    }
+
+    /** Line numbers written as {@code 3,5-7}. */
+    private static Set<Integer> lines(String text) {
+        Set<Integer> out = new java.util.TreeSet<>();
+        for (String part : text.split(",")) {
+            String p = part.trim();
+            if (p.isEmpty()) {
+                continue;
+            }
+            int dash = p.indexOf('-');
+            if (dash < 0) {
+                out.add(Integer.parseInt(p));
+            } else {
+                for (int i = Integer.parseInt(p.substring(0, dash).trim()); i <= Integer.parseInt(p.substring(dash + 1).trim()); i++) {
+                    out.add(i);
+                }
+            }
+        }
+        return out;
     }
 
     private static String attribute(String info, String name) {
@@ -166,6 +195,7 @@ public final class CCRuleTests {
         final List<String> covers = new ArrayList<>();
         final Map<String, String> config = new LinkedHashMap<>();
         String prelude;
+        Set<Integer> changed;
         final List<SourceFile> files = new ArrayList<>();
         final List<Expect> expect = new ArrayList<>();
 
@@ -179,7 +209,7 @@ public final class CCRuleTests {
                 String text = lines.get(n - 1);
                 Matcher m = MARKER.matcher(text);
                 if (m.find()) {
-                    expect.add(new Expect(path, n, m.group(1)));
+                    expect.add(new Expect(path, n, m.group(2), m.group(1).equals("CANDIDATE")));
                     text = text.substring(0, m.start());
                 }
                 source.append(text).append('\n');
@@ -189,7 +219,7 @@ public final class CCRuleTests {
 
         Case build() {
             return new Case(name, List.copyOf(covers), Map.copyOf(config), prelude, List.copyOf(files),
-                    List.copyOf(expect));
+                    List.copyOf(expect), changed);
         }
     }
 }

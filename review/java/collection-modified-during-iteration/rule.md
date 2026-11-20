@@ -19,6 +19,8 @@ Within an enhanced `for` over a collection expression `c`, or a lambda passed to
 - Mutation immediately followed by `break` or `return` out of the loop.
 - Iteration over a copy (`new ArrayList<>(c)`, `List.copyOf(c)`) or a concurrent/copy-on-write collection.
 - Iterator-based `it.remove()`.
+- `put(k, v)` for the key being visited, which replaces a value without changing the map's structure.
+- A variable declared as an interface but created as a concurrent or copy-on-write collection (`Map<K,V> m = new ConcurrentHashMap<>()`).
 
 ## Examples
 Flag:

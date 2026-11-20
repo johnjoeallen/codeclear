@@ -49,6 +49,8 @@ public final class CCReviewCli {
                                   (for example --config=spring.jpa.open-in-view=false)
               --rules=<dir>       the rules folder (default: ./review; the launcher passes the one next to it)
               --show-skipped      list every rule that did not run, with the reason
+              --report=<file>     write a Markdown report with the code around each finding
+                                  (default target/codeclear/report.md; --report=none turns it off)
               --help              show this text
 
             Exit codes: 0 done, 1 findings at or above --fail-on, 2 bad usage or an error.
@@ -94,7 +96,7 @@ public final class CCReviewCli {
             return OK;
         }
         for (String name : options.keySet()) {
-            if (!Set.of("diff", "format", "fail-on", "config", "rules", "show-skipped").contains(name)) {
+            if (!Set.of("diff", "format", "fail-on", "config", "rules", "show-skipped", "report").contains(name)) {
                 err.println("error: unknown option --" + name + "\n\n" + USAGE_TEXT);
                 return USAGE;
             }
@@ -145,6 +147,7 @@ public final class CCReviewCli {
             return USAGE;
         }
         out.print(format.equals("json") ? CCReviewReport.json(result) + "\n" : CCReviewReport.text(result, options.containsKey("show-skipped")));
+        writeReport(last(options, "report", DEFAULT_REPORT), dir, result, files, format.equals("json") ? err : out, err);
         if (failOn != null) {
             for (CCReviewFinding f : result.findings()) {
                 if (f.severity().ordinal() <= failOn.ordinal()) {
@@ -153,6 +156,33 @@ public final class CCReviewCli {
             }
         }
         return OK;
+    }
+
+    /** Where the Markdown report goes unless --report says otherwise, relative to the working directory. */
+    static final String DEFAULT_REPORT = "target/codeclear/report.md";
+
+    /**
+     * Writes the Markdown report and tells the reader where it is. A report that cannot be written is a warning, not a
+     * failed review: the findings were already printed.
+     */
+    private static void writeReport(String option, Path dir, CCReviewResult result, List<CCReviewFile> files,
+                                    PrintStream notice, PrintStream err) {
+        if (option.equals("none")) {
+            return;
+        }
+        Path file = dir.resolve(option).normalize();
+        Map<String, String> sources = new HashMap<>();
+        files.forEach(f -> sources.put(f.path(), f.content()));
+        try {
+            if (file.getParent() != null) {
+                Files.createDirectories(file.getParent());
+            }
+            Files.writeString(file, CCMarkdownReport.render(result, sources, files.size()), StandardCharsets.UTF_8);
+            Path shown = file.startsWith(dir.toAbsolutePath().normalize()) ? dir.toAbsolutePath().normalize().relativize(file) : file;
+            notice.println("Report: " + shown.toString().replace('\\', '/'));
+        } catch (IOException e) {
+            err.println("warning: could not write the report to " + file + ": " + e.getMessage());
+        }
     }
 
     private static String last(Map<String, List<String>> options, String name, String fallback) {

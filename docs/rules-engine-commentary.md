@@ -398,6 +398,40 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 - **Zero findings for double-checked locking is correct, not a gap:** the corpus has 5 real double-checked-locking classes
   and all declare the field `volatile`. The pattern is covered by 10 test cases.
 
+### Markdown report
+
+- Every review writes `target/codeclear/report.md` (`--report=<file>` to move it, `--report=none` to skip it): a summary table,
+  findings grouped by file with a numbered snippet (3 lines of context, the flagged line marked `>`), unconfirmed candidates,
+  the rules not checked in collapsible lists, and notes. The snippet fence grows when the code itself contains backticks, and
+  messages are escaped so a `|` or `<` cannot break the tables. A report that cannot be written is a warning, not a failure.
+- With `--format=json` the "Report:" notice goes to stderr so stdout stays pure JSON.
+
+### Five more detectors (unowned-todo, log-placeholder-mismatch, generic-exception-in-public-api, catch-log-and-continue, collection-modified-during-iteration)
+
+- Detectors now number 19; 154 executable rules still have none. `generic-exception-in-public-api` has two files (`rule.dsl`
+  for `throws Exception`, `throw.dsl` for `throw new RuntimeException(...)`). Two of the five are `hybrid`, so they report
+  **candidates** for the AI (`candidate`), not findings: the test format gained `// CANDIDATE` for that. It also gained
+  `changed: 3,5-7`, which lets a case say which lines the change touches, so "a marker that already existed, outside the
+  change" is a tested behaviour and not just an engine property.
+- New language surface: the `Comment` kind (comments hang off the tree, so a walk of the nodes misses them), and facts for
+  logging (`placeholders`, `logArguments`, `isThrowable`), iteration (`enclosingIterations`, `iteratedCollection`,
+  `iteratedType`, `followedByExit`, `updatesCurrentKey`), methods (`isPublic`, `throwsTypes`, `annotations`,
+  `enclosingMethod`) and `tryCalls`.
+- Mutation testing again exposed missing tests (non-mutating calls in a loop, a catch outside any method, a `call()`
+  boundary, a try block with no calls, a constructor that throws) and one redundant clause.
+- **Running on real code found six more false-positive patterns, each fixed, tested and written into the `rule.md`:**
+  - `log-placeholder-mismatch` (20 findings to 7, all 7 real): `{0}` / `{0.00}` formats of `java.util.logging`, `MessageFormat` and
+    Tinylog; a single `new Object[]{...}`, which SLF4J takes as the whole argument array; and a caught exception whose class
+    cannot be resolved (`uae`) or a variable of a type bounded by an exception (`E extends Exception`).
+  - `collection-modified-during-iteration` (12 to 4): `put` of the key being visited only replaces a value, and a variable
+    declared as `Map` but created as `new ConcurrentHashMap<>()` is concurrent. The type of `cache.keySet()` is now the type
+    of `cache`.
+  - `generic-exception-in-public-api` (567 candidates to 362): signatures the framework dictates, such as Spring's
+    `@Bean SecurityFilterChain filterChain(HttpSecurity) throws Exception`, `@Around` advice and lifecycle callbacks.
+- Sweep totals: unowned-todo 524, catch-log-and-continue 349 candidates, generic-exception-in-public-api 362 candidates,
+  log-placeholder-mismatch 7, collection-modified-during-iteration 4. The remaining placeholder findings are all real; the
+  remaining collection findings are demo code that shows the bug.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate

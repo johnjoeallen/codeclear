@@ -22,6 +22,7 @@ import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.SynchronizedStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
@@ -54,8 +55,32 @@ final class DslSyntaxFacts {
             case "callsAfter": return callsAfter(n);
             case "enclosingCatch": return enclosingCatch(n);
             case "enclosingClassMethods": return enclosingClassMethods(n);
+            case "enclosingMethod": return n.findAncestor(MethodDeclaration.class).orElse(null);
+            case "enclosingIterations": return enclosingIterations(n);
+            case "iteratedCollection": return iteratedCollection(n);
+            case "iteratedType": return iteratedType(n, model);
+            case "followedByExit": return n instanceof MethodCallExpr c && followedByExit(c);
+            case "updatesCurrentKey": return n instanceof MethodCallExpr c && updatesCurrentKey(c);
+            case "isThrowable": return n instanceof com.github.javaparser.ast.expr.Expression e && isThrowable(e, model);
             case "enclosingMethodName": return n.findAncestor(MethodDeclaration.class).map(MethodDeclaration::getNameAsString).orElse(null);
             default: break;
+        }
+        if (n instanceof MethodDeclaration m) {
+            switch (name) {
+                case "isPublic": return m.isPublic() || m.findAncestor(ClassOrInterfaceDeclaration.class).map(ClassOrInterfaceDeclaration::isInterface).orElse(false);
+                case "classIsPublic": return m.findAncestor(ClassOrInterfaceDeclaration.class).map(ClassOrInterfaceDeclaration::isPublic).orElse(false);
+                case "throwsTypes": return m.getThrownExceptions().stream().map(Type::toString).toList();
+                case "annotations": return m.getAnnotations().stream().map(a -> a.getNameAsString()).toList();
+                default: break;
+            }
+        } else if (n instanceof CatchClause c && name.equals("tryCalls")) {
+            return c.findAncestor(TryStmt.class).map(t -> (Object) List.copyOf(t.getTryBlock().findAll(MethodCallExpr.class))).orElse(List.of());
+        } else if (n instanceof com.github.javaparser.ast.stmt.ForEachStmt f && name.equals("iterable")) {
+            return f.getIterable();
+        } else if (n instanceof com.github.javaparser.ast.expr.StringLiteralExpr s && name.equals("placeholders")) {
+            return placeholders(s.asString());
+        } else if (n instanceof MethodCallExpr c && name.equals("logArguments")) {
+            return logArguments(c, model);
         }
         if (n instanceof BinaryExpr b) {
             switch (name) {
@@ -184,6 +209,226 @@ final class DslSyntaxFacts {
             below = a;
         }
         return false;
+    }
+
+    // ---- logging ------------------------------------------------------------------------------------------------
+
+    /** The number of unescaped {@code {}} placeholders in a log format. */
+    private static int placeholders(String format) {
+        int count = 0;
+        for (int i = 0; i + 1 < format.length(); i++) {
+            if (format.charAt(i) == '{' && format.charAt(i + 1) == '}' && (i == 0 || format.charAt(i - 1) != '\\')) {
+                count++;
+                i++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * The arguments a log call passes for its placeholders: everything after the format, except a trailing exception that
+     * is not matched by a placeholder (SLF4J treats it as the throwable, not as an argument).
+     */
+    private static int logArguments(MethodCallExpr call, com.codeclear.rules.CCCodeModel model) {
+        List<com.github.javaparser.ast.expr.Expression> args = call.getArguments();
+        if (args.isEmpty() || !(args.get(0) instanceof com.github.javaparser.ast.expr.StringLiteralExpr format)) {
+            return 0;
+        }
+        int after = args.size() - 1;
+        if (after == 1 && args.get(1) instanceof com.github.javaparser.ast.expr.ArrayCreationExpr array && array.getInitializer().isPresent()) {
+            return array.getInitializer().get().getValues().size(); // SLF4J takes one Object[] as the argument array
+        }
+        if (after > placeholders(format.asString()) && isThrowable(args.get(args.size() - 1), model)) {
+            after--;
+        }
+        return after;
+    }
+
+    private static final Pattern THROWABLE_NAME = Pattern.compile("(?i)(e|ex|exc|exception|err|error|t|th|throwable|cause)");
+
+    /** The expression is a Throwable: by its resolved type, or when that is unknown by the name a caught exception usually has. */
+    private static boolean isThrowable(com.github.javaparser.ast.expr.Expression e, com.codeclear.rules.CCCodeModel model) {
+        if (e instanceof NameExpr n && declaredAsThrowable(n)) {
+            return true;
+        }
+        String qualified = model == null ? null : model.typeOf(e);
+        if (qualified != null) {
+            try {
+                return Throwable.class.isAssignableFrom(Class.forName(qualified));
+            } catch (ClassNotFoundException | LinkageError ex) {
+                return THROWABLE_NAME.matcher(e.toString()).matches() || qualified.endsWith("Exception") || qualified.endsWith("Error");
+            }
+        }
+        return e instanceof NameExpr n && THROWABLE_NAME.matcher(n.getNameAsString()).matches();
+    }
+
+    private static boolean throwableName(String type) {
+        return type.endsWith("Exception") || type.endsWith("Error") || type.equals("Throwable");
+    }
+
+    /**
+     * The name is a catch parameter, or a variable or parameter declared with an exception type, or with a type variable
+     * bounded by one ({@code <E extends Exception> ... E e}). Needed when the exception class itself cannot be resolved.
+     */
+    private static boolean declaredAsThrowable(NameExpr use) {
+        String name = use.getNameAsString();
+        for (Optional<Node> a = use.getParentNode(); a.isPresent(); a = a.get().getParentNode()) {
+            if (a.get() instanceof CatchClause c && c.getParameter().getNameAsString().equals(name)) {
+                return true;
+            }
+        }
+        Optional<MethodDeclaration> method = use.findAncestor(MethodDeclaration.class);
+        Type declared = null;
+        if (method.isPresent()) {
+            for (Parameter p : method.get().getParameters()) {
+                if (p.getNameAsString().equals(name)) {
+                    declared = p.getType();
+                }
+            }
+            for (VariableDeclarator d : method.get().findAll(VariableDeclarator.class)) {
+                if (d.getNameAsString().equals(name)) {
+                    declared = d.getType();
+                }
+            }
+        }
+        if (declared == null) {
+            return false;
+        }
+        String type = simpleName(declared);
+        if (throwableName(type)) {
+            return true;
+        }
+        return method.get().getTypeParameters().stream().anyMatch(tp -> tp.getNameAsString().equals(type)
+                && tp.getTypeBound().stream().anyMatch(b -> throwableName(b.getNameAsString())));
+    }
+
+    // ---- iteration ----------------------------------------------------------------------------------------------
+
+    /** For-each statements, and {@code x.forEach(lambda)} calls, that the node is inside, nearest first. */
+    private static List<Node> enclosingIterations(Node n) {
+        List<Node> out = new java.util.ArrayList<>();
+        Node below = n;
+        for (Optional<Node> parent = n.getParentNode(); parent.isPresent(); parent = parent.get().getParentNode()) {
+            Node a = parent.get();
+            if (a instanceof MethodDeclaration || a instanceof ConstructorDeclaration || a instanceof InitializerDeclaration
+                    || a instanceof ClassOrInterfaceDeclaration) {
+                break;
+            }
+            if (a instanceof com.github.javaparser.ast.stmt.ForEachStmt f && f.getBody() == below) {
+                out.add(f);
+            } else if (a instanceof MethodCallExpr c && c.getNameAsString().equals("forEach") && c.getScope().isPresent()
+                    && !c.getArguments().isEmpty() && c.getArgument(0) == below && below instanceof LambdaExpr) {
+                out.add(c);
+            }
+            below = a;
+        }
+        return out;
+    }
+
+    /**
+     * The collection an iteration walks, as text: the variable in {@code for (x : c)} and {@code c.forEach(...)}, and
+     * {@code c} in {@code c.keySet()}, {@code c.values()}, {@code c.entrySet()} and {@code c.stream()} (views of {@code c},
+     * so changing {@code c} still breaks the loop). A copy such as {@code new ArrayList<>(c)} gives null.
+     */
+    private static String iteratedCollection(Node n) {
+        com.github.javaparser.ast.expr.Expression source = iteratedExpression(n);
+        if (source instanceof MethodCallExpr c && c.getScope().isPresent()
+                && List.of("keySet", "values", "entrySet", "stream").contains(c.getNameAsString())) {
+            source = c.getScope().get();
+        }
+        return source instanceof NameExpr || (source instanceof FieldAccessExpr f && f.getScope() instanceof com.github.javaparser.ast.expr.ThisExpr)
+                ? source.toString() : null;
+    }
+
+    private static String iteratedType(Node n, com.codeclear.rules.CCCodeModel model) {
+        com.github.javaparser.ast.expr.Expression source = iteratedExpression(n);
+        if (source instanceof MethodCallExpr view && view.getScope().isPresent()
+                && List.of("keySet", "values", "entrySet", "stream").contains(view.getNameAsString())) {
+            source = view.getScope().get(); // the type of a view is the type of the collection behind it
+        }
+        String resolved = source == null || model == null ? null : model.typeOf(source);
+        if (resolved != null && resolved.startsWith("java.util.concurrent.")) {
+            return resolved;
+        }
+        // A variable declared as the interface (Map, List) but created as a concurrent class is a concurrent collection.
+        String created = source == null ? null : createdAs(source);
+        return created != null && (created.startsWith("Concurrent") || created.startsWith("CopyOnWrite"))
+                ? "java.util.concurrent." + created : resolved;
+    }
+
+    /** The class a variable or field is created as, from its initializer or an assignment: {@code x = new ConcurrentHashMap<>()}. */
+    private static String createdAs(com.github.javaparser.ast.expr.Expression variable) {
+        String name = variable instanceof NameExpr n ? n.getNameAsString()
+                : variable instanceof FieldAccessExpr f && f.getScope() instanceof com.github.javaparser.ast.expr.ThisExpr ? f.getNameAsString() : null;
+        if (name == null) {
+            return null;
+        }
+        Node scope = variable.findAncestor(ClassOrInterfaceDeclaration.class).map(c -> (Node) c).orElse(null);
+        if (scope == null) {
+            return null;
+        }
+        for (VariableDeclarator d : scope.findAll(VariableDeclarator.class)) {
+            if (d.getNameAsString().equals(name) && d.getInitializer().orElse(null) instanceof ObjectCreationExpr o) {
+                return o.getType().getNameAsString();
+            }
+        }
+        for (com.github.javaparser.ast.expr.AssignExpr a : scope.findAll(com.github.javaparser.ast.expr.AssignExpr.class)) {
+            String target = a.getTarget() instanceof NameExpr t ? t.getNameAsString()
+                    : a.getTarget() instanceof FieldAccessExpr f ? f.getNameAsString() : null;
+            if (name.equals(target) && a.getValue() instanceof ObjectCreationExpr o) {
+                return o.getType().getNameAsString();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * {@code put(k, v)} where {@code k} is the key being visited, so the call only replaces the value of an existing entry
+     * and does not change the map's structure: {@code for (k : m.keySet()) m.put(k, ...)}, {@code e.getKey()} for an entry
+     * {@code e}, and the key parameter of {@code m.forEach((k, v) -> ...)}.
+     */
+    private static boolean updatesCurrentKey(MethodCallExpr call) {
+        if (!call.getNameAsString().equals("put") || call.getArguments().isEmpty()) {
+            return false;
+        }
+        com.github.javaparser.ast.expr.Expression key = call.getArgument(0);
+        for (Node it : enclosingIterations(call)) {
+            String variable = null;
+            if (it instanceof com.github.javaparser.ast.stmt.ForEachStmt f) {
+                variable = f.getVariable().getVariable(0).getNameAsString();
+            } else if (it instanceof MethodCallExpr c && c.getArgument(0) instanceof LambdaExpr l && !l.getParameters().isEmpty()) {
+                variable = l.getParameter(0).getNameAsString();
+            }
+            final String visited = variable;
+            if (visited != null && (key instanceof NameExpr k && k.getNameAsString().equals(visited)
+                    || key instanceof MethodCallExpr g && g.getNameAsString().equals("getKey")
+                    && g.getScope().map(sc -> sc.toString().equals(visited)).orElse(false))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static com.github.javaparser.ast.expr.Expression iteratedExpression(Node n) {
+        if (n instanceof com.github.javaparser.ast.stmt.ForEachStmt f) {
+            return f.getIterable();
+        }
+        return n instanceof MethodCallExpr c && c.getNameAsString().equals("forEach") ? c.getScope().orElse(null) : null;
+    }
+
+    /** The call is a statement and the next statement in its block is a break, continue or return. */
+    private static boolean followedByExit(MethodCallExpr call) {
+        Optional<com.github.javaparser.ast.stmt.ExpressionStmt> stmt = call.findAncestor(com.github.javaparser.ast.stmt.ExpressionStmt.class);
+        if (stmt.isEmpty() || stmt.get().getExpression() != call
+                || !(stmt.get().getParentNode().orElse(null) instanceof com.github.javaparser.ast.stmt.BlockStmt block)) {
+            return false;
+        }
+        int at = block.getStatements().indexOf(stmt.get());
+        if (at < 0 || at + 1 >= block.getStatements().size()) {
+            return false;
+        }
+        Statement next = block.getStatement(at + 1);
+        return next instanceof BreakStmt || next instanceof ReturnStmt || next instanceof ContinueStmt;
     }
 
     /** The names of the methods of every class the node is inside, nearest first: {@code 'main' in n.enclosingClassMethods}. */

@@ -86,23 +86,27 @@ error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'str
 
 Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
 expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
-declaration, never a local variable), `DoubleLit` (a double or float literal), `If` and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
+declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Comment` (every comment in the file: line, block and Javadoc) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
 `instanceof` and `inside`, not iterated.
 
 | Node | Fields |
 |---|---|
-| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName`, `enclosingClassMethods` (the method names of every class around it: `'main' in n.enclosingClassMethods`) |
+| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName`, `enclosingClassMethods` (the method names of every class around it: `'main' in n.enclosingClassMethods`), `enclosingMethod` (the method around it, or missing), `enclosingIterations` (the for-each statements and `x.forEach(lambda)` calls it is inside), `iteratedCollection` / `iteratedType` (of such an iteration: the variable being walked, looking through `keySet()`, `values()`, `entrySet()` and `stream()`, and its type, taking a `new ConcurrentHashMap<>()` initializer into account) |
 | `file` (always available) | `path`, `language`, `isTest` |
 | `Catch` | `param`, `body` |
 | `Param` | `name`, `type` (text), `annotations` (list of names) |
 | a block (`.body`) | `statements`, `hasComment` |
 | `ExprStmt` | `expression` |
-| `Call` | `name`, `nameNode`, `args`, `firstArg`, `scope`, `lazyAssociation`, `dereferenced` |
+| `Call` | `name`, `nameNode`, `args`, `firstArg`, `scope`, `lazyAssociation`, `dereferenced`, `followedByExit` (the next statement is a break, continue or return), `logArguments` (arguments a log call passes for its placeholders, without a trailing exception or with a single `Object[]` expanded), `updatesCurrentKey` (`put` of the key being visited) |
 | `Name` | `name`, `declaredType` |
 | any expression | `isIdentitySentinel` (a `static final` field whose comment calls it an identity sentinel; false for anything else) |
 | `Binary` | `operator` (`==`, `!=`, `+`, ...), `left`, `right` |
 | `New` | `args`, `firstArg`, `typeName`, `causeUnsupported` (the exception class is in the file or the JDK and no constructor takes a cause) |
 | `Throw` | `expression` |
+| `StringLit` | `placeholders` (the number of unescaped `{}`) |
+| `Method` (more) | `isPublic` (interface methods count), `classIsPublic`, `throwsTypes`, `annotations` |
+| `Catch` (more) | `tryCalls` (the calls in the try block it belongs to) |
+| any expression (more) | `isThrowable` (by its type, or a catch parameter, or a variable declared with an exception type or an exception-bounded type variable) |
 | `FieldDecl` | `name`, `typeName` (simple name, no generics or package), `initializerTypeName`, `isStatic`, `isFinal`, `isPrivate`, `isVolatile`, `classAnnotations`, `usedOnlyInSynchronized` |
 | `If` | `doubleCheckedField` (the field declaration `f` in `if (f == null) { synchronized (...) { if (f == null) { f = ...; } } }`, or missing) |
 | `Jump` | `escapesFinally` (leaves a `finally` block: not through a nested lambda, class or method, not a break or continue whose loop is inside the finally, not a throw caught by a nested try) |
