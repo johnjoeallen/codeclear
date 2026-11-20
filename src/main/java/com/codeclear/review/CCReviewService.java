@@ -48,6 +48,7 @@ public class CCReviewService implements AutoCloseable {
     private final String aiDriverId;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
     private final com.codeclear.rules.SqlFileAnalyzer sqlAnalyzer = new com.codeclear.rules.SqlFileAnalyzer();
+    private final com.codeclear.rules.TreeSitterFileAnalyzer treeSitterAnalyzer = new com.codeclear.rules.TreeSitterFileAnalyzer();
     private final com.codeclear.rules.ConfigFileAnalyzer configAnalyzer = new com.codeclear.rules.ConfigFileAnalyzer();
 
     /** The service the application runs: rules from the configured folder, the configured AI driver. */
@@ -106,6 +107,10 @@ public class CCReviewService implements AutoCloseable {
                 analyses.add(sqlAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
                 continue;
             }
+            if (com.codeclear.rules.TreeSitterFileAnalyzer.languageOf(f.path()) != null) {
+                analyses.add(treeSitterAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
+                continue;
+            }
             if (isConfig(f.path())) {
                 try {
                     analyses.add(configAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
@@ -123,9 +128,9 @@ public class CCReviewService implements AutoCloseable {
                 notes.add("not analysed: " + e.getMessage());
             }
         }
-        long other = request.files().stream().filter(f -> !f.path().endsWith(JAVA) && !f.path().toLowerCase().endsWith(".sql") && !isConfig(f.path())).count();
+        long other = request.files().stream().filter(f -> !f.path().endsWith(JAVA) && !f.path().toLowerCase().endsWith(".sql") && !isConfig(f.path()) && com.codeclear.rules.TreeSitterFileAnalyzer.languageOf(f.path()) == null).count();
         if (other > 0) {
-            notes.add(other + " file(s) not analysed: only Java, SQL and config files have an analyzer so far");
+            notes.add(other + " file(s) not analysed: only Java, Python, TypeScript, SQL and config files have an analyzer so far");
         }
 
         List<CCSkippedRule> skipped = new ArrayList<>();

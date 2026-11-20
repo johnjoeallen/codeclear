@@ -44,7 +44,7 @@ case "${1:-}" in
       if command -v cygpath >/dev/null 2>&1; then RULES_DIR="$(cygpath -m "$RULES_DIR")"; fi
       EXTRA+=("--rules=$RULES_DIR")
     fi
-    exec java -jar "$JAR" review ${EXTRA[@]+"${EXTRA[@]}"} "$@"
+    exec java --enable-native-access=ALL-UNNAMED -jar "$JAR" review ${EXTRA[@]+"${EXTRA[@]}"} "$@"
     ;;
 esac
 
@@ -71,4 +71,4 @@ open_browser() {
 if [[ "${CODECLEAR_NO_BROWSER:-}" != "1" ]]; then open_browser & fi
 
 echo "Starting CodeClear on http://127.0.0.1:$PORT/ (Ctrl+C to stop)"
-exec java -jar "$JAR" --server.port="$PORT" "$@"
+exec java --enable-native-access=ALL-UNNAMED -jar "$JAR" --server.port="$PORT" "$@"

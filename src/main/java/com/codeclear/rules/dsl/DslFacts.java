@@ -49,12 +49,31 @@ final class DslFacts {
             return switch (name) {
                 case "path" -> f.getPath();
                 case "language" -> f.getLanguage();
-                case "isTest" -> f.getPath().matches("(^|.*/)src/test/.*");
+                case "isTest" -> f.getPath().matches("(^|.*/)src/test/.*")
+                        || f.getPath().matches("(^|.*/)(tests?|__tests__)/.*|(^|.*/)(test_[^/]*|[^/]*_test|conftest)\\.py|.*\\.(test|spec)\\.[cm]?[jt]sx?");
                 default -> unknown(t, name);
             };
         }
         if (t instanceof com.codeclear.rules.CCSqlModel.Node sqlNode) {
             return sqlField(sqlNode, name, t);
+        }
+        if (t instanceof com.codeclear.rules.CCTsNode n) {
+            return switch (name) {
+                case "type" -> n.type();
+                case "text" -> n.text();
+                case "line" -> (long) n.line();
+                case "children" -> n.children();
+                case "parent" -> n.parent();
+                case "next" -> n.next();
+                case "previous" -> n.previous();
+                case "hasNearbyComment" -> n.hasNearbyComment();
+                case "lastChild" -> n.lastChild();
+                case "tokens" -> n.tokens();
+                case "endLine" -> (long) n.endLine();
+                case "fieldName" -> n.fieldName();
+                case "isError" -> n.isError();
+                default -> unknown(t, name);
+            };
         }
         if (t instanceof com.codeclear.rules.CCConfigModel.Setting s) {
             return switch (name) {
@@ -172,7 +191,7 @@ final class DslFacts {
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
             "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
             "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString",
-            "key", "rawKey", "value", "profile");
+            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -187,6 +206,26 @@ final class DslFacts {
                 && args.get(0) instanceof DslInterpreter.Pred src && args.get(1) instanceof DslInterpreter.Pred san
                 && project != null) {
             return new DslTaint(src, san, apply, project).tainted(e);
+        }
+        if (target instanceof com.codeclear.rules.CCTsNode n) {
+            if (name.equals("field") && args.size() == 1 && args.get(0) instanceof String f) {
+                return n.field(f);
+            }
+            if (name.equals("child") && args.size() == 1 && args.get(0) instanceof String ty) {
+                return n.child(ty);
+            }
+            if (name.equals("mentions") && args.size() == 1 && args.get(0) instanceof String id) {
+                return n.mentions(id);
+            }
+            if (name.equals("descendants") && args.size() == 1 && args.get(0) instanceof String ty) {
+                return n.descendants(ty);
+            }
+            if (name.equals("ancestor") && args.size() == 1 && args.get(0) instanceof String ty) {
+                return n.ancestor(ty);
+            }
+            if (name.equals("ancestorOf") && args.size() == 1 && args.get(0) instanceof List<?> types) {
+                return n.ancestorOf(types);
+            }
         }
         if (name.equals("siblingValue") && target instanceof com.codeclear.rules.CCConfigModel.Setting s && args.size() == 1
                 && args.get(0) instanceof String last) {

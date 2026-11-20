@@ -99,12 +99,25 @@ final class DslInterpreter {
     /** The kinds of a SQL file ({@code Statement}, {@code Column} added by an ALTER TABLE, {@code Line}) and of a config file ({@code Setting}). */
     private static final Set<String> SQL_KINDS = Set.of("Statement", "Column", "Line", "Setting");
 
+    /** The nodes of a tree-sitter tree with this grammar type, the root included. */
+    private static List<com.codeclear.rules.CCTsNode> treeNodes(com.codeclear.rules.CCTsTree tree, String type) {
+        List<com.codeclear.rules.CCTsNode> out = new ArrayList<>();
+        com.codeclear.rules.CCTsNode root = tree.root();
+        boolean any = type.equals("Node"); // every named node
+        if (any || root.type().equals(type)) {
+            out.add(root);
+        }
+        out.addAll(root.descendants(any ? null : type));
+        return out;
+    }
+
     private List<Finding> runSql(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
         List<? extends com.codeclear.rules.CCModelNode> nodes = switch (rule.kind()) {
             case "Statement" -> file.sql() == null ? List.of() : file.sql().statements();
             case "Column" -> file.sql() == null ? List.of() : file.sql().columns();
             case "Setting" -> file.config() == null ? List.of() : file.config().settings();
-            default -> file.sql() == null ? List.of() : file.sql().lines();
+            case "Line" -> file.sql() == null ? List.of() : file.sql().lines();
+            default -> file.tree() == null ? List.of() : treeNodes(file.tree(), rule.kind());
         };
         List<Finding> out = new ArrayList<>();
         Ctx ctx = new Ctx(file, ruleConfidence, project);
@@ -152,7 +165,10 @@ final class DslInterpreter {
     }
 
     List<Finding> run(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
-        if (SQL_KINDS.contains(rule.kind())) {
+        // A kind that is not a Java one is a tree-sitter node type when the file is Python or TypeScript.
+        boolean treeKind = file.tree() != null && !KINDS.containsKey(rule.kind()) && !KIND_TESTS.containsKey(rule.kind())
+                && !SQL_KINDS.contains(rule.kind());
+        if (SQL_KINDS.contains(rule.kind()) || treeKind) {
             return runSql(rule, file, ruleConfidence, project);
         }
         Class<? extends Node> kind = KINDS.get(rule.kind());
@@ -296,6 +312,8 @@ final class DslInterpreter {
                 yield l != null && r instanceof List<?> list && list.contains(l);
             }
             case Expr.Matches m -> eval(m.l(), env, ctx) instanceof String s && m.r().p().matcher(s).matches();
+            case Expr.IsKind k when eval(k.l(), env, ctx) instanceof com.codeclear.rules.CCTsNode t ->
+                    t.type().equals(k.kind()) != k.neg();
             case Expr.IsKind k -> {
                 var test = KIND_TESTS.get(k.kind());
                 if (test == null) {
@@ -303,6 +321,8 @@ final class DslInterpreter {
                 }
                 yield (eval(k.l(), env, ctx) instanceof Node nd && test.test(nd)) != k.neg();
             }
+            case Expr.Inside x when eval(x.l(), env, ctx) instanceof com.codeclear.rules.CCTsNode t ->
+                    t.ancestor(x.kind()) != null;
             case Expr.Inside x -> {
                 var test = KIND_TESTS.get(x.kind());
                 if (test == null) {

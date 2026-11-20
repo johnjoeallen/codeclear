@@ -29,6 +29,7 @@ public final class CCRuleTestRunner {
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
     private final SqlFileAnalyzer sqlAnalyzer = new SqlFileAnalyzer();
     private final ConfigFileAnalyzer configAnalyzer = new ConfigFileAnalyzer();
+    private final TreeSitterFileAnalyzer treeSitterAnalyzer = new TreeSitterFileAnalyzer();
 
     /** Runs the rule's Groovy script (the rule's {@code .dsl} detector only when it has no script). */
     public CCRuleTestRunner(GroovyRuleDetector detector) {
@@ -104,8 +105,9 @@ public final class CCRuleTestRunner {
      * Fails if the rule failed.
      */
     private List<String> actual(CCRuleDefinition rule, CCRuleTests.Case c, String sharedPrelude) {
-        if (!rule.language().equals("java") && !rule.language().equals("common") && !rule.language().equals("sql") && !rule.language().equals("config")) {
-            throw new IllegalArgumentException("the test runner supports Java, SQL and config rules only");
+        if (!rule.language().equals("java") && !rule.language().equals("common") && !rule.language().equals("sql") && !rule.language().equals("config")
+                && !rule.language().equals("python") && !rule.language().equals("typescript")) {
+            throw new IllegalArgumentException("the test runner supports Java, Python, TypeScript, SQL and config rules only");
         }
         String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
         int offset = CCRuleTests.lineOffset(prelude);
@@ -116,7 +118,8 @@ public final class CCRuleTestRunner {
                     : CCChangedLines.of(c.changedLines().stream().map(l -> l + offset).collect(java.util.stream.Collectors.toSet()));
             String text = CCRuleTests.analysisText(prelude, f.source());
             String lower = f.path().toLowerCase();
-            files.add(lower.endsWith(".sql") ? sqlAnalyzer.analyze(f.path(), text, changed)
+            files.add(TreeSitterFileAnalyzer.languageOf(f.path()) != null ? treeSitterAnalyzer.analyze(f.path(), text, changed)
+                    : lower.endsWith(".sql") ? sqlAnalyzer.analyze(f.path(), text, changed)
                     : lower.endsWith(".yml") || lower.endsWith(".yaml") || lower.endsWith(".json") || lower.endsWith(".properties")
                             ? configAnalyzer.analyze(f.path(), text, changed) : analyzer.analyze(f.path(), text, changed));
         }

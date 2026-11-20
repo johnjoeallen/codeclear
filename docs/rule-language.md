@@ -13,6 +13,7 @@ arbitrary code. A rule can only read the fields and call the facts listed here, 
 - [Node kinds and fields](#node-kinds-and-fields)
 - [SQL files](#sql-files)
 - [Config files](#config-files)
+- [Python and TypeScript files](#python-and-typescript-files)
 - [Host facts](#host-facts)
 - [What is deliberately missing](#what-is-deliberately-missing)
 
@@ -166,6 +167,35 @@ one per scalar value:
 
 A finding is reported on the line of the value (of the key, in a properties file). Put the key in a message, never the value
 of a secret.
+
+## Python and TypeScript files
+
+A `.py` file is parsed with tree-sitter's Python grammar, and a `.ts`, `.js`, `.mjs`, `.cjs`, `.mts` or `.cts` file with its
+TypeScript grammar (which reads JavaScript too). The grammars are native libraries bundled in the jar for Linux, macOS and
+Windows; a file with a syntax error still gives a tree. `.tsx` and `.jsx` are read with the TypeScript grammar, which has no JSX,
+so the JSX in them becomes error nodes. A rule iterates the grammar's own node type as the kind, for example
+`except_clause.each { c -> ... }` or `call_expression.each { c -> ... }`, or `Node.each` for every named node (then test
+`n.type in ['a', 'b']`). `x instanceof type_name` and `x.inside(type_name)` take a grammar type too.
+
+| Field or fact | Meaning |
+|---|---|
+| `n.type`, `n.text`, `n.line`, `n.endLine` | the grammar type, the source text, the first and last line |
+| `n.children` | the named children in source order (keywords and punctuation are left out) |
+| `n.tokens` | the unnamed children as text: `is`, `not`, `==`, `async` |
+| `n.parent`, `n.next`, `n.previous`, `n.lastChild` | related nodes, or missing |
+| `n.fieldName` | the name the parent gives this node: `body`, `condition`, `cause` |
+| `n.field('body')` | the child the grammar gives that field name, or missing |
+| `n.child('block')` | the first named child of that type, or missing |
+| `n.descendants('call')` | every node below with that type, in source order |
+| `n.ancestor('try_statement')`, `n.ancestorOf(['a', 'b'])` | the nearest ancestor with that type, or with one of those types |
+| `n.mentions('name')` | an identifier with that text appears at or below the node |
+| `n.hasNearbyComment` | a comment starts on the last line of the node, or ends on the line above its first |
+| `n.isError` | the node is a syntax error or a missing token |
+
+`file.isTest` also covers `tests/`, `__tests__/`, `test_*.py`, `*_test.py`, `conftest.py` and `*.test.ts`/`*.spec.ts`. The shape of
+the tree for a snippet is easiest to see by parsing it; the node and field names are those of the
+[tree-sitter-python](https://github.com/tree-sitter/tree-sitter-python) and
+[tree-sitter-typescript](https://github.com/tree-sitter/tree-sitter-typescript) grammars.
 
 ## Host facts
 

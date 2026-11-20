@@ -210,8 +210,8 @@ class CCReviewServiceTest {
     void rulesForOtherFilesDoNotAppearAndFindingsOffTheChangedLinesAreDropped() {
         CCReviewRequest request = new CCReviewRequest(List.of(
                 new CCReviewFile("src/main/java/A.java", EMPTY_CATCH, CCChangedLines.of(Set.of(1)))));
-        CCRuleDefinition tsOnly = new CCRuleDefinition("typescript/t", Optional.empty(),
-                new CCRuleMetadata(List.of("**/*.ts"), "X", CCRuleSeverity.LOW, CCRuleConfidence.LOW, CCDetectionType.AI),
+        CCRuleDefinition tsOnly = new CCRuleDefinition("go/t", Optional.empty(),
+                new CCRuleMetadata(List.of("**/*.go"), "X", CCRuleSeverity.LOW, CCRuleConfidence.LOW, CCDetectionType.AI),
                 "h", Optional.empty());
 
         CCReviewResult r = service(List.of(rule("java/r", CCDetectionType.AST, REPORT), tsOnly),
@@ -223,15 +223,15 @@ class CCReviewServiceTest {
 
     @Test
     void nonJavaFilesAreNotedAndRulesThatOnlyApplyToThemAreSkippedForWantOfAnAnalyzer() {
-        CCRuleDefinition ts = new CCRuleDefinition("typescript/t", Optional.empty(),
-                new CCRuleMetadata(List.of("**/*.ts"), "X", CCRuleSeverity.LOW, CCRuleConfidence.LOW, CCDetectionType.REGEX),
+        CCRuleDefinition ts = new CCRuleDefinition("go/t", Optional.empty(),
+                new CCRuleMetadata(List.of("**/*.go"), "X", CCRuleSeverity.LOW, CCRuleConfidence.LOW, CCDetectionType.REGEX),
                 "h", Optional.empty());
 
         CCReviewResult r = service(List.of(ts), new FakeConfirmer(false, CCCandidateVerdict.Kind.NO_VERDICT))
-                .review(new CCReviewRequest(List.of(CCReviewFile.whole("web/app.ts", "const x = 1;"))));
+                .review(new CCReviewRequest(List.of(CCReviewFile.whole("web/app.go", "package main"))));
 
         assertThat(r.skippedRules()).extracting(CCSkippedRule::reason).containsExactly(CCSkippedRule.Reason.NO_ANALYZER);
-        assertThat(r.notes()).anyMatch(n -> n.contains("only Java, SQL and config files have an analyzer"));
+        assertThat(r.notes()).anyMatch(n -> n.contains("only Java, Python, TypeScript, SQL and config files have an analyzer"));
     }
 
     @Test

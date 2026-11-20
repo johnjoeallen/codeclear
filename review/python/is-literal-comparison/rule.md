@@ -37,5 +37,7 @@ Python `ast`. CPython emits `SyntaxWarning` for this too. Equivalent: Ruff `F632
 ## Why deterministic
 An `is`/`is not` comparison against a literal is a syntactic fact.
 
+Detected on `comparison_operator` nodes that use `is` or `is not`. Operands of type string, number, tuple or concatenated string count as literals; `None`, `True`, `False` and `...` are their own node types and do not. A sentinel object created in the module is a name, not a literal, so it is not flagged.
+
 ## Required tests
 `is "x"` (finding), `is 0` (finding), `is None` (no finding), `is True` (no finding).

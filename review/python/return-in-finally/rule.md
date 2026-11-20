@@ -40,5 +40,7 @@ Python `ast`. Equivalent: Ruff `B012`, pylint `lost-exception`.
 ## Why deterministic
 A `return`/`raise`/`break` located in a `finally` body is a syntactic fact.
 
+The nearest enclosing `finally_clause`, function, lambda, class or loop decides: a `return` is flagged when the finally is nearest, and a `break` or `continue` only when no loop sits between it and the finally.
+
 ## Required tests
 Return, break and continue in `finally` (findings); nested function return (no finding).

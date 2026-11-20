@@ -47,7 +47,7 @@ if ($rest.Count -gt 0 -and $rest[0] -eq 'serve') {
     $RulesDir = if ($env:CODECLEAR_RULES) { $env:CODECLEAR_RULES } else { Join-Path $Dir 'review' }
     $extra = @()
     if (Test-Path $RulesDir) { $extra = @("--rules=$RulesDir") }
-    & java -jar $Jar review @extra @rest
+    & java --enable-native-access=ALL-UNNAMED -jar $Jar review @extra @rest
     exit $LASTEXITCODE
 }
 
@@ -71,5 +71,5 @@ if ($env:CODECLEAR_NO_BROWSER -ne '1') {
 }
 
 Write-Host "Starting CodeClear on http://127.0.0.1:$Port/ (Ctrl+C to stop)"
-& java -jar $Jar "--server.port=$Port" @rest
+& java --enable-native-access=ALL-UNNAMED -jar $Jar "--server.port=$Port" @rest
 exit $LASTEXITCODE

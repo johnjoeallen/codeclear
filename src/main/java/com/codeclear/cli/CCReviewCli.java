@@ -37,8 +37,8 @@ public final class CCReviewCli {
     static final String USAGE_TEXT = """
             Usage: codeclear [options] [path ...]
 
-            Reviews Java, SQL and configuration files with the rules in the rules folder. A path is a file or a folder; a folder is
-            searched for .java, .sql, .yml, .yaml, .json and .properties files. The default is the current folder.
+            Reviews Java, Python, TypeScript, SQL and configuration files with the rules in the rules folder. A path is a file or a folder; a folder is
+            searched for .java, .py, .ts, .js, .sql, .yml, .yaml, .json and .properties files. The default is the current folder.
 
             Options (written --name=value):
               --diff=<rev>        review only the lines changed since a git revision (for example main or HEAD~1)
@@ -222,7 +222,7 @@ public final class CCReviewCli {
             } else if (Files.isDirectory(root)) {
                 try (Stream<Path> walk = Files.walk(root)) {
                     for (Path f : walk.filter(Files::isRegularFile).filter(f -> f.toString().endsWith(".java") || f.toString().toLowerCase().endsWith(".sql")
-                            || f.toString().toLowerCase().matches(".*\\.(ya?ml|json|properties)"))
+                            || f.toString().toLowerCase().matches(".*\\.(ya?ml|json|properties|py|ts|js|mjs|cjs|mts|cts)"))
                             .filter(f -> !skipped(root, f)).sorted().toList()) {
                         selected.put(relative(dir, f), f);
                     }

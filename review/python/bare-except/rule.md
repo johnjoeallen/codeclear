@@ -41,5 +41,7 @@ Python `ast`. Equivalent: Ruff `E722`, `BLE001`.
 ## Why deterministic
 The handler's exception type and a trailing bare `raise` are syntactic facts.
 
+Detected on the tree-sitter tree: an `except_clause` whose only named child is its block, or whose type is `BaseException`. A handler is skipped when the last statement of its block is a bare `raise`.
+
 ## Required tests
 Bare except (finding), `BaseException` (finding), bare except with `raise` (no finding), `except ValueError` (no finding).

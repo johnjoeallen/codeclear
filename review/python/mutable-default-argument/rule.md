@@ -38,5 +38,7 @@ Python `ast` module. Equivalent: Ruff `B006`.
 ## Why deterministic
 A mutable literal or constructor call in a parameter default is a syntactic fact.
 
+Detected on `default_parameter` and `typed_default_parameter` of functions and lambdas. A dataclass `field(default_factory=...)` is a class attribute, not a parameter, so it is never seen. The LOW-confidence case for private, never-mutated functions is not detected.
+
 ## Required tests
 List, dict, set, `list()` call defaults (findings); `None`, tuple (no finding); keyword-only default; lambda default.

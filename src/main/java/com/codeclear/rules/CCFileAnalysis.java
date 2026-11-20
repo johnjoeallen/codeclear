@@ -11,15 +11,21 @@ import com.github.javaparser.ast.Node;
  * @param changedLines lines touched by the change; findings elsewhere are dropped
  * @param sql          the statements, columns and lines of a SQL file; null for any other language
  * @param config       the settings of a YAML, JSON or properties file; null for any other language
+ * @param tree         the tree-sitter tree of a Python or TypeScript file; null for any other language
  */
 public record CCFileAnalysis(CCFileInfo file, Node ast, CCCodeModel model, CCChangedLines changedLines, CCSqlModel sql,
-                             CCConfigModel config) {
+                             CCConfigModel config, CCTsTree tree) {
 
     public CCFileAnalysis(CCFileInfo file, Node ast, CCCodeModel model, CCChangedLines changedLines) {
-        this(file, ast, model, changedLines, null, null);
+        this(file, ast, model, changedLines, null, null, null);
     }
 
     public CCFileAnalysis(CCFileInfo file, Node ast, CCCodeModel model, CCChangedLines changedLines, CCSqlModel sql) {
-        this(file, ast, model, changedLines, sql, null);
+        this(file, ast, model, changedLines, sql, null, null);
+    }
+
+    public CCFileAnalysis(CCFileInfo file, Node ast, CCCodeModel model, CCChangedLines changedLines, CCSqlModel sql,
+                          CCConfigModel config) {
+        this(file, ast, model, changedLines, sql, config, null);
     }
 }

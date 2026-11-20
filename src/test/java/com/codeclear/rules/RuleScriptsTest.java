@@ -75,7 +75,7 @@ class RuleScriptsTest {
     @Test
     void executableRulesWithoutScriptsAreStale() {
         long staleCount = CCRuleLoader.loadAll(REVIEW_ROOT).stream().filter(CCRuleDefinition::stale).count();
-        // 173 executable rules exist; fifty-five have a detector so far. This documents the backlog, it is not a target.
-        assertThat(staleCount).isEqualTo(173 - 55);
+        // 173 executable rules exist; sixty have a detector so far. This documents the backlog, it is not a target.
+        assertThat(staleCount).isEqualTo(173 - 60);
     }
 }

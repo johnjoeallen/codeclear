@@ -39,5 +39,7 @@ Python `ast`. Equivalent: Ruff `B904`, pylint `raise-missing-from`.
 ## Why deterministic
 A `raise` inside an `except` body with and without a `from` clause is a syntactic fact.
 
+Detected on a `raise` of a call (a new exception) whose nearest enclosing function-or-handler is an `except` clause. `from None` is flagged unless the raised call mentions the `as` name of the handler or a comment sits on the line of the raise or just above it.
+
 ## Required tests
 No `from` (finding), `from e` (no finding), bare `raise` (no finding), `from None` with no info (finding).
