@@ -35,5 +35,7 @@ Python `ast`. Equivalent: Bandit `B608`, Ruff `S608`.
 ## Why deterministic
 A formatted/concatenated string passed to an `execute`-style call is a syntactic fact.
 
+Detected on `execute`, `executemany`, `raw` and `text(...)` calls whose first argument starts like a statement (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) and is an f-string with a substitution, a `%` expression, a `.format()` call, or a `+` concatenation that contains a name. An allow-listed table name in the same function is not recognised, so it is reported.
+
 ## Required tests
 f-string (finding), `%` format (finding), parameterized (no finding), constant query (no finding).

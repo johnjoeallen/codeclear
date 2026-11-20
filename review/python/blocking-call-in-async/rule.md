@@ -44,5 +44,7 @@ Python `ast` with a configurable blocklist. Equivalent: Ruff `ASYNC` rules (`ASY
 ## Why deterministic
 Enclosing `async def` and a blocklisted callee are syntactic facts; offloading wrappers are excluded by shape.
 
+The nearest enclosing function of the call must be an `async def`; a lambda or a plain nested `def` ends the search. The blocklist is `time.sleep`, `requests.*`, `urllib.request.urlopen`, `os.system`, `subprocess.run/call/check_call/check_output/Popen`, and `connect` of `psycopg2`, `pymysql`, `sqlite3` and `MySQLdb`, plus calls on a name the module assigns from `boto3.client(...)` or `boto3.resource(...)`. The builtin `open()` is not flagged, since the rule is about large reads and the size is not known.
+
 ## Required tests
 `time.sleep` (finding), `requests.get` (finding), `to_thread` wrapped (no finding), sync function (no finding).

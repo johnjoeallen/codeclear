@@ -34,6 +34,8 @@ new https.Agent({ ca: fs.readFileSync(CA_PATH) });
 ## Implementation notes
 Regex over source; anchor to the matched line. Exclude comments.
 
+Detected on object properties and assignments: `rejectUnauthorized: false`, `strictSSL: false`, `checkServerIdentity` with a function that returns `undefined`, and `process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"`. A block inside an `if` whose condition compares `NODE_ENV` with `"development"`, test files, and `fixtures/` or `mocks/` folders are skipped.
+
 ## Required tests
 `rejectUnauthorized: false` (finding), env var `'0'` (finding), `true` (no finding), test-file match (no finding).
 

@@ -33,5 +33,7 @@ if (value == null) {}
 ## Implementation notes
 Equivalent: ESLint `eqeqeq` with `{"null": "ignore"}`. Anchor to the operator line.
 
+Detected on `binary_expression` nodes with `==` or `!=`. A comparison with `null`, two literals of the same primitive type, and `typeof x == "string"` are skipped; a variable whose type is known to be primitive is not recognised, since there is no type checker.
+
 ## Required tests
 `==` between variables (finding), `===` (no finding), `== null` (no finding), `!=` (finding).
