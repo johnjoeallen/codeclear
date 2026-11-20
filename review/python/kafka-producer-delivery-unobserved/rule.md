@@ -33,6 +33,8 @@ producer.send("orders", value).get(timeout=10)
 ## Implementation notes
 Python `ast`; anchor to the produce call.
 
+Detected on an expression statement `x.send(...)` or `x.produce(...)` where `x` has `producer` or `kafka` in its name, with no `on_delivery=` or `callback=` argument and a function that never mentions `flush`, `add_errback`, `add_callback`, `stop`, `close` or `poll`. A call whose result is stored or awaited, and `send_and_wait`, are not matched.
+
 ## AI prompt
 Question: "Does the caller report success or the process exit while delivery may have failed, given the visible `acks`/retries settings?" Supply the producer config and the surrounding function. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

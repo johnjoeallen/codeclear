@@ -36,6 +36,8 @@ with transaction.atomic():
 ## Implementation notes
 Python `ast`; anchor to the dispatch call. Loop-variable capture in the `on_commit` lambda is covered by `late-binding-loop-closure`.
 
+Detected on `.delay(...)`, `.apply_async(...)` and `send_task(...)` with at least one non-constant argument, inside a `with` whose header mentions `atomic`, `begin` or `begin_nested`, or inside a function decorated with `@...atomic`. A call inside `on_commit(...)`, or in a lambda handed to it, is skipped. Whether the arguments really name objects created in the block is not checked.
+
 ## AI prompt
 Question: "Does the task read data written in this transaction, or is its effect incorrect if the transaction rolls back?" Supply the block and the task body. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

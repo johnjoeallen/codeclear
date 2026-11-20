@@ -35,6 +35,8 @@ claims = jwt.decode(token, key, algorithms=["RS256"], audience=AUD, issuer=ISS)
 ## Implementation notes
 Python `ast` plus settings-file keyword scan; anchor to the call/setting.
 
+Detected on `jwt.decode` with `verify_signature: False`, `verify=False`, no `algorithms=`, or `algorithms` containing `none`; on `set_cookie` without all of `secure`, `httponly` and `samesite`; on `SESSION_COOKIE_SECURE/HTTPONLY` and `CSRF_COOKIE_SECURE/HTTPONLY` set to `False`; on `@csrf_exempt`; on CORS with `allow_origins=["*"]` and `allow_credentials=True`, and `CORS_ALLOW_ALL_ORIGINS = True`; and on a `"X-Forwarded-For/Proto/Host"` string in a module that mentions no trusted-proxy setting. Missing `audience` and `issuer` are not detected.
+
 ## AI prompt
 Question: "Given the actual authentication model, can an attacker exploit this configuration (forged token, CSRF, cross-origin credentialed read, spoofed IP)?" Supply the auth flow and middleware. Report only with a concrete trigger scenario; public endpoints are not missing authentication by default; otherwise NO_FINDING.
 

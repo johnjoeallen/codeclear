@@ -37,6 +37,8 @@ async def handler():
 ## Implementation notes
 Python `ast`; anchor to the call.
 
+Two files. `rule.dsl` flags `asyncio.run` and `run_until_complete` inside an `async def`, and `call_soon`, `call_later`, `create_task`, `set_result` and `set_exception` inside a function that the same module hands to a thread (`target=`) or to `run_in_executor`, `to_thread` or `submit`. `module.dsl` flags a module-level `asyncio.Lock/Queue/Event/Semaphore/Condition` in a module that mentions `run` at least twice.
+
 ## AI prompt
 Question: "Does the real caller already run an event loop, or does another thread touch loop-bound objects shown here?" Supply the call chain to the entry point. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

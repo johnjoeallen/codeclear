@@ -35,6 +35,8 @@ def parent(ids):
 ## Implementation notes
 Python `ast`; anchor to the waiting call. Celery already warns about this by default.
 
+Detected on `.get`, `.join` or `.collect` called in a function decorated with `@app.task`, `@shared_task` or `@task`, on the result of `.delay`/`.apply_async`/`.s`, on `group(...)`/`chord(...)`, or on a variable the function assigned from one of those. `.get(disable_sync_subtasks=False)` is always reported.
+
 ## AI prompt
 Question: "Does the visible worker/pool/queue topology let the child tasks run while the parent holds a slot, or can the pool fill with parents?" Supply worker config, queues and concurrency. Report only with a concrete trigger scenario; do not assume the pool or result backend; otherwise NO_FINDING.
 
