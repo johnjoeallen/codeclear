@@ -33,6 +33,8 @@ const user = UserSchema.parse(await res.json());
 ## Implementation notes
 Candidate detection only; the AI reviewer decides whether the field can really be absent.
 
+Detected on `x as T` and on `x!` where `x` contains `.json()`, `.data`, or `JSON.parse(`, or is a name that the function assigned (one step) from something mentioning `json`, `JSON`, `axios` or `fetch`. `as unknown`, `as any` and `as const` are not flagged. A function that mentions a validator (`zod`, `io-ts`, `yup`, `ajv`, `valibot`, `superstruct`, `safeParse`, `validate(`, `Joi`, `typebox`) or calls `.parse(` on the data is skipped; test files are skipped.
+
 ## AI prompt
 For each candidate, can the asserted shape be absent or different in the real response, and does the code then fail on first use? Check for validation earlier on the path. Report only with a concrete failing input. Evidence: the call site, the type definition, any server contract in the supplied files.
 
