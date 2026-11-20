@@ -39,6 +39,16 @@ class DslProjectTest {
     }
 
     @Test
+    void unboundedExecutorQueue() throws Exception {
+        check("unbounded-executor-queue", Path.of("review/java/unbounded-executor-queue"), List.of("rule.dsl", "pool.dsl"));
+    }
+
+    @Test
+    void transactionalOnPrivateMethod() throws Exception {
+        check("transactional-on-private-method", Path.of("review/java/transactional-on-private-method"), List.of("rule.dsl", "selfcall.dsl"));
+    }
+
+    @Test
     void logInjection() throws Exception {
         check("log-injection", Path.of("review/common/log-injection"), List.of("rule.dsl"));
     }
@@ -95,7 +105,7 @@ class DslProjectTest {
     }
 
     private static List<String> expected(CCRuleTests.Case c) {
-        return c.expect().stream().map(e -> e.path() + ":" + e.line() + (e.candidate() ? ":CANDIDATE" : "")).sorted().toList();
+        return c.expect().stream().map(e -> e.path() + ":" + e.line() + (e.candidate() ? ":CANDIDATE" : ":" + (e.confidence() == null ? "HIGH" : e.confidence()))).sorted().toList();
     }
 
     private static List<String> run(List<RuleAst> rules, CCRuleTests.Case c, String sharedPrelude) {
@@ -112,8 +122,8 @@ class DslProjectTest {
         List<String> out = new ArrayList<>();
         for (RuleAst rule : rules) {
             for (CCFileAnalysis fa : files) {
-                new DslInterpreter().run(rule, fa, "MEDIUM", project)
-                        .forEach(f -> out.add(fa.file().getPath() + ":" + (f.line() - offset) + (f.candidate() ? ":CANDIDATE" : "")));
+                new DslInterpreter().run(rule, fa, "HIGH", project)
+                        .forEach(f -> out.add(fa.file().getPath() + ":" + (f.line() - offset) + (f.candidate() ? ":CANDIDATE" : ":" + f.confidence())));
             }
         }
         return out.stream().sorted().toList();

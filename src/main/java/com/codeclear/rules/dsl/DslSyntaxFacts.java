@@ -56,6 +56,11 @@ final class DslSyntaxFacts {
             case "enclosingCatch": return enclosingCatch(n);
             case "enclosingClassMethods": return enclosingClassMethods(n);
             case "enclosingMethod": return n.findAncestor(MethodDeclaration.class).orElse(null);
+            case "enclosingClassAnnotations":
+                return n.findAncestor(ClassOrInterfaceDeclaration.class)
+                        .map(c -> c.getAnnotations().stream().map(a -> a.getNameAsString()).toList()).orElse(List.of());
+            case "isDiscarded": return n instanceof MethodCallExpr c && c.getParentNode().orElse(null) instanceof com.github.javaparser.ast.stmt.ExpressionStmt s && s.getExpression() == c;
+            case "sameClassTransactionalTarget": return n instanceof MethodCallExpr c ? sameClassTransactionalTarget(c) : null;
             case "enclosingIterations": return enclosingIterations(n);
             case "iteratedCollection": return iteratedCollection(n);
             case "iteratedType": return iteratedType(n, model);
@@ -71,6 +76,9 @@ final class DslSyntaxFacts {
                 case "classIsPublic": return m.findAncestor(ClassOrInterfaceDeclaration.class).map(ClassOrInterfaceDeclaration::isPublic).orElse(false);
                 case "throwsTypes": return m.getThrownExceptions().stream().map(Type::toString).toList();
                 case "annotations": return m.getAnnotations().stream().map(a -> a.getNameAsString()).toList();
+                case "isPrivate": return m.isPrivate();
+                case "isFinal": return m.isFinal();
+                case "assertions": return assertions(m);
                 default: break;
             }
         } else if (n instanceof CatchClause c && name.equals("tryCalls")) {
@@ -134,6 +142,11 @@ final class DslSyntaxFacts {
     static Object fact(Object target, String name, List<Object> args) {
         if (name.equals("mentions") && target instanceof Node n && args.size() == 1 && args.get(0) instanceof String id) {
             return mentions(n, id);
+        }
+        if (name.equals("hasAnnotationMember") && target instanceof MethodDeclaration m && args.size() == 2
+                && args.get(0) instanceof String annotation && args.get(1) instanceof String member) {
+            return m.getAnnotationByName(annotation).map(a -> a instanceof com.github.javaparser.ast.expr.NormalAnnotationExpr na
+                    && na.getPairs().stream().anyMatch(p -> p.getNameAsString().equals(member))).orElse(false);
         }
         if (name.equals("releasedInNextFinally") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
             return releasedInNextFinally(c, names);
@@ -209,6 +222,83 @@ final class DslSyntaxFacts {
             below = a;
         }
         return false;
+    }
+
+    // ---- tests ----------------------------------------------------------------------------------------------------
+
+    private static boolean assertionName(String n) {
+        return n.startsWith("assert") || n.startsWith("verify") || n.startsWith("check") || n.startsWith("expect")
+                || n.startsWith("andExpect") || n.equals("fail") || n.equals("then") || n.equals("should");
+    }
+
+    /**
+     * The assertion calls in a test, as the calls that decide whether it can fail. Any call named {@code assert...},
+     * {@code verify...}, {@code check...}, {@code expect...}, {@code andExpect...}, {@code fail}, {@code then} or
+     * {@code should} counts, which includes helpers that delegate to assertions. {@code assertThat(x).isNotNull()} is
+     * reported as the {@code isNotNull} call, because that is all it asserts; any other {@code assertThat(...)} as itself.
+     */
+    private static List<MethodCallExpr> assertions(MethodDeclaration m) {
+        List<MethodCallExpr> out = new java.util.ArrayList<>();
+        for (MethodCallExpr call : m.findAll(MethodCallExpr.class)) {
+            if (!assertionName(call.getNameAsString())) {
+                // A call to a helper of the same class that asserts, however it is named: testAdding(1, 2), parse("...").
+                if (delegatesAssertions(call, 2, new java.util.HashSet<>())) {
+                    out.add(call);
+                }
+                continue;
+            }
+            if (call.getNameAsString().equals("assertThat")) {
+                MethodCallExpr next = chained(call);
+                if (next != null && next.getNameAsString().equals("isNotNull") && chained(next) == null) {
+                    out.add(next);
+                    continue;
+                }
+            }
+            out.add(call);
+        }
+        return out;
+    }
+
+    /**
+     * The call is unqualified (or on {@code this}) and resolves by name and parameter count to a method of the same class whose
+     * body asserts, directly or through another such helper, to the given depth.
+     */
+    private static boolean delegatesAssertions(MethodCallExpr call, int depth, java.util.Set<MethodDeclaration> seen) {
+        if (depth == 0 || call.getScope().isPresent() && !(call.getScope().get() instanceof com.github.javaparser.ast.expr.ThisExpr)) {
+            return false;
+        }
+        return call.findAncestor(ClassOrInterfaceDeclaration.class).stream()
+                .flatMap(c -> c.getMethodsByName(call.getNameAsString()).stream())
+                .filter(h -> acceptsArguments(h, call.getArguments().size()) && h.getBody().isPresent() && seen.add(h))
+                .anyMatch(h -> h.findAll(MethodCallExpr.class).stream().anyMatch(inner ->
+                        assertionName(inner.getNameAsString()) || delegatesAssertions(inner, depth - 1, seen)));
+    }
+
+    /** The method takes this many arguments: exactly, or at least all but the last with a varargs parameter. */
+    private static boolean acceptsArguments(MethodDeclaration method, int count) {
+        int declared = method.getParameters().size();
+        return declared == count || declared > 0 && method.getParameter(declared - 1).isVarArgs() && count >= declared - 1;
+    }
+
+    /** The call made directly on the result of this one: {@code a.b()} for {@code a}. */
+    private static MethodCallExpr chained(MethodCallExpr call) {
+        return call.getParentNode().filter(p -> p instanceof MethodCallExpr outer && outer.getScope().map(s -> s == call).orElse(false))
+                .map(p -> (MethodCallExpr) p).orElse(null);
+    }
+
+    // ---- transactions -------------------------------------------------------------------------------------------
+
+    /**
+     * For an unqualified call, or one on {@code this}, a method of the same class with that name and parameter count
+     * that is annotated {@code @Transactional}: calling it from inside the class bypasses the Spring proxy. Null otherwise.
+     */
+    private static MethodDeclaration sameClassTransactionalTarget(MethodCallExpr call) {
+        if (call.getScope().isPresent() && !(call.getScope().get() instanceof com.github.javaparser.ast.expr.ThisExpr)) {
+            return null;
+        }
+        return call.findAncestor(ClassOrInterfaceDeclaration.class).flatMap(c -> c.getMethodsByName(call.getNameAsString()).stream()
+                .filter(m -> m.getParameters().size() == call.getArguments().size() && m.getAnnotationByName("Transactional").isPresent())
+                .findFirst()).orElse(null);
     }
 
     // ---- logging ------------------------------------------------------------------------------------------------

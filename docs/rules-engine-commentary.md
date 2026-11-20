@@ -400,7 +400,7 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 
 ### Markdown report
 
-- Every review writes `target/codeclear/report.md` (`--report=<file>` to move it, `--report=none` to skip it): a summary table,
+- Every review writes `target/codeclear/report.md` inside the scanned folder (`--report=<file>` to move it, `--report=none` to skip it): a summary table,
   findings grouped by file with a numbered snippet (3 lines of context, the flagged line marked `>`), unconfirmed candidates,
   the rules not checked in collapsible lists, and notes. The snippet fence grows when the code itself contains backticks, and
   messages are escaped so a `|` or `<` cannot break the tables. A report that cannot be written is a warning, not a failure.
@@ -431,6 +431,28 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 - Sweep totals: unowned-todo 524, catch-log-and-continue 349 candidates, generic-exception-in-public-api 362 candidates,
   log-placeholder-mismatch 7, collection-modified-during-iteration 4. The remaining placeholder findings are all real; the
   remaining collection findings are demo code that shows the bug.
+
+### Five more detectors (log-and-rethrow, kafka-producer-send-unobserved, unbounded-executor-queue, test-without-meaningful-assertion, transactional-on-private-method)
+
+- Detectors now number 24; 149 executable rules still have none. Three are `hybrid` (candidates for the AI), two are
+  deterministic. `unbounded-executor-queue` and `transactional-on-private-method` have two files each (factory calls and
+  constructors; private/final methods and self-calls).
+- New language surface: the `Lambda` and `MethodRef` kinds, and the facts `isDiscarded`, `enclosingClassAnnotations`,
+  `isPrivate`, `isFinal`, `assertions` (the assertion calls of a test, with `assertThat(x).isNotNull()` reported as the weak
+  call it is), `sameClassTransactionalTarget` and `hasAnnotationMember`.
+- **The mutation harness now compares confidence.** It ignored it before, so a dropped `confidence: MEDIUM` survived as an
+  equivalent mutant; `DslProjectTest` now treats an unmarked `// FLAG` as `HIGH`, as the engine test does.
+- **Path globs were anchored to the repository root.** `src/test/**` never matched `clipper/src/test/A.java` when a review
+  was started from the folder above a project, so `test-without-meaningful-assertion` found nothing in 62 projects. A glob
+  now also matches with any number of leading folders removed (`CCRuleAppliesToTest`).
+- **Real code found one false-positive pattern:** tests that delegate to a helper of their own class that asserts
+  (`testAdding(1, 2)`, `parse("...")`), whatever the helper is called, with varargs helpers. The detector now follows such
+  calls two hops. Findings on 62 projects went from 56 to 22, and the rest are tests that really assert nothing
+  (`parse(...)` smoke tests, benchmarks).
+- Sweep totals: log-and-rethrow 39 candidates, kafka-producer-send-unobserved 23, unbounded-executor-queue 71,
+  transactional-on-private-method 17 findings.
+- The Markdown report is now written under the folder that was scanned (`<folder>/target/codeclear/report.md`), not the
+  working directory.
 
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 

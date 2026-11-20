@@ -19,7 +19,6 @@ Unbounded task queues or unbounded thread creation turn load spikes into memory 
 
 ## Do not flag
 - Bounded queue with explicit `RejectedExecutionHandler`.
-- Pools for a fixed, small set of known tasks (startup jobs).
 - Test sources.
 
 ## Examples
@@ -31,6 +30,9 @@ OK: `new ThreadPoolExecutor(4, 4, 0, SECONDS, new ArrayBlockingQueue<>(1000), ne
 
 ## Implementation notes
 AST/regex on executor factory calls. Anchor to the creation. Do not assume Spring defaults when configuration is absent from context.
+
+## Left to the AI
+Pools for a fixed, small set of known tasks (startup jobs): the detector cannot tell, so the AI confirms each candidate.
 
 ## Required tests
 `newFixedThreadPool` (candidate), bounded `ThreadPoolExecutor` (none), `ThreadPoolTaskExecutor` with `setQueueCapacity(100)` (none).

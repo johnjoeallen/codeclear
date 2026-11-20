@@ -172,12 +172,12 @@ class CCReviewCliTest {
     void aMarkdownReportWithCodeSnippetsIsWrittenToTheDefaultPlace(@TempDir Path dir) throws Exception {
         Run r = run(cli(EMPTY_CATCH_RULE), project(dir), "src");
 
-        Path report = dir.resolve("target/codeclear/report.md");
+        Path report = dir.resolve("src/target/codeclear/report.md"); // under the folder that was scanned
         assertThat(report).exists();
         String md = Files.readString(report);
         assertThat(md).contains("# CodeClear review", "### `src/main/java/A.java`", "**Line 3** · MEDIUM · `java/empty-catch`",
                 "> 3 |     try { g(); } catch (Exception e) { }", "```java");
-        assertThat(r.out()).contains("Report: target/codeclear/report.md");
+        assertThat(r.out()).contains("Report: src/target/codeclear/report.md");
     }
 
     @Test
@@ -195,12 +195,28 @@ class CCReviewCliTest {
     }
 
     @Test
+    void theDefaultReportGoesUnderTheScannedFolderWhateverTheWorkingDirectoryIs(@TempDir Path dir) throws Exception {
+        project(dir);
+        Files.createDirectories(dir.resolve("other/src"));
+        Files.writeString(dir.resolve("other/src/B.java"), "class B { void f() { try { g(); } catch (Exception e) { } } }\n");
+
+        run(cli(EMPTY_CATCH_RULE), dir);
+        assertThat(dir.resolve("target/codeclear/report.md")).exists(); // no path: the working directory
+
+        run(cli(EMPTY_CATCH_RULE), dir, "other/src");
+        assertThat(dir.resolve("other/src/target/codeclear/report.md")).exists();
+
+        run(cli(EMPTY_CATCH_RULE), dir, "src", "other/src"); // several: the closest folder holding all of them
+        assertThat(CCReviewCli.scannedFolder(dir, List.of("src", "other/src")).toString()).isEqualTo(dir.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
     void jsonOnStdoutStaysPureJsonWhileTheReportNoticeGoesToStderr(@TempDir Path dir) throws Exception {
         Run r = run(cli(EMPTY_CATCH_RULE), project(dir), "src", "--format=json");
 
         assertThat(r.out().strip()).startsWith("{").endsWith("}").doesNotContain("Report:");
-        assertThat(r.err()).contains("Report: target/codeclear/report.md");
-        assertThat(dir.resolve("target/codeclear/report.md")).exists();
+        assertThat(r.err()).contains("Report: src/target/codeclear/report.md");
+        assertThat(dir.resolve("src/target/codeclear/report.md")).exists();
     }
 
     @Test
@@ -222,7 +238,7 @@ class CCReviewCliTest {
 
         run(cli(EMPTY_CATCH_RULE), dir, "src/main/java/A.java");
 
-        String md = Files.readString(dir.resolve("target/codeclear/report.md"));
+        String md = Files.readString(dir.resolve("src/main/java/target/codeclear/report.md")); // the folder of the file
         assertThat(md).contains("| Files reviewed | 1 |").doesNotContain("B.java");
     }
 

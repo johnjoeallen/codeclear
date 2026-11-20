@@ -77,7 +77,7 @@ file or a folder (searched for `.java` files); the default is the current folder
 | `--config=<key=value>` | A project configuration fact for cross-file rules, repeatable (for example `spring.jpa.open-in-view=false`) |
 | `--rules=<dir>` | The rules folder; the launcher passes the `review` folder next to it (`CODECLEAR_RULES` changes that), and an explicit `--rules=` wins. Without the launcher the default is `./review` |
 | `--show-skipped` | List every rule that did not run, with the reason |
-| `--report=<file>` | Write a Markdown report with the code around each finding. Default `target/codeclear/report.md` relative to the working directory; `--report=none` turns it off. Always written alongside the terminal output; with `--format=json` the notice goes to stderr so stdout stays pure JSON |
+| `--report=<file>` | Write a Markdown report with the code around each finding. Default `target/codeclear/report.md` inside the scanned folder (the named folder, the folder of a named file, or the closest folder holding several; the working directory with no path); `--report=none` turns it off. Always written alongside the terminal output; with `--format=json` the notice goes to stderr so stdout stays pure JSON |
 
 Exit codes: 0 reviewed,
 1 findings at or above `--fail-on`, 2 bad usage or an error (unknown option, missing path, nothing to review, git failure).

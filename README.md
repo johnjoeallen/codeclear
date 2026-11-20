@@ -16,6 +16,6 @@ browser opens.
 ./codeclear.sh serve                               # start the web application instead
 ```
 
-Every review also writes `target/codeclear/report.md`: a summary, then each finding with a numbered snippet of the code around
+Every review also writes `target/codeclear/report.md` inside the folder that was scanned: a summary, then each finding with a numbered snippet of the code around
 it, the candidates the AI could not judge, and the rules that were not checked. `codeclear.ps1` takes the same arguments on Windows. The review needs no AI backend: it runs every rule that has a
 deterministic detector and lists the ones it could not check. See `docs/design.md` (sections 2.2 and 7.6).

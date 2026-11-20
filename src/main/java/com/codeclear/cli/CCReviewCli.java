@@ -50,7 +50,8 @@ public final class CCReviewCli {
               --rules=<dir>       the rules folder (default: ./review; the launcher passes the one next to it)
               --show-skipped      list every rule that did not run, with the reason
               --report=<file>     write a Markdown report with the code around each finding
-                                  (default target/codeclear/report.md; --report=none turns it off)
+                                  (default target/codeclear/report.md inside the scanned folder;
+                                  --report=none turns it off)
               --help              show this text
 
             Exit codes: 0 done, 1 findings at or above --fail-on, 2 bad usage or an error.
@@ -147,7 +148,8 @@ public final class CCReviewCli {
             return USAGE;
         }
         out.print(format.equals("json") ? CCReviewReport.json(result) + "\n" : CCReviewReport.text(result, options.containsKey("show-skipped")));
-        writeReport(last(options, "report", DEFAULT_REPORT), dir, result, files, format.equals("json") ? err : out, err);
+        writeReport(options.containsKey("report") ? dir.resolve(last(options, "report", "")).normalize() : scannedFolder(dir, paths).resolve(DEFAULT_REPORT).normalize(),
+                dir, result, files, format.equals("json") ? err : out, err);
         if (failOn != null) {
             for (CCReviewFinding f : result.findings()) {
                 if (f.severity().ordinal() <= failOn.ordinal()) {
@@ -158,19 +160,38 @@ public final class CCReviewCli {
         return OK;
     }
 
-    /** Where the Markdown report goes unless --report says otherwise, relative to the working directory. */
+    /** Where the Markdown report goes unless --report says otherwise, relative to the folder that was scanned. */
     static final String DEFAULT_REPORT = "target/codeclear/report.md";
+
+    /**
+     * The folder the scanned sources are in: the named folder, the folder of a named file, or the closest folder that holds
+     * everything when several are named. With no path, the working directory.
+     */
+    static Path scannedFolder(Path dir, List<String> paths) {
+        Path common = null;
+        for (String p : paths.isEmpty() ? List.of(".") : paths) {
+            Path path = dir.resolve(p).toAbsolutePath().normalize();
+            Path folder = Files.isDirectory(path) || path.getParent() == null ? path : path.getParent();
+            if (common == null) {
+                common = folder;
+                continue;
+            }
+            while (!folder.startsWith(common) && common.getParent() != null) {
+                common = common.getParent();
+            }
+        }
+        return common;
+    }
 
     /**
      * Writes the Markdown report and tells the reader where it is. A report that cannot be written is a warning, not a
      * failed review: the findings were already printed.
      */
-    private static void writeReport(String option, Path dir, CCReviewResult result, List<CCReviewFile> files,
+    private static void writeReport(Path file, Path dir, CCReviewResult result, List<CCReviewFile> files,
                                     PrintStream notice, PrintStream err) {
-        if (option.equals("none")) {
+        if (file.getFileName().toString().equals("none")) {
             return;
         }
-        Path file = dir.resolve(option).normalize();
         Map<String, String> sources = new HashMap<>();
         files.forEach(f -> sources.put(f.path(), f.content()));
         try {

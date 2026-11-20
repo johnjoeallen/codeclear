@@ -98,6 +98,21 @@ class DslRulesTest {
         check("collection-modified-during-iteration");
     }
 
+    @Test
+    void logAndRethrow() throws IOException {
+        check("log-and-rethrow");
+    }
+
+    @Test
+    void kafkaProducerSendUnobserved() throws IOException {
+        check("kafka-producer-send-unobserved");
+    }
+
+    @Test
+    void testWithoutMeaningfulAssertion() throws IOException {
+        check("test-without-meaningful-assertion");
+    }
+
     private void check(String id) throws IOException {
         checkAt("java", id);
     }

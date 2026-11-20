@@ -44,18 +44,22 @@ public record CCRuleDefinition(
         return id.substring(0, id.indexOf('/'));
     }
 
-    /** True when the rule applies to the given repository-relative path. */
+    /**
+     * True when the rule applies to the given path. The globs are relative to a repository root, and a review may be started
+     * from a folder above it (the path is then {@code project/src/test/A.java}), so a glob also matches the path with any
+     * number of leading folders removed.
+     */
     public boolean appliesTo(String path) {
-        String normalized = path.replace('\\', '/');
-        Path p = Path.of(normalized);
+        Path p = Path.of(path.replace('\\', '/'));
         for (String glob : metadata.appliesTo()) {
-            if (FileSystems.getDefault().getPathMatcher("glob:" + glob).matches(p)) {
-                return true;
-            }
+            var matcher = FileSystems.getDefault().getPathMatcher("glob:" + glob);
             // The glob **/x also has to match a file at the repository root, which Java's matcher does not do.
-            if (glob.startsWith("**/")
-                    && FileSystems.getDefault().getPathMatcher("glob:" + glob.substring(3)).matches(p)) {
-                return true;
+            var rooted = glob.startsWith("**/") ? FileSystems.getDefault().getPathMatcher("glob:" + glob.substring(3)) : null;
+            for (int from = 0; from < p.getNameCount(); from++) {
+                Path rest = from == 0 ? p : p.subpath(from, p.getNameCount());
+                if (matcher.matches(rest) || rooted != null && rooted.matches(rest)) {
+                    return true;
+                }
             }
         }
         return false;
