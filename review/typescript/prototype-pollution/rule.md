@@ -33,6 +33,8 @@ Object.assign({}, pick(req.body, ['name', 'email']));
 ## Implementation notes
 Anchor to the merge/assignment.
 
+Detected on `_.merge`, `mergeWith`, `defaultsDeep`, `set`, `setWith`, `$.extend`, `assignIn`, `deepmerge`, `merge` and similar calls with an argument derived from `req`, `request` or `body`, or from `JSON.parse`; and on an assignment `target[key] = value` where the key is derived from the request, or the function loops over input with `for...in`/`for...of` and mentions `req`, `body`, `input` or `payload`. A function that mentions `__proto__`, `constructor`, `hasOwnProperty`, `Object.create(null)`, `Map` or `Object.hasOwn` is skipped as a whole.
+
 ## Required tests
 `_.merge(x, req.body)` (finding), allow-list `pick` (no finding), key loop without proto guard (finding), guarded loop (no finding).
 

@@ -35,6 +35,8 @@ OK:
 ## Implementation notes
 The detector finds the sink; the AI reviewer decides whether the data is attacker-controlled. Equivalent: ESLint `no-eval`, `react/no-danger`.
 
+Detected on assignment to `.innerHTML` or `.outerHTML`; `insertAdjacentHTML`, `document.write(ln)`; the JSX attribute `dangerouslySetInnerHTML` with a non-literal `__html`; `eval`, `new Function`, and `setTimeout`/`setInterval` with a string. A string literal, an empty string, and a value containing `DOMPurify.sanitize`, `sanitizeHtml`, `sanitize(`, `xss(`, `escapeHtml` or `he.encode` are skipped.
+
 ## AI prompt
 For each sink, trace the value to its origin: can it carry attacker-controlled content, and is it sanitized or escaped on every path? Report only with a concrete injection scenario. Evidence: the sink, the data's source, any sanitizer used.
 

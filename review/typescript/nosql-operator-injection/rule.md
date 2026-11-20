@@ -32,6 +32,8 @@ User.findOne({ email: String(req.body.email) });
 ## Implementation notes
 Anchor to the query call.
 
+Only in files that mention `mongoose`, `mongodb` or `mongo-`. `find`, `findOne`, `find*And*`, `update*`, `delete*`, `replaceOne`, `aggregate`, `where`, `countDocuments` and `distinct` are flagged when an argument is derived from `req` or `request` (one step through a variable) and contains no `String(...)`/`Number(...)` cast. A function that mentions a validator (`zod`, `Joi`, `yup`, `ajv`, `validate`, `safeParse`, `sanitize`) and a file that uses `express-mongo-sanitize` are skipped.
+
 ## Required tests
 Direct body value (finding), `String()` cast (no finding), spread of `req.query` (finding), schema-validated DTO (no finding).
 

@@ -32,6 +32,8 @@ const o = JSON.parse(raw);
 ## Implementation notes
 Anchor to the call. Check js-yaml version in `package.json`.
 
+Detected on `unserialize`/`deserialize` calls and `eval` whose argument is not a literal and is derived from `req`, `request`, `message`, `body`, `cookies`, `event`, `file` or `buffer`; on `yaml.load` with a `FULL_SCHEMA`/`UNSAFE_SCHEMA` argument; and on `new Function(x)` with such an argument. `JSON.parse` and `yaml.safeLoad` are never matched.
+
 ## Required tests
 `unserialize` of request data (finding), `JSON.parse` (no finding), `yaml.load` v4 (no finding), `yaml.load` with FULL schema (finding).
 

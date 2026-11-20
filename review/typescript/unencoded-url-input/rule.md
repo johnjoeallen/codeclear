@@ -32,6 +32,8 @@ fetch(`/api/users/${encodeURIComponent(name)}`);
 ## Implementation notes
 Anchor to the interpolation. Do not apply to non-URL string building.
 
+Detected on `fetch`, `axios.*`, `got`, `request`, `window.open` and `open` calls whose first argument is a template literal with `${}` or a `+` concatenation. A substitution is flagged when it is a parameter of the function, or mentions `req`, `location`, `searchParams`, `props`, `params` or `query`, and is not wrapped in `encodeURIComponent`/`encodeURI` and does not look numeric (`page`, `limit`, `offset`, `count`, `size`, `index`, ...). `new URL(...)` and `location.href = ...` are not matched.
+
 ## Required tests
 Raw interpolation of input (finding), `encodeURIComponent` (no finding), `URLSearchParams` (no finding), numeric id (no finding).
 
