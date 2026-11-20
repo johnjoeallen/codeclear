@@ -1,0 +1,20 @@
+server:
+  port: 8080
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: codeclear
+  threads:
+    virtual:
+      enabled: true
+
+codeclear:
+  max-findings: 30
+  max-batch-chars: 100000
+  max-batches: 40
+  full-file-max-chars: 48000
+  prompt-timeout-seconds: 300
+  default-scope: COMMITTED
+  copilot:
+    cli-path: copilot.exe
