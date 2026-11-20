@@ -33,6 +33,8 @@ OK:
 ## Implementation notes
 AST for candidates. Anchor to the mapping annotation.
 
+Only a mapping on a method of a controller is checked. A URL-based security configuration is not read: that is left to the AI. Paths containing `health`, `login`, `logout`, `public`, `actuator`, `swagger`, `api-docs` or `ping` count as public.
+
 ## Required tests
 No annotation (candidate), method-level `@PreAuthorize` (none), class-level `@PreAuthorize` (none), `/health` (none).
 

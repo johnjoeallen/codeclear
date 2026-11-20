@@ -34,6 +34,8 @@ OK:
 ## Implementation notes
 AST on `@RestController`/`@Controller` mappings. Anchor to the parameter.
 
+Only a `@RequestBody` parameter of a `@PostMapping`, `@PutMapping`, `@PatchMapping` or `@RequestMapping` method is checked (a read-only `GET` filter is not a write). Nested DTO fields without `@Valid` are not detected, and neither is a validation aspect shown in context: those are left to the AI.
+
 ## Required tests
 No `@Valid` (candidate), `@Valid` (none), nested DTO without `@Valid` (candidate), programmatic validate (none).
 

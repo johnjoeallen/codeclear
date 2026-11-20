@@ -33,6 +33,8 @@ OK: `@Transactional(rollbackFor = IOException.class)`.
 ## Implementation notes
 AST on the method, resolving checked exception types. Anchor to the annotation or the catch.
 
+Method-level `@Transactional` or a transactional class; `rollbackFor` or `noRollbackFor` anywhere in the annotation suppresses it. A write is a call to `save`, `persist`, `merge`, `delete`, `update`, `insert`, `flush` and similar; whether it happens before the `try` is not checked. A documented `noRollbackFor` comment is not read.
+
 ## Required tests
 Checked throws with no rollbackFor (candidate), `rollbackFor` (none), swallowed catch after write (candidate), `setRollbackOnly` (none).
 

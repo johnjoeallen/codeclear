@@ -15,6 +15,7 @@ import java.util.List;
  * @param dismissedCandidates   candidates the AI judged not to be findings
  * @param aiDriver              id of the AI driver in use
  * @param aiStatus              whether it is ready, and why not if it is not
+ * @param suppressed            findings and candidates a {@code CodeClear:} comment ignored; reported without code
  */
 public record CCReviewResult(
         List<CCReviewFinding> findings,
@@ -24,7 +25,8 @@ public record CCReviewResult(
         int rulesRun,
         int dismissedCandidates,
         String aiDriver,
-        String aiStatus) {
+        String aiStatus,
+        List<CCSuppressedFinding> suppressed) {
 
     public long skipped(CCSkippedRule.Reason reason) {
         return skippedRules.stream().filter(s -> s.reason() == reason).count();

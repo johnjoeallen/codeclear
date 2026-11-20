@@ -36,7 +36,7 @@ class CCMarkdownReportTest {
     }
 
     private static CCReviewResult result(List<CCReviewFinding> findings) {
-        return new CCReviewResult(findings, List.of(), List.of(), List.of(), 4, 0, "dummy", "not ready");
+        return new CCReviewResult(findings, List.of(), List.of(), List.of(), 4, 0, "dummy", "not ready", List.of());
     }
 
     @Test
@@ -125,7 +125,7 @@ class CCMarkdownReportTest {
     @Test
     void unconfirmedCandidatesAreSeparateAndExplained() {
         CCReviewResult r = new CCReviewResult(List.of(), List.of(new CCRuleCandidate("java/hybrid", "A.java", 5, "maybe a problem")),
-                List.of(), List.of(), 1, 0, "dummy", "not ready");
+                List.of(), List.of(), 1, 0, "dummy", "not ready", List.of());
 
         String md = CCMarkdownReport.render(r, Map.of("A.java", SOURCE), 1);
 
@@ -140,7 +140,7 @@ class CCMarkdownReportTest {
                 new CCSkippedRule("java/judgement", CCSkippedRule.Reason.NEEDS_AI, "needs the AI"),
                 new CCSkippedRule("java/todo", CCSkippedRule.Reason.NO_DETECTOR, "none"),
                 new CCSkippedRule("java/broken", CCSkippedRule.Reason.FAILED, "bad rule: unknown field")),
-                List.of(), 1, 0, "dummy", "not ready");
+                List.of(), 1, 0, "dummy", "not ready", List.of());
 
         String md = CCMarkdownReport.render(r, Map.of(), 1);
 
@@ -176,8 +176,19 @@ class CCMarkdownReportTest {
     @Test
     void notesAreListed() {
         CCReviewResult r = new CCReviewResult(List.of(), List.of(), List.of(), List.of("1 file(s) not analysed: only Java has an analyzer so far"),
-                1, 0, "dummy", "not ready");
+                1, 0, "dummy", "not ready", List.of());
 
         assertThat(CCMarkdownReport.render(r, Map.of(), 1)).contains("## Notes", "- 1 file(s) not analysed");
+    }
+
+    @Test
+    void suppressedFindingsAreListedWithoutCode() {
+        CCReviewResult r = new CCReviewResult(List.of(), List.of(), List.of(), List.of(), 1, 0, "dummy", "not ready",
+                List.of(new com.codeclear.review.CCSuppressedFinding("java/empty-catch-block", "A.java", 2, "secret message")));
+
+        String md = CCMarkdownReport.render(r, Map.of("A.java", "class A {\n  int x;\n}\n"), 1);
+
+        assertThat(md).contains("## Suppressed", "| Suppressed | 1 |", "**Line 2** · `java/empty-catch-block` · suppressed")
+                .doesNotContain("int x;").doesNotContain("secret message");
     }
 }

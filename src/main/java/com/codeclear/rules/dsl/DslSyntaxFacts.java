@@ -51,6 +51,7 @@ final class DslSyntaxFacts {
         switch (name) {
             case "calls": return List.copyOf(n.findAll(MethodCallExpr.class));
             case "throws": return List.copyOf(n.findAll(ThrowStmt.class));
+            case "catches": return List.copyOf(n.findAll(CatchClause.class));
             case "assignments": return List.copyOf(n.findAll(com.github.javaparser.ast.expr.AssignExpr.class));
             case "callsAfter": return callsAfter(n);
             case "enclosingCatch": return enclosingCatch(n);
@@ -161,6 +162,7 @@ final class DslSyntaxFacts {
                 case "isFinal": return f.isFinal();
                 case "isPrivate": return f.isPrivate();
                 case "isVolatile": return f.isVolatile();
+                case "hasInitializer": return f.getVariable(0).getInitializer().isPresent();
                 case "classAnnotations":
                     return f.findAncestor(ClassOrInterfaceDeclaration.class)
                             .map(c -> c.getAnnotations().stream().map(a -> a.getNameAsString()).toList()).orElse(List.of());

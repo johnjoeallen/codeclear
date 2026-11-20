@@ -23,4 +23,4 @@ deterministic detector and lists the ones it could not check.
 To ignore a finding on purpose, put a comment that starts with `CodeClear:` and gives the reason. On a line of its own it ignores
 the next non-blank line; after code it ignores its own line (`// CodeClear: the caller retries`, `/* CodeClear: ... */`, and `# CodeClear: ...` in
 YAML, properties, Python and shell files). It ignores every finding on that line, or only the rules it names in parentheses
-(`// CodeClear(java/empty-catch-block, java/log-and-rethrow): the caller handles it`), and the review counts them in its notes. See `docs/design.md` (sections 2.2 and 7.6).
+(`// CodeClear(java/empty-catch-block, java/log-and-rethrow): the caller handles it`), and the report lists each ignored finding under "Suppressed" (rule and line, marked suppressed, no code). See `docs/design.md` (sections 2.2 and 7.6).

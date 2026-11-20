@@ -30,6 +30,8 @@ OK: `@Validated` with `@NotBlank String baseUrl; @Min(1) int timeoutMs;`.
 ## Implementation notes
 AST on annotations. Anchor to the class or field. Confirm profile/property files before treating a missing property as a defect.
 
+Field-level: the field of a `@ConfigurationProperties` class without `@Validated`, whose name says timeout, url, size, port, secret and the like, with no constraint annotation and no default value; or an `@Value` field with a default of `0`, `null`, `false` or empty. Whether the property is used on a failure-prone path is left to the AI.
+
 ## Required tests
 Unvalidated props class (candidate), `@Validated` + constraints (none), `@Value` default `0` for timeout (candidate).
 

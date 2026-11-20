@@ -91,7 +91,7 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 
 | Node | Fields |
 |---|---|
-| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName`, `enclosingClassMethods` (the method names of every class around it: `'main' in n.enclosingClassMethods`), `enclosingMethod` (the method around it, or missing), `enclosingIterations` (the for-each statements and `x.forEach(lambda)` calls it is inside), `iteratedCollection` / `iteratedType` (of such an iteration: the variable being walked, looking through `keySet()`, `values()`, `entrySet()` and `stream()`, and its type, taking a `new ConcurrentHashMap<>()` initializer into account) |
+| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `catches` (the catch clauses inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName`, `enclosingClassMethods` (the method names of every class around it: `'main' in n.enclosingClassMethods`), `enclosingMethod` (the method around it, or missing), `enclosingIterations` (the for-each statements and `x.forEach(lambda)` calls it is inside), `iteratedCollection` / `iteratedType` (of such an iteration: the variable being walked, looking through `keySet()`, `values()`, `entrySet()` and `stream()`, and its type, taking a `new ConcurrentHashMap<>()` initializer into account) |
 | `file` (always available) | `path`, `language`, `isTest` |
 | `Catch` | `param`, `body` |
 | `Param` | `name`, `type` (text), `annotations` (list of names) |
@@ -121,7 +121,7 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Method` (more) | `isPublic` (interface methods count), `classIsPublic`, `throwsTypes`, `annotations` |
 | `Catch` (more) | `tryCalls` (the calls in the try block it belongs to) |
 | any expression (more) | `isThrowable` (by its type, or a catch parameter, or a variable declared with an exception type or an exception-bounded type variable) |
-| `FieldDecl` | `name`, `typeName` (simple name, no generics or package), `initializerTypeName`, `isStatic`, `isFinal`, `isPrivate`, `isVolatile`, `classAnnotations`, `usedOnlyInSynchronized` |
+| `FieldDecl` | `hasInitializer`, `name`, `typeName` (simple name, no generics or package), `initializerTypeName`, `isStatic`, `isFinal`, `isPrivate`, `isVolatile`, `classAnnotations`, `usedOnlyInSynchronized` |
 | `If` | `doubleCheckedField` (the field declaration `f` in `if (f == null) { synchronized (...) { if (f == null) { f = ...; } } }`, or missing) |
 | `Jump` | `escapesFinally` (leaves a `finally` block: not through a nested lambda, class or method, not a break or continue whose loop is inside the finally, not a throw caught by a nested try) |
 | `Field` | `name`, `scope` |

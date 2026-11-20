@@ -70,6 +70,18 @@ final class CCMarkdownReport {
             });
         }
 
+        if (!r.suppressed().isEmpty()) {
+            b.append("## Suppressed\n\nIgnored by a `CodeClear:` comment. Shown so that nothing is hidden; no code is quoted.\n\n");
+            Map<String, List<com.codeclear.review.CCSuppressedFinding>> byFile = new TreeMap<>();
+            r.suppressed().forEach(x -> byFile.computeIfAbsent(x.path(), k -> new ArrayList<>()).add(x));
+            byFile.forEach((path, list) -> {
+                b.append("### `").append(path).append("`\n\n");
+                list.stream().sorted(java.util.Comparator.comparingInt(com.codeclear.review.CCSuppressedFinding::line))
+                        .forEach(x -> b.append("**Line ").append(x.line()).append("** · `").append(x.ruleId())
+                                .append("` · suppressed\n\n"));
+            });
+        }
+
         notChecked(b, r);
 
         if (!r.notes().isEmpty()) {
@@ -87,6 +99,7 @@ final class CCMarkdownReport {
                 .append("| Rules run | ").append(r.rulesRun()).append(" |\n")
                 .append("| Findings | ").append(r.findings().size()).append(" |\n")
                 .append("| Unconfirmed candidates | ").append(r.unconfirmedCandidates().size()).append(" |\n")
+                .append("| Suppressed | ").append(r.suppressed().size()).append(" |\n")
                 .append("| Rules not checked | ").append(notChecked).append(" |\n")
                 .append("| AI | ").append(escape(r.aiDriver() + " - " + r.aiStatus())).append(" |\n\n");
         if (r.findings().isEmpty()) {

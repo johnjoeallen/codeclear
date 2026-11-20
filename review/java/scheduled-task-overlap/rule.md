@@ -32,6 +32,8 @@ OK: `@Scheduled(fixedDelay = 60000) @SchedulerLock(name = "sync")`.
 ## Implementation notes
 AST on `@Scheduled`. Anchor to the annotation.
 
+A `fixedRate` job is a candidate when its method calls a remote client, `sleep` or `findAll`, or loops, and has no `@SchedulerLock`. A missing scheduler pool, and a single-instance deployment stated in context, are left to the AI.
+
 ## Required tests
 `fixedRate` with remote call and no lock (candidate), `fixedDelay` + `@SchedulerLock` (none), short in-memory task (none).
 

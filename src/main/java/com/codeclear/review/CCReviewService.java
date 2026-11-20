@@ -135,7 +135,7 @@ public class CCReviewService implements AutoCloseable {
         List<CCRuleCandidate> unconfirmed = new ArrayList<>();
         List<String> failedRules = new ArrayList<>();
         int dismissed = 0;
-        int ignored = 0;
+        List<CCSuppressedFinding> suppressedList = new ArrayList<>();
         Map<String, CCSuppressions> suppressions = new java.util.HashMap<>();
         CCAiDriverStatus ai = confirmer.status();
         boolean noteAi = false;
@@ -151,7 +151,7 @@ public class CCReviewService implements AutoCloseable {
             CCRuleDefinition rule = byId.get(result.ruleId());
             for (CCRuleFinding f : result.findings()) {
                 if (suppressed(suppressions, sources, f.path(), f.line(), f.ruleId())) {
-                    ignored++;
+                    suppressedList.add(new CCSuppressedFinding(f.ruleId(), f.path(), f.line(), f.message()));
                     continue;
                 }
                 findings.add(new CCReviewFinding(f.ruleId(), f.path(), f.line(), f.message(), f.severity(), f.confidence(),
@@ -159,7 +159,7 @@ public class CCReviewService implements AutoCloseable {
             }
             for (CCRuleCandidate c : result.candidates()) {
                 if (suppressed(suppressions, sources, c.path(), c.line(), c.ruleId())) {
-                    ignored++;
+                    suppressedList.add(new CCSuppressedFinding(c.ruleId(), c.path(), c.line(), c.evidence()));
                     continue;
                 }
                 CCCandidateVerdict verdict = confirmer.confirm(rule, c, sources.getOrDefault(c.path(), ""));
@@ -174,8 +174,8 @@ public class CCReviewService implements AutoCloseable {
                 }
             }
         }
-        if (ignored > 0) {
-            notes.add(ignored + " finding(s) ignored by CodeClear: comments");
+        if (!suppressedList.isEmpty()) {
+            notes.add(suppressedList.size() + " finding(s) ignored by CodeClear: comments");
         }
         if (noteAi && !ai.ready()) {
             notes.add(ai.detail());
@@ -184,7 +184,8 @@ public class CCReviewService implements AutoCloseable {
         findings.sort(Comparator.comparing(CCReviewFinding::path).thenComparingInt(CCReviewFinding::line)
                 .thenComparing(CCReviewFinding::ruleId));
         return new CCReviewResult(List.copyOf(findings), List.copyOf(unconfirmed), List.copyOf(skipped),
-                List.copyOf(notes), runnable.size() - failedRules.size(), dismissed, aiDriverId, ai.ready() ? "ready" : ai.detail());
+                List.copyOf(notes), runnable.size() - failedRules.size(), dismissed, aiDriverId, ai.ready() ? "ready" : ai.detail(),
+                List.copyOf(suppressedList));
     }
 
     /** The line is covered by a {@code CodeClear:} comment (see {@link CCSuppressions}). */

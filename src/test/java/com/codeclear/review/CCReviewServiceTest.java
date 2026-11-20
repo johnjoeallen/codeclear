@@ -87,6 +87,7 @@ class CCReviewServiceTest {
 
         assertThat(r.findings()).isEmpty();
         assertThat(r.notes()).contains("1 finding(s) ignored by CodeClear: comments");
+        assertThat(r.suppressed()).extracting(com.codeclear.review.CCSuppressedFinding::ruleId).containsExactly("java/r");
     }
 
     @Test
