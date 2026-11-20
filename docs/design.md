@@ -83,6 +83,11 @@ Exit codes: 0 reviewed,
 1 findings at or above `--fail-on`, 2 bad usage or an error (unknown option, missing path, nothing to review, git failure).
 The Markdown report has a summary (files, rules run, findings by severity and rule), each finding grouped by file with its message and a numbered snippet of the code around it (3 lines either side, the flagged line marked `>`), the candidates the AI could not judge, the rules that were not checked (in collapsible lists by reason) and notes. A report that cannot be written is a warning, not a failed review. With no AI backend the report says which rules were not checked and why; see 7.6.
 
+**Ignoring findings.** A comment that starts with `CodeClear:` followed by a reason ignores findings and candidates on one line: the
+next non-blank line when the comment is alone on its line, or its own line when it trails code. `//`, `/* */` and (in files that use them)
+`#` comments are recognised, the keyword is case-insensitive, and every rule is covered. Ignored candidates are not sent to the AI. The review
+reports how many findings were ignored in its notes. See `CCSuppressions`.
+
 Two filesystem locations are used for persistent state:
 
 - `~/.codeClear/` — machine-level credentials and preferences; never committed.

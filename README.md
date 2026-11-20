@@ -18,4 +18,8 @@ browser opens.
 
 Every review also writes `target/codeclear/report.md` inside the folder that was scanned: a summary, then each finding with a numbered snippet of the code around
 it, the candidates the AI could not judge, and the rules that were not checked. `codeclear.ps1` takes the same arguments on Windows. The review needs no AI backend: it runs every rule that has a
-deterministic detector and lists the ones it could not check. See `docs/design.md` (sections 2.2 and 7.6).
+deterministic detector and lists the ones it could not check.
+
+To ignore a finding on purpose, put a comment that starts with `CodeClear:` and gives the reason. On a line of its own it ignores
+the next non-blank line; after code it ignores its own line (`// CodeClear: the caller retries`, `/* CodeClear: ... */`, and `# CodeClear: ...` in
+YAML, properties, Python and shell files). It ignores every finding on that line, whatever the rule, and the review counts them in its notes. See `docs/design.md` (sections 2.2 and 7.6).

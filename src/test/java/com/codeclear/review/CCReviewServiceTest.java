@@ -74,6 +74,54 @@ class CCReviewServiceTest {
         return new CCReviewRequest(List.of(CCReviewFile.whole("src/main/java/A.java", EMPTY_CATCH)));
     }
 
+    private static CCReviewRequest file(String code) {
+        return new CCReviewRequest(List.of(CCReviewFile.whole("src/main/java/A.java", code)));
+    }
+
+    @Test
+    void aCodeClearCommentAboveALineIgnoresTheFindingsOnIt() {
+        String code = "class A {\n  void f() {\n    // CodeClear: the failure is reported by the caller\n    try { g(); } catch (Exception e) { }\n  }\n}\n";
+
+        CCReviewResult r = service(List.of(rule("java/r", CCDetectionType.AST, REPORT)),
+                new FakeConfirmer(false, CCCandidateVerdict.Kind.NO_VERDICT)).review(file(code));
+
+        assertThat(r.findings()).isEmpty();
+        assertThat(r.notes()).contains("1 finding(s) ignored by CodeClear: comments");
+    }
+
+    @Test
+    void aTrailingCodeClearCommentIgnoresItsOwnLine() {
+        String code = "class A {\n  void f() {\n    try { g(); } catch (Exception e) { } // CodeClear: on purpose\n  }\n}\n";
+
+        CCReviewResult r = service(List.of(rule("java/r", CCDetectionType.AST, REPORT)),
+                new FakeConfirmer(false, CCCandidateVerdict.Kind.NO_VERDICT)).review(file(code));
+
+        assertThat(r.findings()).isEmpty();
+    }
+
+    @Test
+    void aCodeClearCommentForAnotherLineChangesNothing() {
+        String code = "class A {\n  // CodeClear: this is about something else\n  void f() {\n    try { g(); } catch (Exception e) { }\n  }\n}\n";
+
+        CCReviewResult r = service(List.of(rule("java/r", CCDetectionType.AST, REPORT)),
+                new FakeConfirmer(false, CCCandidateVerdict.Kind.NO_VERDICT)).review(file(code));
+
+        assertThat(r.findings()).hasSize(1);
+        assertThat(r.notes()).noneMatch(n -> n.contains("ignored by CodeClear"));
+    }
+
+    @Test
+    void anIgnoredCandidateIsNeitherReportedNorSentToTheAi() {
+        String code = "class A {\n  void f() {\n    // CodeClear: known\n    try { g(); } catch (Exception e) { }\n  }\n}\n";
+        FakeConfirmer ai = new FakeConfirmer(true, CCCandidateVerdict.Kind.CONFIRMED);
+
+        CCReviewResult r = service(List.of(rule("java/r", CCDetectionType.HYBRID, CANDIDATE)), ai).review(file(code));
+
+        assertThat(r.findings()).isEmpty();
+        assertThat(r.unconfirmedCandidates()).isEmpty();
+        assertThat(ai.asked).isEmpty();
+    }
+
     @Test
     void deterministicFindingsNeedNoAi() {
         CCReviewResult r = service(List.of(rule("java/r", CCDetectionType.AST, REPORT)),

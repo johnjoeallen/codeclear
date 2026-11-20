@@ -135,6 +135,8 @@ public class CCReviewService implements AutoCloseable {
         List<CCRuleCandidate> unconfirmed = new ArrayList<>();
         List<String> failedRules = new ArrayList<>();
         int dismissed = 0;
+        int ignored = 0;
+        Map<String, CCSuppressions> suppressions = new java.util.HashMap<>();
         CCAiDriverStatus ai = confirmer.status();
         boolean noteAi = false;
 
@@ -148,10 +150,18 @@ public class CCReviewService implements AutoCloseable {
             }
             CCRuleDefinition rule = byId.get(result.ruleId());
             for (CCRuleFinding f : result.findings()) {
+                if (suppressed(suppressions, sources, f.path(), f.line())) {
+                    ignored++;
+                    continue;
+                }
                 findings.add(new CCReviewFinding(f.ruleId(), f.path(), f.line(), f.message(), f.severity(), f.confidence(),
                         CCReviewFinding.Source.RULE));
             }
             for (CCRuleCandidate c : result.candidates()) {
+                if (suppressed(suppressions, sources, c.path(), c.line())) {
+                    ignored++;
+                    continue;
+                }
                 CCCandidateVerdict verdict = confirmer.confirm(rule, c, sources.getOrDefault(c.path(), ""));
                 switch (verdict.kind()) {
                     case CONFIRMED -> findings.add(new CCReviewFinding(c.ruleId(), c.path(), c.line(), c.evidence(),
@@ -164,6 +174,9 @@ public class CCReviewService implements AutoCloseable {
                 }
             }
         }
+        if (ignored > 0) {
+            notes.add(ignored + " finding(s) ignored by CodeClear: comments");
+        }
         if (noteAi && !ai.ready()) {
             notes.add(ai.detail());
         }
@@ -172,6 +185,11 @@ public class CCReviewService implements AutoCloseable {
                 .thenComparing(CCReviewFinding::ruleId));
         return new CCReviewResult(List.copyOf(findings), List.copyOf(unconfirmed), List.copyOf(skipped),
                 List.copyOf(notes), runnable.size() - failedRules.size(), dismissed, aiDriverId, ai.ready() ? "ready" : ai.detail());
+    }
+
+    /** The line is covered by a {@code CodeClear:} comment (see {@link CCSuppressions}). */
+    private static boolean suppressed(Map<String, CCSuppressions> cache, Map<String, String> sources, String path, int line) {
+        return cache.computeIfAbsent(path, p -> CCSuppressions.parse(p, sources.getOrDefault(p, ""))).covers(line);
     }
 
     @Override
