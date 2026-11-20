@@ -84,6 +84,8 @@ final class DslSyntaxFacts {
                 return names;
             }
             case "parent": return n.getParentNode().orElse(null);
+            case "blockSize": case "codeLines": case "codeScore": case "blockText":
+                return n instanceof Comment c ? commentBlock(c, name) : null;
             case "identifiers": {
                 // Names used in the code, never text inside a string: variables, fields, and the methods that are called.
                 List<String> ids = new java.util.ArrayList<>();
@@ -1171,6 +1173,43 @@ final class DslSyntaxFacts {
             }
         }
         return scope.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> o.getArguments().stream().anyMatch(isLocal));
+    }
+
+    private static final Pattern CODE_LIKE = Pattern.compile(
+            "^\\s*(?:(?:if|for|while|return|import|def|else|try|catch|switch|case|throw|var|let|const|public|private|class)\\b.*|.*[;{}]\\s*|.*\\w\\s*=[^=].*|.*\\w+\\([^)]*\\).*)$");
+
+    /**
+     * For the first comment of a run of line comments on consecutive lines, or for a block comment: how many lines the run
+     * has ({@code blockSize}), how many look like code ({@code codeLines}) and their text ({@code blockText}). Zero or empty
+     * for a line comment that continues a run that started above it, so the run is reported once.
+     */
+    private static Object commentBlock(Comment c, String what) {
+        List<String> lines = new java.util.ArrayList<>();
+        if (c instanceof com.github.javaparser.ast.comments.LineComment) {
+            java.util.List<Comment> all = c.findCompilationUnit().map(cu -> cu.getAllComments().stream()
+                    .filter(x -> x instanceof com.github.javaparser.ast.comments.LineComment)
+                    .sorted(java.util.Comparator.comparingInt(x -> x.getBegin().map(p -> p.line).orElse(0))).toList()).orElse(List.of());
+            int line = c.getBegin().map(p -> p.line).orElse(0);
+            if (all.stream().anyMatch(x -> x.getBegin().map(p -> p.line).orElse(-1) == line - 1)) {
+                return what.equals("blockText") ? "" : 0L;
+            }
+            int next = line;
+            for (Comment x : all) {
+                if (x.getBegin().map(p -> p.line).orElse(-1) == next) {
+                    lines.add(x.getContent());
+                    next++;
+                }
+            }
+        } else {
+            lines.addAll(java.util.Arrays.stream(c.getContent().split("\\R")).map(s -> s.replaceFirst("^\\s*\\*", "")).toList());
+        }
+        lines = lines.stream().filter(s -> !s.isBlank()).toList();
+        switch (what) {
+            case "blockSize": return (long) lines.size();
+            case "codeLines": return lines.stream().filter(s -> CODE_LIKE.matcher(s).matches()).count();
+            case "codeScore": return lines.isEmpty() ? 0L : lines.stream().filter(s -> CODE_LIKE.matcher(s).matches()).count() * 100 / lines.size();
+            default: return String.join("\n", lines);
+        }
     }
 
     /** The name a string literal is stored under: the variable or field it initialises, or the target it is assigned to. */

@@ -35,6 +35,8 @@ OK:
 ## Implementation notes
 Heuristic, so keep `confidence: LOW` and report once per block. The AI reviewer can drop false positives.
 
+Java files only, for now. A run of three or more line comments on consecutive lines, or a block comment of three or more lines, in which at least 60 percent of the non-blank lines look like code (end in `;`, `{` or `}`, contain an assignment or a call, or start with a keyword such as `if`, `for`, `return`). Javadoc, a run that mentions `copyright` or `license`, and a run that says why it is kept (`kept because`, `see`, `disabled until`, `todo`, `example`, `note:`) are skipped. Only the first comment of a run is reported.
+
 ## Required tests
 Three code-like lines (finding), prose comment (no finding), docstring example (no finding), block with explanation (no finding).
 

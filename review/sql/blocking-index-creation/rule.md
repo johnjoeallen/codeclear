@@ -34,6 +34,8 @@ CREATE INDEX CONCURRENTLY idx_orders_customer ON orders (customer_id);
 ## Implementation notes
 Table size is unknown, so mark `hybrid`: the detector finds the statement and the AI reviewer uses any size evidence in the MR. Also check that the migration tool does not wrap `CONCURRENTLY` in a transaction.
 
+Detected on `CREATE [UNIQUE] INDEX` without `CONCURRENTLY` (or `ONLINE = ON`), and on MySQL `ALTER TABLE ... ADD INDEX/KEY` without `ALGORITHM=INPLACE|INSTANT` together with `LOCK=NONE`. The table of the index is found from `ON <table>`. A `-- table-size: small` comment directly above the statement is the size hint; a hint elsewhere in the file is not read.
+
 ## Required tests
 Plain `CREATE INDEX` (finding), `CONCURRENTLY` (no finding), index on new table (no finding).
 

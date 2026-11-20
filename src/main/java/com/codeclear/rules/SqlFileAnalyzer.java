@@ -19,7 +19,8 @@ public final class SqlFileAnalyzer {
     private static final Pattern CREATE_TABLE = Pattern.compile(
             "(?is)\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:(?:GLOBAL\\s+|LOCAL\\s+)?(?:TEMP|TEMPORARY)\\s+|UNLOGGED\\s+)?TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?([^\\s(]+)");
     private static final Pattern DML_TARGET = Pattern.compile(
-            "(?is)^\\s*(?:UPDATE\\s+(?:ONLY\\s+)?|DELETE\\s+FROM\\s+(?:ONLY\\s+)?)([^\\s(]+)");
+            "(?is)^\\s*(?:UPDATE\\s+(?:ONLY\\s+)?|DELETE\\s+FROM\\s+(?:ONLY\\s+)?|DROP\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?|TRUNCATE\\s+(?:TABLE\\s+)?(?:ONLY\\s+)?"
+                    + "|CREATE\\s+(?:UNIQUE\\s+)?(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?INDEX\\s+(?:CONCURRENTLY\\s+)?(?:IF\\s+NOT\\s+EXISTS\\s+)?[^\\s]+\\s+ON\\s+(?:ONLY\\s+)?)([^\\s(]+)");
     private static final Pattern ALTER_TABLE = Pattern.compile(
             "(?is)^\\s*ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?(?:ONLY\\s+)?([^\\s(]+)\\s+(.*)$");
     private static final Pattern ADD = Pattern.compile(

@@ -31,6 +31,8 @@ OK: the same key in `application-dev.yml`.
 ## Implementation notes
 Keep the list as data. Parse to key paths, report the key path and profile.
 
+Detected on the keys of the rule as settings: the HTTP wire loggers at `DEBUG`/`TRACE`, Spring web client and request-logging loggers at `DEBUG`/`TRACE`, `spring.mvc.log-request-details: true`, Hibernate SQL parameter binding at `TRACE`, the actuator `env` and `configprops` `show-values: ALWAYS`, and any key ending in `log-headers`, `log-body`, `log-request-body`, `log-response-body`, `log-payload` or `log-request(s)` set to `true`. Files named `*-dev`, `*-local`, `*-test`, files under `src/test` and profiles dev, local and test are skipped.
+
 ## Required tests
 Each listed key in a base file (candidate), same in dev profile (none), `INFO` level (none).
 

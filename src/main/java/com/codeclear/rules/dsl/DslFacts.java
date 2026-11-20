@@ -194,7 +194,7 @@ final class DslFacts {
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
             "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
             "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString",
-            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following", "enclosingCallName", "enclosingCalls", "returnType", "identifiers", "enclosingLoop", "fieldDeclText", "guardedField", "enclosingStatement", "enclosingClass");
+            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following", "enclosingCallName", "enclosingCalls", "returnType", "blockSize", "codeLines", "codeScore", "blockText", "identifiers", "enclosingLoop", "fieldDeclText", "guardedField", "enclosingStatement", "enclosingClass");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {

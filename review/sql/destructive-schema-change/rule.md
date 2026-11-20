@@ -33,6 +33,8 @@ ALTER TABLE users ALTER COLUMN legacy_id DROP NOT NULL;
 ## Implementation notes
 Regex finds the candidate statement; the AI step confirms that a running version still uses the object (expand/contract pattern).
 
+Detected on statements: `DROP TABLE`, `TRUNCATE`, `ALTER TABLE ... DROP COLUMN`, `RENAME`, `ALTER COLUMN ... TYPE`/`MODIFY`/`CHANGE COLUMN`, and `DROP CONSTRAINT`/`FOREIGN KEY`/`PRIMARY KEY`/`CHECK`. A type change is always reported, because narrowing cannot be told from widening without the old type. Files in a `down`, `rollback` or `undo` folder or with such a name, names that contain `tmp_` or `temp_`, and a table created in the same file are skipped.
+
 ## Required tests
 `DROP COLUMN` (finding), `RENAME COLUMN` (finding), temp table drop (no finding), file under `down/` (no finding).
 

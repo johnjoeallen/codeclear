@@ -30,6 +30,8 @@ OK: same statement with `NOT VALID`, followed by `VALIDATE CONSTRAINT`.
 ## Implementation notes
 Tokenise statements; anchor to the statement start. Emit the table name and statement kind as evidence for the AI step.
 
+Detected on `UPDATE` with no `LIMIT`, `TOP`, `BETWEEN`, `OFFSET`, `ROWNUM` or `id > n` range; `ADD ... FOREIGN KEY|CHECK` without `NOT VALID`; `SET NOT NULL`; and `ALTER COLUMN ... TYPE`/`MODIFY`. A loop with commits inside a procedure is not recognised. Tables created in the same file and a `-- table-size: small` comment above the statement are skipped.
+
 ## Required tests
 Unbatched backfill (candidate), `NOT VALID` constraint (no candidate), new-table statement (no candidate), size hint (no candidate).
 
