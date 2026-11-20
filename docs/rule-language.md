@@ -118,6 +118,8 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | any node (data) | `inDataClass` |
 | `Annotation` | `name` |
 | `Call` and `New` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource`, `closedOrHandedOn` (the method closes that local, returns it, stores it or passes it to another call) |
+| any node (enclosing) | `enclosingCallName` (the nearest call around it), `enclosingCalls` (the names of every call around it, nearest first), `enclosingStatement`, `enclosingClass` |
+| `Call` (callees) | `c.targetAnnotations()`: the annotations, as source text, of the project methods the call may reach |
 | any node (locks) | `inSynchronized` (inside a `synchronized` block or method) |
 | any node (logging) | `inLevelGuard` (inside an `if` whose condition calls `isDebugEnabled()`, `isTraceEnabled()`, `isEnabledFor(...)` or `isLoggable(...)`) |
 | any node (transactions) | `inReadOnlyTransaction` (the method says `@Transactional(readOnly = true)`, or has no `@Transactional` of its own and its class says so) |

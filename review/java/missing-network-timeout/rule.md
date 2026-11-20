@@ -34,6 +34,8 @@ RestTemplate rt = builder.setConnectTimeout(Duration.ofSeconds(2)).setReadTimeou
 ## Implementation notes
 AST/regex candidates. Anchor to the construction or call.
 
+Detected on `new RestTemplate()`, `HttpClient.newHttpClient()`, `HttpClient.newBuilder()` without `connectTimeout` in its statement, `new Socket(host, port)`, `openConnection()`, `WebClient.create/builder`, and `Future.get()`/`Condition.await()` with no arguments. Any timeout setting (`setConnectTimeout`, `connectTimeout`, `responseTimeout`, `RestTemplateBuilder`, ...) in the same class counts as configured, which is how a shared factory is recognised.
+
 ## Required tests
 `new RestTemplate()` (candidate), builder with timeouts (none), `HttpRequest` with `.timeout` (none), `future.get()` (candidate).
 

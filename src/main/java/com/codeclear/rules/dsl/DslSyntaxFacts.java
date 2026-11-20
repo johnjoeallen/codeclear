@@ -73,6 +73,18 @@ final class DslSyntaxFacts {
             case "chainStartsStream": return n instanceof MethodCallExpr c && chainStartsStream(c);
             case "hasSideEffectStage": return n instanceof MethodCallExpr c && hasSideEffectStage(c);
             case "holderInitializer": return n instanceof MethodCallExpr c ? holderInitializer(c) : null;
+            case "enclosingCallName": return n.findAncestor(MethodCallExpr.class).map(MethodCallExpr::getNameAsString).orElse(null);
+            case "enclosingCalls": {
+                List<String> names = new java.util.ArrayList<>();
+                for (Optional<Node> p = n.getParentNode(); p.isPresent(); p = p.get().getParentNode()) {
+                    if (p.get() instanceof MethodCallExpr c) {
+                        names.add(c.getNameAsString());
+                    }
+                }
+                return names;
+            }
+            case "enclosingStatement": return n.findAncestor(Statement.class).orElse(null);
+            case "enclosingClass": return n.findAncestor(ClassOrInterfaceDeclaration.class).orElse(null);
             case "enclosingMethodName": return n.findAncestor(MethodDeclaration.class).map(MethodDeclaration::getNameAsString).orElse(null);
             default: break;
         }

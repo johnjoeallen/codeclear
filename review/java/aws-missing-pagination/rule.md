@@ -30,6 +30,8 @@ OK: `s3.listObjectsV2Paginator(req).contents().stream()`.
 ## Implementation notes
 AST with SDK type resolution. Anchor to the call.
 
+Detected on the listed paginated operations (`listObjects(V2)`, `scan`, `query`, `listQueues`, `describe*` and a few `list*`) called on a variable whose declared type is an AWS `*Client`. The method is searched for `nextContinuationToken`, `lastEvaluatedKey`, `nextToken` and similar, and the call for `maxKeys`/`limit(n)`; either skips it. Whether the data can exceed a page is left to the AI.
+
 ## Required tests
 Single `listObjectsV2` (candidate), paginator (none), manual token loop (none), `maxKeys(1)` (none).
 

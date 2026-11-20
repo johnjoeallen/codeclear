@@ -29,6 +29,8 @@ OK: return the `CompletableFuture` and compose with `thenApply`, or use the sync
 ## Implementation notes
 AST with type resolution on `*AsyncClient`. Anchor to the `join`/`get` call.
 
+Detected on `join()` or `get()` with no arguments whose receiver is a call on a variable declared as an `*AsyncClient`. A future held in a variable first (`var f = client.get(...); f.join()`) is not followed. `main`, `run`, `@PostConstruct`, `@Bean` and `@EventListener` methods and test sources are skipped; a dedicated blocking executor is not recognised.
+
 ## Required tests
 Async client + `join()` (candidate), sync client (none), returned future (none), test source (none).
 

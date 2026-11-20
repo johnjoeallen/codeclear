@@ -30,6 +30,8 @@ OK: `actions(List.of("s3:GetObject")).resources(List.of(bucket.arnForObjects("re
 ## Implementation notes
 AST/regex on policy builders and string literals. Anchor to the statement.
 
+Detected on string literals: an action `"*"` or `"<service>:*"` passed to `actions`/`addActions`, a JSON policy string with such an `Action`, and `"*"` passed to `resources`/`addResources` (or a JSON `Resource`) unless the statement names only actions that need it (`sts:GetCallerIdentity`, `logs:Create*`, `xray:Put*`). A policy built from constants or variables is not followed.
+
 ## Required tests
 `s3:*` on `*` (candidate), scoped action and resource (none), `sts:GetCallerIdentity` on `*` (none).
 

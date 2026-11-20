@@ -29,6 +29,8 @@ OK: one `REQUIRES_NEW` call per request for an audit that must survive rollback.
 ## Implementation notes
 AST call graph restricted to the same or visible classes. Anchor to the loop call.
 
+The callee is found with the project call graph (`targetAnnotations`): a method whose `@Transactional` has `REQUIRES_NEW`. The call must be in a loop, a lambda, or a method annotated as a listener or scheduled job. A callee whose name contains `audit`, `failure`, `error`, `dead`, `dlq`, `log` or `record` is treated as a deliberate record. A caller that holds locks is not detected.
+
 ## Required tests
 REQUIRES_NEW in a loop (candidate), outside loop (none), plain `REQUIRED` (none).
 
