@@ -28,6 +28,8 @@ OK: `log.error("Failed for {}", id, e);`
 ## Implementation notes
 Anchor to the log call. Per-language table of "exception passed" forms. Always `INFO`; never costs score.
 
+Java files only, for now. A warn or error log in a `catch` that passes the message or string form of the exception (`getMessage()`, `toString()`) and not the exception itself. Exception types whose name contains `NotFound`, `Validation`, `Invalid`, `Parse`, `NumberFormat`, `Timeout`, `Conflict` or `BadRequest` are treated as expected, and a catch that throws something carrying the original is skipped.
+
 ## Required tests
 `getMessage()` only (candidate), exception passed (none), `log.exception` (none), `exc_info=True` (none), rethrow (none).
 

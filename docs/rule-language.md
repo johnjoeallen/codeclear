@@ -122,7 +122,8 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `If` (shared state) | `i.guardedField`: the field of the class that its condition reads (not a local or a parameter), or missing |
 | `project.mentions('X')` | some file of the project uses that name as a type or identifier |
 | any node (tree) | `parent` is the node it is inside |
-| `Call` (callees) | `c.targetAnnotations()`: the annotations, as source text, of the project methods the call may reach |
+| any node (names) | `identifiers`: the variable, field and called-method names used in it, never text from a string; `enclosingLoop`: the nearest loop around it; `Name.fieldDeclText`: the source of the field declaration it refers to, annotations included |
+| `Call` (callees) | `c.targetAnnotations()` and `c.targetReturnTypes()`: the annotations (as source text) and the return types of the project methods the call may reach |
 | any node (locks) | `inSynchronized` (inside a `synchronized` block or method) |
 | any node (logging) | `inLevelGuard` (inside an `if` whose condition calls `isDebugEnabled()`, `isTraceEnabled()`, `isEnabledFor(...)` or `isLoggable(...)`) |
 | any node (transactions) | `inReadOnlyTransaction` (the method says `@Transactional(readOnly = true)`, or has no `@Transactional` of its own and its class says so) |

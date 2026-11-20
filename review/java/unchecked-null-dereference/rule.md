@@ -34,6 +34,8 @@ if (u == null) throw new UserNotFoundException(id);
 ## Implementation notes
 AST with symbol resolution. Anchor to the dereference.
 
+Detected on a call made directly on `Map.get(k)`, `JsonNode.get(name)`, or a `find/get/load/lookupBy...` method of a repository or DAO whose return type in the project is not `Optional` or a collection. A method that contains `containsKey`, `requireNonNull`, `getOrDefault`, `computeIfAbsent`, a null check or a `put` is skipped as a whole; a local assigned from such a call and used later is not followed.
+
 ## Required tests
 Direct chain on `Map.get` (candidate), checked local (none), `getOrDefault` (none), Optional return (none).
 

@@ -33,6 +33,8 @@ void addItem(Item i) { items.add(i); i.setOrder(this); }
 ## Implementation notes
 AST on entity classes pairing `mappedBy` with the owner's field. Anchor to the one-sided mutation.
 
+Detected in an `@Entity` class: a method that calls `add`, `remove`, `addAll`, `removeAll` or `clear` on a field with `@OneToMany` or `@ManyToMany(mappedBy = ...)` and never calls a setter with `this` or `null`. The owning-side setter that fails to update the inverse collection is not detected.
+
 ## Required tests
 One-sided add (candidate), two-sided helper (none), unidirectional (none), remove without clearing parent (candidate).
 

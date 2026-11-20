@@ -84,6 +84,33 @@ final class DslSyntaxFacts {
                 return names;
             }
             case "parent": return n.getParentNode().orElse(null);
+            case "identifiers": {
+                // Names used in the code, never text inside a string: variables, fields, and the methods that are called.
+                List<String> ids = new java.util.ArrayList<>();
+                n.findAll(NameExpr.class).forEach(x -> ids.add(x.getNameAsString()));
+                n.findAll(FieldAccessExpr.class).forEach(x -> ids.add(x.getNameAsString()));
+                n.findAll(MethodCallExpr.class).forEach(x -> ids.add(x.getNameAsString()));
+                return ids;
+            }
+            case "enclosingLoop": {
+                for (Optional<Node> p = n.getParentNode(); p.isPresent(); p = p.get().getParentNode()) {
+                    if (p.get() instanceof ForStmt || p.get() instanceof ForEachStmt || p.get() instanceof WhileStmt || p.get() instanceof DoStmt) {
+                        return p.get();
+                    }
+                    if (p.get() instanceof MethodDeclaration || p.get() instanceof LambdaExpr) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+            case "fieldDeclText": {
+                if (!(n instanceof NameExpr x)) {
+                    return null;
+                }
+                return n.findAncestor(ClassOrInterfaceDeclaration.class).flatMap(c -> c.getFields().stream()
+                        .filter(f -> f.getVariables().stream().anyMatch(v -> v.getNameAsString().equals(x.getNameAsString())))
+                        .map(Object::toString).findFirst()).orElse(null);
+            }
             case "guardedField": return n instanceof com.github.javaparser.ast.stmt.IfStmt i ? guardedField(i) : null;
             case "enclosingStatement": return n.findAncestor(Statement.class).orElse(null);
             case "enclosingClass": return n.findAncestor(ClassOrInterfaceDeclaration.class).orElse(null);

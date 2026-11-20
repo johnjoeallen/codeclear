@@ -33,6 +33,8 @@ OK: three attempts with exponential backoff and an `Idempotency-Key` header.
 ## Implementation notes
 AST for loops and annotations. Anchor to the loop or annotation.
 
+Two files. `rule.dsl` looks at a `catch` inside a loop that carries on: it flags a `while (true)`/`for (;;)` with no counter or deadline word, a loop that never sleeps or waits, and a loop that calls a write (`post`, `save`, `send`, `charge`, `putItem`, ...) with no idempotency word in it. `retryable.dsl` flags `@Retryable` with neither `maxAttempts` nor `backoff`, or one that retries `Exception`/`Throwable`. Recursive retries and SDK retry policies are not detected.
+
 ## Required tests
 Unbounded loop (candidate), bounded with backoff (none), `@Retryable` without limits (candidate), retry on read (none).
 
