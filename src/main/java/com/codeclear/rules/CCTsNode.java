@@ -311,7 +311,9 @@ public final class CCTsNode implements CCModelNode {
 
     /** There is a call {@code receiver.method(key, ...)} at or below this node (the key is compared as text). */
     public boolean hasCallOn(String receiver, String method, String key) {
-        for (CCTsNode c : descendants("call")) {
+        List<CCTsNode> calls = new ArrayList<>(descendants("call"));
+        calls.addAll(descendants("call_expression"));
+        for (CCTsNode c : calls) {
             CCTsNode f = c.field("function");
             if (f != null && f.text().equals(receiver + "." + method)) {
                 CCTsNode first = c.args().isEmpty() ? null : c.args().get(0);

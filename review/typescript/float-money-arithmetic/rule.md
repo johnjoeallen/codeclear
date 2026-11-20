@@ -33,6 +33,8 @@ const total = items.reduce((s, i) => s.plus(new Decimal(i.price).times(i.qty)), 
 ## Implementation notes
 Anchor to the arithmetic expression.
 
+Detected on `+ - * /` expressions and on `toFixed`, `Math.round/floor/ceil` and `parseFloat` calls that involve a name containing `price`, `amount`, `total`, `balance`, `fee`, `tax`, `cost`, `vat`, `subtotal`, `discount`, `salary`, `payment`, `charge` or `refund`. A file that mentions `decimal.js`, `big.js`, `bignumber`, `dinero`, `currency.js`, `cents`, `pence` or `minorUnit`, and a function that uses `Intl.NumberFormat`, are skipped.
+
 ## Required tests
 Float `price * qty` (finding), Decimal (no finding), `cents + cents` (no finding), `Intl.NumberFormat` (no finding).
 

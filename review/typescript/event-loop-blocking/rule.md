@@ -34,6 +34,8 @@ app.get('/f', async (req, res) => res.send(await fs.promises.readFile(p)));
 ## Implementation notes
 Equivalent: `n/no-sync`. Anchor to the call; decide "inside a handler" by enclosing function context.
 
+Detected on `fs.*Sync` and `*Sync` calls (`pbkdf2Sync`, `scryptSync`, `execSync`, `spawnSync`, `zlib` and `crypto` sync functions) inside a function whose parameters mention `req`, `res`, `ctx`, `message`, `event`, `job` or `payload`; and on a regular expression literal with a repeat inside a repeated group, inside a function. Calls at module load, in test files, and under `scripts`, `bin`, `cli`, `tools`, `build`, `migrations`, `public`, `client`, `frontend` or `browser` folders are skipped. The self re-queuing microtask loop is not detected.
+
 ## Required tests
 `readFileSync` in handler (finding), at module top (no finding), nested-quantifier regex on input (finding), `readFile` async (no finding).
 

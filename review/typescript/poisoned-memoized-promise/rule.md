@@ -32,6 +32,8 @@ export const getDb = () => (db ??= connect().catch((e) => { db = undefined; thro
 ## Implementation notes
 Anchor to the assignment.
 
+Detected on `x = f()` or `x ??= f()` where `x` is declared at the top of the module, the right side is a call that is not awaited and has no `.catch`, the assignment is not inside a `try`, and no assignment in the file sets `x` back to `undefined` or `null`. Whether `f()` really returns a promise is not known; any call is treated as one.
+
 ## Required tests
 Cached without reset (finding), reset on catch (no finding), cached resolved value (no finding).
 

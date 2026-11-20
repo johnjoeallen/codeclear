@@ -33,6 +33,8 @@ const s = fs.createReadStream(p); s.on('error', fail); s.on('data', handle);
 ## Implementation notes
 Anchor to the emitter creation.
 
+Detected on `x.on("data"|"message"|"close"|"end"|"connect"|"open"|"readable"|"finish"|"drain"|"response"|"exit", ...)` where `x` is declared in the file from `new EventEmitter()`, a socket or stream class, `net`/`tls`/`http(s)` connect/request/createServer, `fs.createReadStream/WriteStream` or `spawn`, and the file has no `x.on("error")`, `once("error")` or `addListener("error")` and mentions no `pipeline(`, `finished(` or `events.once`. The `captureRejections` check for async listeners is covered by `async-callback-ignored-by-api`.
+
 ## Required tests
 Stream with data only (finding), error listener present (no finding), `pipeline` (no finding), async listener without catch (finding).
 

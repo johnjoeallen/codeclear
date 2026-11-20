@@ -34,6 +34,8 @@ emitter.on('order', (o) => { save(o).catch(logError); });
 ## Implementation notes
 Equivalent: `@typescript-eslint/no-misused-promises`. Anchor to the callback.
 
+Detected on an `async` arrow or function expression passed to `on`/`once`/`addListener` (when it awaits), to `setTimeout`/`setInterval`/`setImmediate`/`process.nextTick`/`queueMicrotask`, and to `filter`/`some`/`every`/`find`/`findIndex`/`sort`/`reduce`. A callback whose body is a single `try` statement is treated as reporting its own errors. `map` is never matched, and transaction and ORM callbacks are not recognised.
+
 ## Required tests
 Async `on` listener without catch (finding), listener with internal try/catch (no finding), `filter(async ...)` (finding), `map` + `Promise.all` (no finding).
 

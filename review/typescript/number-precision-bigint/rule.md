@@ -33,6 +33,8 @@ res.json({ id: row.id.toString() });
 ## Implementation notes
 Anchor to the conversion. Type info helps; fall back to names.
 
+Detected on `Number(x)`, `parseInt(x)`, `parseFloat(x)` and unary `+x` where `x` is a property named like an id, count, balance or total of `row`, `rows[n]`, `result`, `record`, `entity`, `data` or `item`; and on `JSON.stringify(v)` or `res.json(v)` where the argument contains `BigInt(` or a `123n` literal, with no second argument. A file that mentions `uuid`, `BigInt.prototype.toJSON` or `replacer` is skipped.
+
 ## Required tests
 BigInt in `res.json` (finding), `toString()` (no finding), `Number(row.id)` on bigint column (finding), UUID (no finding).
 
