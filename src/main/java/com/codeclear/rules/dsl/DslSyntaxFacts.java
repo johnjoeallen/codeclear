@@ -59,7 +59,7 @@ final class DslSyntaxFacts {
             case "enclosingClassAnnotations":
                 return n.findAncestor(ClassOrInterfaceDeclaration.class)
                         .map(c -> c.getAnnotations().stream().map(a -> a.getNameAsString()).toList()).orElse(List.of());
-            case "isDiscarded": return n instanceof MethodCallExpr c && c.getParentNode().orElse(null) instanceof com.github.javaparser.ast.stmt.ExpressionStmt s && s.getExpression() == c;
+            case "isDiscarded": return n instanceof MethodCallExpr c && isDiscarded(c);
             case "sameClassTransactionalTarget": return n instanceof MethodCallExpr c ? sameClassTransactionalTarget(c) : null;
             case "enclosingIterations": return enclosingIterations(n);
             case "iteratedCollection": return iteratedCollection(n);
@@ -67,6 +67,11 @@ final class DslSyntaxFacts {
             case "followedByExit": return n instanceof MethodCallExpr c && followedByExit(c);
             case "updatesCurrentKey": return n instanceof MethodCallExpr c && updatesCurrentKey(c);
             case "isThrowable": return n instanceof com.github.javaparser.ast.expr.Expression e && isThrowable(e, model);
+            case "inDataClass": return inDataClass(n);
+            case "chainCalls": return n instanceof MethodCallExpr c ? chainCalls(c) : List.of();
+            case "chainStartsStream": return n instanceof MethodCallExpr c && chainStartsStream(c);
+            case "hasSideEffectStage": return n instanceof MethodCallExpr c && hasSideEffectStage(c);
+            case "holderInitializer": return n instanceof MethodCallExpr c ? holderInitializer(c) : null;
             case "enclosingMethodName": return n.findAncestor(MethodDeclaration.class).map(MethodDeclaration::getNameAsString).orElse(null);
             default: break;
         }
@@ -81,6 +86,20 @@ final class DslSyntaxFacts {
                 case "assertions": return assertions(m);
                 default: break;
             }
+        } else if (n instanceof VariableDeclarator v) {
+            switch (name) {
+                case "name": return v.getNameAsString();
+                case "typeName": return simpleName(v.getType());
+                case "isLocal": return v.getParentNode().orElse(null) instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr;
+                case "usedInArithmetic": return usedInArithmetic(v, v.getNameAsString(), v.getParentNode().orElse(null) instanceof FieldDeclaration);
+                case "neverReferenced": return neverReferenced(v);
+                default: break;
+            }
+        } else if (n instanceof Parameter p && name.equals("usedInArithmetic")) {
+            return usedInArithmetic(p, p.getNameAsString(), false);
+        } else if (n instanceof Parameter p && name.equals("inPublicMethod")) {
+            return p.getParentNode().orElse(null) instanceof MethodDeclaration m
+                    && (m.isPublic() || m.findAncestor(ClassOrInterfaceDeclaration.class).map(ClassOrInterfaceDeclaration::isInterface).orElse(false));
         } else if (n instanceof CatchClause c && name.equals("tryCalls")) {
             return c.findAncestor(TryStmt.class).map(t -> (Object) List.copyOf(t.getTryBlock().findAll(MethodCallExpr.class))).orElse(List.of());
         } else if (n instanceof com.github.javaparser.ast.stmt.ForEachStmt f && name.equals("iterable")) {
@@ -147,6 +166,12 @@ final class DslSyntaxFacts {
                 && args.get(0) instanceof String annotation && args.get(1) instanceof String member) {
             return m.getAnnotationByName(annotation).map(a -> a instanceof com.github.javaparser.ast.expr.NormalAnnotationExpr na
                     && na.getPairs().stream().anyMatch(p -> p.getNameAsString().equals(member))).orElse(false);
+        }
+        if (name.equals("pairedRelease") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
+            return pairedRelease(c, names);
+        }
+        if (name.equals("releasedInMethodFinally") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
+            return releasedInMethodFinally(c, names);
         }
         if (name.equals("releasedInNextFinally") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
             return releasedInNextFinally(c, names);
@@ -220,6 +245,214 @@ final class DslSyntaxFacts {
                 return true;
             }
             below = a;
+        }
+        return false;
+    }
+
+    /**
+     * The call is a statement of its own. The body of an expression lambda ({@code x -> f(x)}) is parsed as a statement too,
+     * but its value is the lambda's result, so it is not discarded.
+     */
+    private static boolean isDiscarded(MethodCallExpr c) {
+        return c.getParentNode().orElse(null) instanceof com.github.javaparser.ast.stmt.ExpressionStmt s && s.getExpression() == c
+                && !(s.getParentNode().orElse(null) instanceof LambdaExpr);
+    }
+
+    // ---- data classes, arithmetic, streams, per-thread holders ---------------------------------------------------
+
+    private static final Pattern DATA_CLASS_NAME = Pattern.compile(".*(Dto|DTO|Request|Response|Event|Payload|Message|Entity|Properties|Command|Resource)$");
+    private static final List<String> DATA_ANNOTATIONS = List.of("Entity", "Embeddable", "MappedSuperclass", "Data", "Value",
+            "ConfigurationProperties", "Document", "Table", "JsonInclude", "JsonIgnoreProperties");
+
+    /**
+     * The class around the node holds data that is exchanged or stored: an entity or embeddable, a Lombok data class, a
+     * configuration properties class, a serializable class, or a class named like a DTO, request, response, event or message.
+     */
+    private static boolean inDataClass(Node n) {
+        Optional<ClassOrInterfaceDeclaration> cls = n.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (cls.isEmpty() || cls.get().isInterface()) {
+            return false;
+        }
+        ClassOrInterfaceDeclaration c = cls.get();
+        return c.getAnnotations().stream().anyMatch(a -> DATA_ANNOTATIONS.contains(a.getNameAsString()))
+                || c.getImplementedTypes().stream().anyMatch(t -> t.getNameAsString().equals("Serializable"))
+                || DATA_CLASS_NAME.matcher(c.getNameAsString()).matches();
+    }
+
+    private static boolean arithmetic(BinaryExpr.Operator op) {
+        return op == BinaryExpr.Operator.PLUS || op == BinaryExpr.Operator.MINUS || op == BinaryExpr.Operator.MULTIPLY
+                || op == BinaryExpr.Operator.DIVIDE || op == BinaryExpr.Operator.REMAINDER;
+    }
+
+    /** {@code "a" + b + c}: a plus whose left side, followed down through pluses, is a string literal, or whose right side is one. */
+    private static boolean isConcatenation(BinaryExpr b) {
+        if (b.getOperator() != BinaryExpr.Operator.PLUS) {
+            return false;
+        }
+        if (b.getRight() instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
+            return true;
+        }
+        com.github.javaparser.ast.expr.Expression left = b.getLeft();
+        while (left instanceof BinaryExpr l && l.getOperator() == BinaryExpr.Operator.PLUS) {
+            if (l.getRight() instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
+                return true;
+            }
+            left = l.getLeft();
+        }
+        return left instanceof com.github.javaparser.ast.expr.StringLiteralExpr;
+    }
+
+    /**
+     * The variable (a field, a local or a parameter) is used in arithmetic: an operand of {@code + - * / %} that is not a
+     * string concatenation, the target of a compound assignment, or the argument of {@code Math.round/ceil/floor/rint}.
+     */
+    private static boolean usedInArithmetic(Node declaration, String name, boolean field) {
+        Node scope = field ? declaration.findAncestor(ClassOrInterfaceDeclaration.class).map(c -> (Node) c).orElse(null)
+                : declaration.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).map(c -> (Node) c)
+                        .or(() -> declaration.findAncestor(ClassOrInterfaceDeclaration.class)).orElse(null);
+        if (scope == null) {
+            return false;
+        }
+        for (NameExpr use : scope.findAll(NameExpr.class)) {
+            if (!use.getNameAsString().equals(name) || !(use.getParentNode().orElse(null) instanceof Node parent)) {
+                continue;
+            }
+            if (parent instanceof BinaryExpr b && arithmetic(b.getOperator()) && !isConcatenation(b)) {
+                return true;
+            }
+            if (parent instanceof com.github.javaparser.ast.expr.AssignExpr a && a.getTarget() == use
+                    && a.getOperator() != com.github.javaparser.ast.expr.AssignExpr.Operator.ASSIGN) {
+                return true;
+            }
+            if (parent instanceof MethodCallExpr m && m.getScope().map(s -> s.toString().equals("Math")).orElse(false)
+                    && List.of("round", "ceil", "floor", "rint").contains(m.getNameAsString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A local variable that no later code mentions. */
+    private static boolean neverReferenced(VariableDeclarator v) {
+        Node scope = v.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).map(c -> (Node) c).orElse(null);
+        return scope != null && v.getParentNode().orElse(null) instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr
+                && scope.findAll(NameExpr.class).stream().noneMatch(x -> x.getNameAsString().equals(v.getNameAsString()));
+    }
+
+    /** The calls this one is made on, nearest first: {@code a.stream().map(f).count()} gives {@code map}, {@code stream}. */
+    private static List<MethodCallExpr> chainCalls(MethodCallExpr call) {
+        List<MethodCallExpr> out = new java.util.ArrayList<>();
+        for (com.github.javaparser.ast.expr.Expression s = call.getScope().orElse(null); s instanceof MethodCallExpr m;
+             s = m.getScope().orElse(null)) {
+            out.add(m);
+        }
+        return out;
+    }
+
+    private static final List<String> STREAM_TYPES = List.of("Stream", "IntStream", "LongStream", "DoubleStream");
+
+    /** The call chain starts a stream: {@code x.stream()}, {@code parallelStream()}, {@code Stream.of(...)}, {@code Arrays.stream(...)}. */
+    private static boolean chainStartsStream(MethodCallExpr call) {
+        List<MethodCallExpr> chain = new java.util.ArrayList<>(chainCalls(call));
+        chain.add(0, call);
+        return chain.stream().anyMatch(c -> List.of("stream", "parallelStream", "chars").contains(c.getNameAsString()) && c.getArguments().isEmpty()
+                || c.getScope().map(s -> STREAM_TYPES.contains(s.toString()) || s.toString().equals("Arrays") && c.getNameAsString().equals("stream")).orElse(false));
+    }
+
+    private static final List<String> SIDE_EFFECT_CALLS = List.of("add", "addAll", "put", "putAll", "save", "saveAll", "send", "delete",
+            "deleteAll", "deleteById", "remove", "publish", "write", "increment", "incrementAndGet", "getAndIncrement");
+
+    /** A lambda that changes something outside itself: an assignment to a variable it did not declare, or a call that adds, saves or sends. */
+    private static boolean lambdaHasSideEffect(LambdaExpr l) {
+        java.util.Set<String> own = new java.util.HashSet<>();
+        l.getParameters().forEach(p -> own.add(p.getNameAsString()));
+        l.findAll(VariableDeclarator.class).forEach(d -> own.add(d.getNameAsString()));
+        boolean assigns = l.findAll(com.github.javaparser.ast.expr.AssignExpr.class).stream().anyMatch(a ->
+                !(a.getTarget() instanceof NameExpr t && own.contains(t.getNameAsString())));
+        boolean calls = l.findAll(MethodCallExpr.class).stream().anyMatch(c -> SIDE_EFFECT_CALLS.contains(c.getNameAsString())
+                && !(c.getScope().orElse(null) instanceof NameExpr s && own.contains(s.getNameAsString())));
+        return assigns || calls;
+    }
+
+    /** Some {@code peek} or {@code map} stage earlier in the chain has a lambda that changes something outside itself. */
+    private static boolean hasSideEffectStage(MethodCallExpr call) {
+        return chainCalls(call).stream().anyMatch(c -> List.of("peek", "map").contains(c.getNameAsString())
+                && c.getArguments().stream().anyMatch(a -> a instanceof LambdaExpr l && lambdaHasSideEffect(l)
+                || a instanceof com.github.javaparser.ast.expr.MethodReferenceExpr r && SIDE_EFFECT_CALLS.contains(r.getIdentifier())));
+    }
+
+    /** For {@code holder.set(...)} where {@code holder} is a field of the class, the text of the field's initializer, else null. */
+    private static String holderInitializer(MethodCallExpr call) {
+        String holder = call.getScope().map(s -> s instanceof FieldAccessExpr f && f.getScope() instanceof com.github.javaparser.ast.expr.ThisExpr
+                ? f.getNameAsString() : s instanceof NameExpr n ? n.getNameAsString() : null).orElse(null);
+        if (holder == null) {
+            return null;
+        }
+        return call.findAncestor(ClassOrInterfaceDeclaration.class).stream()
+                .flatMap(c -> c.getFields().stream()).flatMap(f -> f.getVariables().stream())
+                .filter(d -> d.getNameAsString().equals(holder)).findFirst()
+                .flatMap(VariableDeclarator::getInitializer).map(Object::toString).orElse(null);
+    }
+
+    /**
+     * Some finally block in the method of the call, or a {@code doFinally(...)} callback, makes one of these calls on the same
+     * receiver, directly or through a helper of the same class that does.
+     */
+    private static boolean releasedInMethodFinally(MethodCallExpr acquire, List<?> releaseNames) {
+        if (acquire.getScope().isEmpty()) {
+            return false;
+        }
+        String holder = acquire.getScope().get().toString();
+        Node scope = acquire.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).map(c -> (Node) c)
+                .or(() -> acquire.findAncestor(InitializerDeclaration.class)).orElse(null);
+        if (scope == null) {
+            return false;
+        }
+        List<Node> cleanups = new java.util.ArrayList<>();
+        scope.findAll(TryStmt.class).forEach(t -> t.getFinallyBlock().ifPresent(cleanups::add));
+        scope.findAll(MethodCallExpr.class).stream().filter(c -> c.getNameAsString().equals("doFinally")).forEach(cleanups::add);
+        return cleanups.stream().anyMatch(block -> releases(block, holder, releaseNames, acquire, 2));
+    }
+
+    /** The block makes a release call on the holder, or calls a method of the same class that does (to the given depth). */
+    private static boolean releases(Node block, String holder, List<?> releaseNames, Node context, int depth) {
+        for (MethodCallExpr c : block.findAll(MethodCallExpr.class)) {
+            if (releaseNames.contains(c.getNameAsString()) && c.getScope().map(s -> s.toString().equals(holder)).orElse(false)) {
+                return true;
+            }
+            if (depth > 1 && c.getScope().isEmpty()) {
+                for (MethodDeclaration helper : context.findAncestor(ClassOrInterfaceDeclaration.class).stream()
+                        .flatMap(k -> k.getMethodsByName(c.getNameAsString()).stream()).toList()) {
+                    if (releases(helper, holder, releaseNames, context, depth - 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The acquire and a release of the same holder are the two branches of one {@code if}: {@code if (previous == null)
+     * MDC.remove(k); else MDC.put(k, previous);}. That puts a value back and does not leak one.
+     */
+    private static boolean pairedRelease(MethodCallExpr acquire, List<?> releaseNames) {
+        if (acquire.getScope().isEmpty()) {
+            return false;
+        }
+        String holder = acquire.getScope().get().toString();
+        for (Optional<Node> p = acquire.getParentNode(); p.isPresent(); p = p.get().getParentNode()) {
+            if (p.get() instanceof com.github.javaparser.ast.stmt.IfStmt i) {
+                Node mine = i.getThenStmt().isAncestorOf(acquire) ? i.getThenStmt() : i.getElseStmt().orElse(null);
+                Node other = mine == i.getThenStmt() ? i.getElseStmt().orElse(null) : i.getThenStmt();
+                if (other != null && other.findAll(MethodCallExpr.class).stream().anyMatch(c -> releaseNames.contains(c.getNameAsString())
+                        && c.getScope().map(s -> s.toString().equals(holder)).orElse(false))) {
+                    return true;
+                }
+            }
+            if (p.get() instanceof MethodDeclaration) {
+                break;
+            }
         }
         return false;
     }

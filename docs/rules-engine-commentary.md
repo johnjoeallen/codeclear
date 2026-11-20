@@ -454,6 +454,27 @@ There is no review pipeline yet, so the baseline is the design as written: the A
 - The Markdown report is now written under the folder that was scanned (`<folder>/target/codeclear/report.md`), not the
   working directory.
 
+### Five more detectors (optional-field-or-parameter, timezone-ambiguity, floating-point-money, unconsumed-lazy-stream, threadlocal-not-cleaned)
+
+- Detectors now number 29; 144 executable rules still have none. Four are `hybrid` (candidates), `unconsumed-lazy-stream` and
+  `threadlocal-not-cleaned` report findings (`optional-field-or-parameter`, `timezone-ambiguity` and `floating-point-money`
+  report candidates). Four of them have several files, one per construct.
+- New language surface: the `Var` kind (any variable declarator: field, local), and the facts `inDataClass` (entity, Lombok
+  data, configuration properties, serializable, or a DTO/request/response/event/message name), `inPublicMethod`,
+  `usedInArithmetic` (an operand of `+ - * / %` that is not a string concatenation, a compound-assignment target, or a
+  `Math.round` argument), `neverReferenced`, `isLocal`, `chainCalls`, `chainStartsStream`, `hasSideEffectStage`,
+  `holderInitializer`, and the functions `releasedInMethodFinally` and `pairedRelease`.
+- **Running on real code found three false-positive patterns, each fixed and tested:**
+  - `unconsumed-lazy-stream` flagged `w -> w.states().stream().filter(...).map(...)`: JavaParser parses the body of an
+    expression lambda as a statement, so the chain looked discarded. `isDiscarded` is now false for a lambda's value (this
+    also applies to `kafka-producer-send-unobserved`).
+  - `threadlocal-not-cleaned` did not see cleanup in a Reactor `doFinally(...)` callback, or in a helper method that the
+    finally block or the callback calls, or an `if (previous == null) MDC.remove(k); else MDC.put(k, previous);` restore.
+  - `floating-point-money` flagged `double totalCount`: counts are not amounts.
+- Honest limits: `floating-point-money` checks variables and parameters, not return types (a `getTotal()` that returns a
+  `double` is not reported); record components are not `FieldDecl` nodes, so records are not checked by
+  `optional-field-or-parameter` or `timezone-ambiguity`.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate

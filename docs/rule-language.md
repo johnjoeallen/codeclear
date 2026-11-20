@@ -86,7 +86,7 @@ error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'str
 
 Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
 expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
-declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Lambda`, `MethodRef`, `Comment` (every comment in the file: line, block and Javadoc) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
+declaration, never a local variable), `DoubleLit` (a double or float literal), `If`, `Var` (a field or local variable declarator), `Lambda`, `MethodRef`, `Comment` (every comment in the file: line, block and Javadoc) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
 `instanceof` and `inside`, not iterated.
 
 | Node | Fields |
@@ -106,6 +106,10 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Call` (more) | `isDiscarded` (an expression statement), `sameClassTransactionalTarget` |
 | `Method` (tests) | `assertions` (assertion calls, following helpers of the same class two hops), `isPrivate`, `isFinal`, `hasAnnotationMember('Test', 'expected')` |
 | any node (more) | `enclosingClassAnnotations` |
+| `Var` | `name`, `typeName`, `isLocal`, `usedInArithmetic`, `neverReferenced` |
+| `Param` (more) | `inPublicMethod`, `usedInArithmetic` |
+| `Call` (streams, holders) | `chainCalls`, `chainStartsStream`, `hasSideEffectStage`, `holderInitializer`, `releasedInMethodFinally(names)`, `pairedRelease(names)` |
+| any node (data) | `inDataClass` |
 | `StringLit` | `placeholders` (the number of unescaped `{}`) |
 | `Method` (more) | `isPublic` (interface methods count), `classIsPublic`, `throwsTypes`, `annotations` |
 | `Catch` (more) | `tryCalls` (the calls in the try block it belongs to) |

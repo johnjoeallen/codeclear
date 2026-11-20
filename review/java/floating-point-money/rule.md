@@ -16,8 +16,7 @@ Binary floating point cannot represent decimal currency exactly; sums and roundi
 A field, parameter, local or return type of `double`, `float`, `Double` or `Float` whose name matches `(?i)(amount|price|cost|balance|total|fee|tax|salary|payment|money|currency)` and which participates in arithmetic (`+ - * /`) or rounding.
 
 ## Do not flag
-- Names that denote ratios (`rate`, `percent`, `ratio`), metrics or scores.
-- Display-only conversion at a UI boundary.
+- Names that denote ratios (`rate`, `percent`, `ratio`), counts, metrics or scores.
 - Test sources.
 
 ## Examples
@@ -32,6 +31,9 @@ BigDecimal total = price.multiply(BigDecimal.valueOf(quantity));
 
 ## Implementation notes
 AST plus name heuristic. Anchor to the declaration. `new BigDecimal(double)` and `BigDecimal.equals` are covered by `bigdecimal-misuse`.
+
+## Left to the AI
+Display-only conversion at a UI boundary: the detector cannot tell, so the AI confirms each candidate.
 
 ## Required tests
 `double amount` in arithmetic (candidate), `BigDecimal` (none), `double ratio` (none).

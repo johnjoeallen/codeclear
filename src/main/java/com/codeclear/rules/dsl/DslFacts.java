@@ -127,7 +127,9 @@ final class DslFacts {
             "initializerTypeName", "isStatic", "isFinal", "isPrivate", "classAnnotations", "usedOnlyInSynchronized",
             "isIdentitySentinel", "escapesFinally", "assignments", "callsAfter", "doubleCheckedField", "isVolatile", "enclosingClassMethods", "placeholders", "logArguments", "isThrowable",
             "isPublic", "classIsPublic", "throwsTypes", "tryCalls", "enclosingMethod", "enclosingIterations", "iteratedCollection",
-            "iteratedType", "followedByExit", "iterable", "updatesCurrentKey", "enclosingClassAnnotations", "isDiscarded", "sameClassTransactionalTarget", "assertions");
+            "iteratedType", "followedByExit", "iterable", "updatesCurrentKey", "enclosingClassAnnotations", "isDiscarded", "sameClassTransactionalTarget", "assertions",
+            "inDataClass", "chainCalls", "chainStartsStream", "hasSideEffectStage", "holderInitializer", "isLocal", "usedInArithmetic",
+            "neverReferenced", "inPublicMethod");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {

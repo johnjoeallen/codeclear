@@ -49,6 +49,31 @@ class DslProjectTest {
     }
 
     @Test
+    void optionalFieldOrParameter() throws Exception {
+        check("optional-field-or-parameter", Path.of("review/java/optional-field-or-parameter"), List.of("rule.dsl", "param.dsl"));
+    }
+
+    @Test
+    void timezoneAmbiguity() throws Exception {
+        check("timezone-ambiguity", Path.of("review/java/timezone-ambiguity"), List.of("rule.dsl", "sdf.dsl", "field.dsl"));
+    }
+
+    @Test
+    void floatingPointMoney() throws Exception {
+        check("floating-point-money", Path.of("review/java/floating-point-money"), List.of("rule.dsl", "param.dsl"));
+    }
+
+    @Test
+    void unconsumedLazyStream() throws Exception {
+        check("unconsumed-lazy-stream", Path.of("review/java/unconsumed-lazy-stream"), List.of("rule.dsl", "terminal.dsl", "local.dsl"));
+    }
+
+    @Test
+    void threadlocalNotCleaned() throws Exception {
+        check("threadlocal-not-cleaned", Path.of("review/java/threadlocal-not-cleaned"), List.of("rule.dsl"));
+    }
+
+    @Test
     void logInjection() throws Exception {
         check("log-injection", Path.of("review/common/log-injection"), List.of("rule.dsl"));
     }

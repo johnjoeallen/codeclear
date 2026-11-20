@@ -108,3 +108,15 @@ class CTest {
   }
 }
 ```
+
+## Case: the value of an expression lambda is its result (Do not flag: observed)
+
+covers: do-not-flag:result-observed
+
+```java path=src/main/java/C.java
+class C {
+  void f(List<String> msgs) {
+    Function<String, Object> g = m -> kafkaTemplate.send("t", m);
+  }
+}
+```

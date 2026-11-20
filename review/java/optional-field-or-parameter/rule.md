@@ -19,7 +19,6 @@
 ## Do not flag
 - `Optional` return types.
 - Private methods and local variables.
-- Classes where the project explicitly serializes `Optional` (e.g. Jackson `Jdk8Module` shown in the diff).
 
 ## Examples
 Flag:
@@ -33,6 +32,9 @@ public class OrderDto { private String note; public Optional<String> note() { re
 
 ## Implementation notes
 AST. Anchor to the field or parameter declaration.
+
+## Left to the AI
+Classes where the project explicitly serializes `Optional` (for example a Jackson `Jdk8Module`): the detector cannot see the configuration, so the AI confirms each candidate.
 
 ## Required tests
 Optional field in DTO (candidate), Optional parameter (candidate), Optional return (none), local Optional (none).

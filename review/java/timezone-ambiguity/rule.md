@@ -17,7 +17,6 @@
 - `ZoneId.systemDefault()`, `TimeZone.getDefault()`, `LocalDateTime.now()` (no `Clock`/zone), `atZone(ZoneId.systemDefault())`, `new SimpleDateFormat` without `setTimeZone`.
 
 ## Do not flag
-- Wall-clock concepts (opening hours, birthdays, local appointment times) where local semantics are intended.
 - Values converted explicitly with a fixed zone (`ZoneOffset.UTC`).
 - Test sources.
 
@@ -30,6 +29,9 @@ OK: `Instant createdAt` or `OffsetDateTime` in UTC.
 
 ## Implementation notes
 AST with type resolution. Anchor to the field or call.
+
+## Left to the AI
+Wall-clock concepts (opening hours, birthdays, local appointment times) where local semantics are intended: the detector cannot tell, so the AI confirms each candidate.
 
 ## Required tests
 `LocalDateTime` in event DTO (candidate), `Instant` (none), `systemDefault()` (candidate), `ZoneOffset.UTC` (none).

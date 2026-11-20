@@ -77,6 +77,7 @@ final class DslInterpreter {
             Map.entry("Continue", ContinueStmt.class),
             Map.entry("FieldDecl", FieldDeclaration.class),
             Map.entry("DoubleLit", DoubleLiteralExpr.class),
+            Map.entry("Var", com.github.javaparser.ast.body.VariableDeclarator.class),
             Map.entry("Lambda", com.github.javaparser.ast.expr.LambdaExpr.class),
             Map.entry("MethodRef", com.github.javaparser.ast.expr.MethodReferenceExpr.class),
             Map.entry("If", IfStmt.class));

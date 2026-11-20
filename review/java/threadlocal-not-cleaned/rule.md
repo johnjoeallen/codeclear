@@ -17,7 +17,8 @@ A `ThreadLocal` field with a `.set(...)` call in the class (or `MDC.put`, `Secur
 
 ## Do not flag
 - `ThreadLocal.withInitial` used only for non-leaking caches of fixed-size objects (e.g. `SimpleDateFormat`), `confidence: LOW`.
-- Holders cleaned by a framework-managed callback in the same class (`afterCompletion`, `doFinally`).
+- Holders cleaned by a framework-managed callback in the same class (`afterCompletion`, `doFinally`), including through a helper method that removes them.
+- Restoring a previous value: the set and the removal are the two branches of one `if` (`if (previous == null) MDC.remove(k); else MDC.put(k, previous);`).
 - Test sources.
 
 ## Examples
