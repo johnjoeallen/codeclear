@@ -12,6 +12,7 @@ arbitrary code. A rule can only read the fields and call the facts listed here, 
 - [Expressions](#expressions)
 - [Node kinds and fields](#node-kinds-and-fields)
 - [SQL files](#sql-files)
+- [Config files](#config-files)
 - [Host facts](#host-facts)
 - [What is deliberately missing](#what-is-deliberately-missing)
 
@@ -149,6 +150,22 @@ three kinds, and `file.isTest`, `report` and `candidate` work as for Java:
 
 A statement is reported on its first line; a column and a line on their own line. `code` is the field to match keywords and
 operators against, because the contents of strings are blank in it.
+
+## Config files
+
+A `.yml`, `.yaml`, `.json` or `.properties` file is read into key paths (JSON is read as YAML). A rule iterates `Setting`,
+one per scalar value:
+
+| Field | Meaning |
+|---|---|
+| `key` | the key path in lower-case kebab form with dots: `server.sslEnabled` is `server.ssl-enabled`; list items are `ports[0]` |
+| `rawKey` | the key path as written |
+| `value` | the value as text; empty for null |
+| `profile` | the Spring profile of the document (`application-dev.yml`, or `spring.config.activate.on-profile`), or empty |
+| `s.siblingValue('allow-credentials')` | the value of the setting beside this one (same parent key), or missing |
+
+A finding is reported on the line of the value (of the key, in a properties file). Put the key in a message, never the value
+of a secret.
 
 ## Host facts
 

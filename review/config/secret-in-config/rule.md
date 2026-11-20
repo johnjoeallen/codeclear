@@ -33,6 +33,8 @@ spring.datasource.password: ${DB_PASSWORD}
 ## Implementation notes
 Parse YAML, properties and JSON into key paths so the key name is checked, not the whole line. Never print the secret value in the finding: print the key path and a masked hint only.
 
+Settings are read as key paths, so the key name is checked and not the whole line. The key is skipped when its last part names a location or a setting rather than a value (`file`, `name`, `url`, `path`, `id`, `ttl`, `enabled`, ...). The finding names the key and never contains the value. Files named `*.example` or `*.sample` do not match the rule's file globs.
+
 ## Required tests
 Literal password (finding), `${ENV}` (no finding), AWS key in a value (finding), `passwordFile` (no finding), test path (no finding), finding text does not contain the secret.
 

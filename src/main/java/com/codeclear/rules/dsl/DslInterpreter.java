@@ -96,21 +96,19 @@ final class DslInterpreter {
                 || n instanceof DoStmt);
     }
 
-    /** The kinds of a SQL file: {@code Statement}, {@code Column} (added by an ALTER TABLE) and {@code Line}. */
-    private static final Set<String> SQL_KINDS = Set.of("Statement", "Column", "Line");
+    /** The kinds of a SQL file ({@code Statement}, {@code Column} added by an ALTER TABLE, {@code Line}) and of a config file ({@code Setting}). */
+    private static final Set<String> SQL_KINDS = Set.of("Statement", "Column", "Line", "Setting");
 
     private List<Finding> runSql(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
-        if (file.sql() == null) {
-            return List.of();
-        }
-        List<? extends com.codeclear.rules.CCSqlModel.Node> nodes = switch (rule.kind()) {
-            case "Statement" -> file.sql().statements();
-            case "Column" -> file.sql().columns();
-            default -> file.sql().lines();
+        List<? extends com.codeclear.rules.CCModelNode> nodes = switch (rule.kind()) {
+            case "Statement" -> file.sql() == null ? List.of() : file.sql().statements();
+            case "Column" -> file.sql() == null ? List.of() : file.sql().columns();
+            case "Setting" -> file.config() == null ? List.of() : file.config().settings();
+            default -> file.sql() == null ? List.of() : file.sql().lines();
         };
         List<Finding> out = new ArrayList<>();
         Ctx ctx = new Ctx(file, ruleConfidence, project);
-        for (com.codeclear.rules.CCSqlModel.Node n : nodes) {
+        for (com.codeclear.rules.CCModelNode n : nodes) {
             Map<String, Object> env = new HashMap<>();
             env.put(rule.var(), n);
             env.put("file", file.file());
@@ -125,8 +123,8 @@ final class DslInterpreter {
                     continue;
                 }
                 Object at = eval(f.at(), env, ctx);
-                if (!(at instanceof com.codeclear.rules.CCSqlModel.Node target)) {
-                    throw new IllegalStateException("'at' must be a statement, column or line of the file, got " + at);
+                if (!(at instanceof com.codeclear.rules.CCModelNode target)) {
+                    throw new IllegalStateException("'at' must be a statement, column, line or setting of the file, got " + at);
                 }
                 String conf = ruleConfidence;
                 if (f.confidence() != null) {

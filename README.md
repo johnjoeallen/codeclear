@@ -3,11 +3,11 @@ CodeClear: AI code review that gets your branch clear before it ever reaches a P
 
 ## Command-line review
 
-The launcher scripts review the Java and SQL files under the paths you give; with none, the current folder. No server starts and no
+The launcher scripts review the Java, SQL, YAML, JSON and properties files under the paths you give; with none, the current folder. No server starts and no
 browser opens.
 
 ```
-./codeclear.sh src                                 # review the Java and SQL files under src
+./codeclear.sh src                                 # review the Java, SQL and config files under src
 ./codeclear.sh                                     # review the current folder
 ./codeclear.sh --diff=main --fail-on=high          # only lines changed since main; exit 1 on a high finding
 ./codeclear.sh --format=json src > report.json

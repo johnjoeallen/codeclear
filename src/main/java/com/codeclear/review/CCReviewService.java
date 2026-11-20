@@ -48,6 +48,7 @@ public class CCReviewService implements AutoCloseable {
     private final String aiDriverId;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
     private final com.codeclear.rules.SqlFileAnalyzer sqlAnalyzer = new com.codeclear.rules.SqlFileAnalyzer();
+    private final com.codeclear.rules.ConfigFileAnalyzer configAnalyzer = new com.codeclear.rules.ConfigFileAnalyzer();
 
     /** The service the application runs: rules from the configured folder, the configured AI driver. */
     @Autowired
@@ -62,6 +63,12 @@ public class CCReviewService implements AutoCloseable {
         this.engine = engine;
         this.confirmer = confirmer;
         this.aiDriverId = aiDriverId;
+    }
+
+    /** A YAML, JSON or properties file. */
+    private static boolean isConfig(String path) {
+        String p = path.toLowerCase();
+        return p.endsWith(".yml") || p.endsWith(".yaml") || p.endsWith(".json") || p.endsWith(".properties");
     }
 
     private static List<CCRuleDefinition> loadRules(Path dir) {
@@ -99,6 +106,14 @@ public class CCReviewService implements AutoCloseable {
                 analyses.add(sqlAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
                 continue;
             }
+            if (isConfig(f.path())) {
+                try {
+                    analyses.add(configAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
+                } catch (IllegalArgumentException e) {
+                    notes.add("not analysed: " + e.getMessage());
+                }
+                continue;
+            }
             if (!f.path().endsWith(JAVA)) {
                 continue;
             }
@@ -108,9 +123,9 @@ public class CCReviewService implements AutoCloseable {
                 notes.add("not analysed: " + e.getMessage());
             }
         }
-        long other = request.files().stream().filter(f -> !f.path().endsWith(JAVA) && !f.path().toLowerCase().endsWith(".sql")).count();
+        long other = request.files().stream().filter(f -> !f.path().endsWith(JAVA) && !f.path().toLowerCase().endsWith(".sql") && !isConfig(f.path())).count();
         if (other > 0) {
-            notes.add(other + " file(s) not analysed: only Java and SQL have an analyzer so far");
+            notes.add(other + " file(s) not analysed: only Java, SQL and config files have an analyzer so far");
         }
 
         List<CCSkippedRule> skipped = new ArrayList<>();

@@ -47,6 +47,8 @@ management:
 ## Implementation notes
 Store the list as data (YAML) so rules can be added without code changes. Report the key path and the file profile.
 
+The config analyzer reads YAML, JSON (as YAML) and `.properties` files into key paths in lower-case kebab form (`trustAllCertificates` is `trust-all-certificates`), so the rule list is written once for every spelling. A document is for a profile when the file is `application-<profile>.yml` or the document sets `spring.config.activate.on-profile`. The `cors` check looks at the `allow-credentials` setting beside `allowed-origins`. `management.endpoint.health.show-details` is flagged in every profile that is not dev, local or test.
+
 ## Required tests
 Each listed key (finding), the same key in `application-dev.yml` (no finding), env placeholder (no finding).
 

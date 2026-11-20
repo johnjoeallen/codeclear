@@ -10,9 +10,7 @@ import java.util.List;
 public record CCSqlModel(List<Statement> statements, List<Column> columns, List<Line> lines) {
 
     /** A node with a position, so a rule can report on it. */
-    public sealed interface Node permits Statement, Column, Line {
-        int line();
-    }
+    public sealed interface Node extends CCModelNode permits Statement, Column, Line { }
 
     /**
      * One statement, ending at a {@code ;} or a {@code GO} line.

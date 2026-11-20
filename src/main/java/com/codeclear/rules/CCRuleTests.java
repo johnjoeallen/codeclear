@@ -65,7 +65,7 @@ public final class CCRuleTests {
 
     public static final String DEFAULT_PATH = "src/main/java/Test.java";
 
-    private static final Pattern MARKER = Pattern.compile("\\s*(?://|--)\\s*(FLAG|CANDIDATE)(?:\\s+(LOW|MEDIUM|HIGH))?\\s*$");
+    private static final Pattern MARKER = Pattern.compile("\\s*(?://|--|#)\\s*(FLAG|CANDIDATE)(?:\\s+(LOW|MEDIUM|HIGH))?\\s*$");
     private static final Pattern MUTATION = Pattern.compile("^\\s*[-*]\\s*`(.+?)`\\s*(?:->|→)\\s*`(.+?)`\\s*$");
 
     private CCRuleTests() { }

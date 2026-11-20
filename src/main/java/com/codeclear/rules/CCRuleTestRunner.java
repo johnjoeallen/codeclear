@@ -28,6 +28,7 @@ public final class CCRuleTestRunner {
     private final CCRuleEngine engine;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
     private final SqlFileAnalyzer sqlAnalyzer = new SqlFileAnalyzer();
+    private final ConfigFileAnalyzer configAnalyzer = new ConfigFileAnalyzer();
 
     /** Runs the rule's Groovy script (the rule's {@code .dsl} detector only when it has no script). */
     public CCRuleTestRunner(GroovyRuleDetector detector) {
@@ -103,8 +104,8 @@ public final class CCRuleTestRunner {
      * Fails if the rule failed.
      */
     private List<String> actual(CCRuleDefinition rule, CCRuleTests.Case c, String sharedPrelude) {
-        if (!rule.language().equals("java") && !rule.language().equals("common") && !rule.language().equals("sql")) {
-            throw new IllegalArgumentException("the test runner supports Java and SQL rules only");
+        if (!rule.language().equals("java") && !rule.language().equals("common") && !rule.language().equals("sql") && !rule.language().equals("config")) {
+            throw new IllegalArgumentException("the test runner supports Java, SQL and config rules only");
         }
         String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
         int offset = CCRuleTests.lineOffset(prelude);
@@ -114,7 +115,10 @@ public final class CCRuleTestRunner {
             CCChangedLines changed = c.changedLines() == null ? CCChangedLines.all()
                     : CCChangedLines.of(c.changedLines().stream().map(l -> l + offset).collect(java.util.stream.Collectors.toSet()));
             String text = CCRuleTests.analysisText(prelude, f.source());
-            files.add(f.path().endsWith(".sql") ? sqlAnalyzer.analyze(f.path(), text, changed) : analyzer.analyze(f.path(), text, changed));
+            String lower = f.path().toLowerCase();
+            files.add(lower.endsWith(".sql") ? sqlAnalyzer.analyze(f.path(), text, changed)
+                    : lower.endsWith(".yml") || lower.endsWith(".yaml") || lower.endsWith(".json") || lower.endsWith(".properties")
+                            ? configAnalyzer.analyze(f.path(), text, changed) : analyzer.analyze(f.path(), text, changed));
         }
         List<String> out = new ArrayList<>();
         for (CCRuleResult result : engine.run(List.of(rule), files, c.config())) {

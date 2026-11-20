@@ -56,6 +56,15 @@ final class DslFacts {
         if (t instanceof com.codeclear.rules.CCSqlModel.Node sqlNode) {
             return sqlField(sqlNode, name, t);
         }
+        if (t instanceof com.codeclear.rules.CCConfigModel.Setting s) {
+            return switch (name) {
+                case "key" -> s.key();
+                case "rawKey" -> s.rawKey();
+                case "value" -> s.value();
+                case "profile" -> s.profile();
+                default -> unknown(t, name);
+            };
+        }
         if (!(t instanceof Node n)) {
             return unknown(t, name);
         }
@@ -162,7 +171,8 @@ final class DslFacts {
             "inDataClass", "chainCalls", "chainStartsStream", "hasSideEffectStage", "holderInitializer", "isLocal", "usedInArithmetic",
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
             "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
-            "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString");
+            "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString",
+            "key", "rawKey", "value", "profile");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -177,6 +187,12 @@ final class DslFacts {
                 && args.get(0) instanceof DslInterpreter.Pred src && args.get(1) instanceof DslInterpreter.Pred san
                 && project != null) {
             return new DslTaint(src, san, apply, project).tainted(e);
+        }
+        if (name.equals("siblingValue") && target instanceof com.codeclear.rules.CCConfigModel.Setting s && args.size() == 1
+                && args.get(0) instanceof String last) {
+            // The setting beside this one: same parent key, the given last segment. Missing when there is none.
+            int dot = s.key().lastIndexOf('.');
+            return s.doc().get(dot < 0 ? last : s.key().substring(0, dot + 1) + last);
         }
         Object syntax = DslSyntaxFacts.fact(target, name, args);
         if (syntax != DslSyntaxFacts.NOT_HANDLED) {
