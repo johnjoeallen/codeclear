@@ -9,6 +9,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -35,10 +37,26 @@ public final class CCRuleLoader {
                     ? Optional.of(Files.readString(scriptFile, StandardCharsets.UTF_8))
                     : Optional.empty();
             String id = ruleDir.getParent().getFileName() + "/" + ruleDir.getFileName();
-            return new CCRuleDefinition(id, Optional.of(ruleDir), CCRuleMetadata.parse(markdown), hash(markdown), script);
+            return new CCRuleDefinition(id, Optional.of(ruleDir), CCRuleMetadata.parse(markdown), hash(markdown), script,
+                    loadDsl(ruleDir));
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read rule in " + ruleDir, e);
         }
+    }
+
+    /** Reads every {@code .dsl} file in the folder, {@code rule.dsl} first and the rest by name. */
+    private static Map<String, String> loadDsl(Path ruleDir) throws IOException {
+        Map<String, String> out = new LinkedHashMap<>();
+        try (Stream<Path> files = Files.list(ruleDir)) {
+            List<Path> dsl = files.filter(f -> f.getFileName().toString().endsWith(".dsl"))
+                    .sorted(java.util.Comparator.comparing((Path f) -> !f.getFileName().toString().equals("rule.dsl"))
+                            .thenComparing(f -> f.getFileName().toString()))
+                    .toList();
+            for (Path f : dsl) {
+                out.put(f.getFileName().toString(), Files.readString(f, StandardCharsets.UTF_8));
+            }
+        }
+        return out;
     }
 
     /** Loads every rule under a review root, sorted by id. */

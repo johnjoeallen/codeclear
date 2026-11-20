@@ -308,7 +308,7 @@ Every rule file declares one of three detection types. The tool uses that to dec
 | `ai` | AI only: needs intent, cross-file, runtime or deployment context | Always, for matching files, using the rule's `AI prompt` |
 
 `review/INDEX.md` lists every rule with its type. Of the 320 rules, 59 are fully deterministic,
-113 are hybrid and 148 are AI-only. Most AI-only rules cover transactions, messaging, distributed
+114 are hybrid and 147 are AI-only. Most AI-only rules cover transactions, messaging, distributed
 side effects, caches, AWS, API contracts and test adequacy.
 
 The AI calls are batched per file and per language: all `ai` and `hybrid` prompts that apply to a
@@ -367,3 +367,17 @@ findings are passed to the model as already-reported so it does not repeat them.
 5. Feed covered rule ids into the AI prompt.
 6. Measure: findings per source, fix rate, dismissal rate, review time and model cost. Retire rules
    with high dismissal rates.
+
+## Restricted Rule Language (`rule.dsl`)
+
+A rule may have a detector in a restricted rule language, in `rule.dsl` beside or instead of `rule.groovy`. The
+language is declarative: `for` a node kind, `where` / `unless` / `require` filters, `let` bindings, and `flag` or
+`candidate` clauses. It has no statements, loops or recursion and can only read the fields and call the facts the
+host defines, so it needs no sandbox. `flag` reports a finding; `candidate` hands evidence to the AI reviewer to
+confirm, which is the output of a `hybrid` rule.
+
+`CCRuleEngine` runs a run's rules over all its files and picks a detector per rule: `.dsl` first by default, Groovy
+when a rule has no `.dsl` file or when Groovy is preferred. A rule with neither, whose type is executable, is
+reported as not run. All files of a run form one project, so `.dsl` rules can use the project-wide model (entities,
+call graph, configuration). Each `.dsl` file carries the same header as a script (`generated-from`, `rule-hash`,
+`api-version`) and goes stale the same way. See `docs/rules-engine-commentary.md` for the experiments behind it.

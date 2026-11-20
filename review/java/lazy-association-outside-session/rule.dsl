@@ -1,5 +1,5 @@
 # generated-from: review/java/lazy-association-outside-session/rule.md
-# rule-hash: e5730b9c640a7bb9d815684f64f56819098189fd8bcf0240deb673b29877077b
+# rule-hash: a5e2ee3664def61876276a1567b999e5168f63921427bc90bfcea8704e199f6b
 # api-version: 1
 # generator: claude-sonnet-5-5   generated: 2026-11-21
 rule lazy-association-outside-session

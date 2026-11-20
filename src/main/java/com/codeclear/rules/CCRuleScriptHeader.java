@@ -5,7 +5,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The comment header at the top of a generated {@code rule.groovy}.
+ * The comment header at the top of a generated {@code rule.groovy} or {@code .dsl} file (either {@code //} or
+ * {@code #} comment lines).
  *
  * <pre>
  * // generated-from: review/java/empty-catch-block/rule.md
@@ -19,15 +20,15 @@ import java.util.regex.Pattern;
  */
 public record CCRuleScriptHeader(Optional<String> generatedFrom, Optional<String> ruleHash, Optional<Integer> apiVersion) {
 
-    private static final Pattern LINE = Pattern.compile("^//\\s*([a-z-]+):\\s*(\\S+).*$");
+    private static final Pattern LINE = Pattern.compile("^(?://|#)\\s*([a-z-]+):\\s*(\\S+).*$");
 
-    /** Reads the leading {@code //} comment lines of a script. Reading stops at the first other line. */
+    /** Reads the leading comment lines of a script. Reading stops at the first other line. */
     public static CCRuleScriptHeader parse(String script) {
         Optional<String> from = Optional.empty();
         Optional<String> hash = Optional.empty();
         Optional<Integer> api = Optional.empty();
         for (String line : script.split("\n")) {
-            if (!line.startsWith("//")) {
+            if (!line.startsWith("//") && !line.startsWith("#")) {
                 break;
             }
             Matcher m = LINE.matcher(line.stripTrailing());

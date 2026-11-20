@@ -1215,3 +1215,32 @@ import org.springframework.stereotype.Service;
   int helper(long id) { return svc.find(id).getItems().size(); }
 }
 ```
+
+## Case: the entity is held in a field, not a parameter or local
+
+covers: detect:lazy-read
+config: spring.jpa.open-in-view=false
+
+```java path=Order.java
+import jakarta.persistence.*;
+import java.util.*;
+@Entity class Order {
+  @OneToMany(mappedBy = "order") List<Item> items;
+  @ManyToOne(fetch = FetchType.LAZY) Customer customer;
+  @ManyToOne Customer billing;
+  @OneToMany(fetch = FetchType.EAGER) List<Tag> tags;
+  public List<Item> getItems() { return items; }
+  public Customer getCustomer() { return customer; }
+  public Customer getBilling() { return billing; }
+  public List<Tag> getTags() { return tags; }
+}
+@Entity class Item { }
+@Entity class Tag { }
+@Entity class Customer { String name; public String getName() { return name; } }
+```
+```java path=Holder.java
+class Holder {
+  Order order;
+  int n() { return order.getItems().size(); }  // FLAG
+}
+```

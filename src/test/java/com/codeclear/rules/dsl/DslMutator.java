@@ -37,14 +37,14 @@ final class DslMutator {
             if (f.when() != null) {
                 for (Expr m : exprMutants(f.when())) {
                     List<Flag> copy = new ArrayList<>(r.flags());
-                    copy.set(i, new Flag(f.at(), m, f.confidence(), f.message()));
+                    copy.set(i, new Flag(f.at(), m, f.confidence(), f.message(), f.candidate()));
                     out.add(new Mutant("flag " + i + " when: " + show(f.when(), m),
                             new RuleAst(r.id(), r.var(), r.kind(), r.clauses(), copy)));
                 }
             }
             if (f.confidence() != null) {
                 List<Flag> copy = new ArrayList<>(r.flags());
-                copy.set(i, new Flag(f.at(), f.when(), null, f.message()));
+                copy.set(i, new Flag(f.at(), f.when(), null, f.message(), f.candidate()));
                 out.add(new Mutant("flag " + i + ": drop confidence", new RuleAst(r.id(), r.var(), r.kind(), r.clauses(), copy)));
             }
         }

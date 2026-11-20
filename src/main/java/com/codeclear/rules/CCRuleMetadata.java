@@ -24,6 +24,10 @@ public record CCRuleMetadata(
         CCRuleConfidence confidence,
         CCDetectionType detectionType) {
 
+    /** What "any source file" means: the code files of every supported language. */
+    static final List<String> SOURCE_FILES = List.of("**/*.java", "**/*.py", "**/*.ts", "**/*.tsx", "**/*.js",
+            "**/*.jsx", "**/*.mjs", "**/*.cjs", "**/*.go");
+
     private static final Pattern ROW = Pattern.compile("^\\|\\s*([^|]+?)\\s*\\|\\s*(.*?)\\s*\\|\\s*$");
 
     /** Reads the metadata table from the text of a rule file. */
@@ -35,10 +39,13 @@ public record CCRuleMetadata(
                 fields.putIfAbsent(m.group(1).toLowerCase(Locale.ROOT), m.group(2));
             }
         }
-        List<String> globs = Arrays.stream(require(fields, "applies to").split(","))
-                .map(g -> g.replace("`", "").strip())
-                .filter(g -> !g.isEmpty())
-                .toList();
+        String appliesTo = require(fields, "applies to");
+        List<String> globs = appliesTo.strip().equalsIgnoreCase("any source file")
+                ? SOURCE_FILES
+                : Arrays.stream(appliesTo.split(","))
+                        .map(g -> g.replace("`", "").strip())
+                        .filter(g -> !g.isEmpty())
+                        .toList();
         return new CCRuleMetadata(
                 globs,
                 require(fields, "category"),

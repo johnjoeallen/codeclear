@@ -235,6 +235,46 @@ decide pass or fail; the tests are held out from the generator (they were `tests
   comparison; `DslBenchTest` (`-Dbench.dir`, `-Dbench.n`, `-Dbench.out`) reproduces the numbers.
 - Not measured: cold-start timings, memory, or the Groovy detector at the lazy-association scale.
 
+### Estimate: reduction in AI use (a model, not a measurement)
+
+There is no review pipeline yet, so the baseline is the design as written: the AI finds everything.
+
+| Metric | Today | After | Reduction |
+|---|---|---|---|
+| Rules that involve the AI | 261 of 320 (82%) | about 145 (45%) | about 45% |
+| AI calls per review | see below | | 30% if batches are 100k characters, 50 to 70% if batched per file |
+| AI input tokens | all rule prompts plus all changed code | candidates and triggered rules only | about 80% (65 to 90%) |
+| AI cost | | | about 65% (50 to 80%) |
+
+- **The two design documents disagree on batching.** `design.md` section 7 sends batches of up to 100k characters plus
+  a final assessment, so a small review is about 2 calls whatever the content. `ai-generated-deterministic-checks.md`
+  batches per file and per language, so calls scale with files and a deterministic trigger removes calls outright.
+  The call-count reduction is about 30% under the first and 50 to 70% under the second, assuming 25 to 50% of changed
+  files still have a trigger. Decide which before building the pipeline.
+- **Tokens fall much more than calls.** The 261 `AI prompt` sections total about 21k tokens, so a call carrying all of
+  them pays that every time. A call carrying only the rules whose deterministic trigger fired carries about 1 to 2k.
+- **The biggest unknown is the trigger rate of the judgement rules** (comments, log wording, test quality). Without a
+  deterministic gate they apply to every file and the call reduction shrinks towards 15%.
+- Measure it after the pipeline exists: count candidates and triggers per rule and file on real repositories.
+
+### Wiring the restricted language into the rules engine
+
+- The engine moved from test scope to `com.codeclear.rules.dsl` (main). `CCRuleEngine` runs a run's rules over all its
+  files and chooses a detector per rule (`.dsl` first by default, Groovy otherwise). `DslRuleDetector` builds the
+  project model once per run and returns the same `CCRuleResult` as the Groovy detector, with the same off-diff
+  filtering and the rule of lowering confidence but never raising it.
+- New language clause `candidate`, the output of a `hybrid` rule: evidence for the AI reviewer to confirm.
+- `CCRuleLoader` reads every `.dsl` in a rule folder; `CCRuleDefinition.stale()` checks `.dsl` headers too;
+  `CCRuleTestRunner` runs a rule through the engine with either detector, including multi-file cases and `config:`
+  lines. `RuleScriptsTest` runs both detectors for every rule that has both.
+- `java/lazy-association-outside-session` is now `hybrid` (it was `ai`): its detection is deterministic and only
+  judgement about serialiser views and generated code remains. `INDEX.md` counts updated (114 hybrid, 147 AI-only).
+- **Defects found by wiring:** "Applies to: any source file" (18 common rules) was never parsed as a glob, so those rules
+  could not have run; it now means the code files of every supported language. The lazy-association fact resolved
+  entities held in parameters and locals but not fields; it now uses the project model. Both would have been invisible
+  without running a rule through the real engine.
+- Nothing in the product calls the engine yet, because no review pipeline exists.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
@@ -287,6 +327,7 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 | Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Yes, with a project model and call-graph facts (see Discoveries). Open: replacing name-and-arity matching with real symbol resolution (Q3), and a project-wide engine instead of per-file. |
 | Q10 | Which model does review-time work? | Run the 548 `Evaluation cases` across models and compare accuracy, false-positive rate and cost per completed review. |
 | Q11 | With `--mutation` off, are the seven test-quality rules skipped, or does the AI judge them? | Leaning: skipped and listed as "not checked, needs --mutation", so the default review stays read-only and cheap. Decide when the option is built. |
+| Q12 | Are AI calls batched by size (`design.md`, 100k characters) or per file and language (`ai-generated-deterministic-checks.md`)? | The two documents disagree. Per file makes deterministic triggers remove calls outright; by size does not. Decide before building the pipeline. |
 
 ## Log
 
@@ -315,7 +356,8 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 
 ### Next candidates
 
-- Decide Q8 (leaning to the restricted language). Open work either way: a project-wide engine, symbol resolution, and config parsing facts.
+- Build the review pipeline that calls `CCRuleEngine`, passes candidates to the AI, and decide the batching (Q12).
+- Decide Q8 (leaning to the restricted language, now wired into the engine). Open work either way: a project-wide engine, symbol resolution, and config parsing facts.
 - Measure the language's speed against the Groovy detector on a real project (speed is not a priority; it should be reasonable).
 - Build the mutant generator from `targeted-mutation-design.md` (no test execution needed for the first step).
 - Update the design doc's Rollout section (Q6) and the regex-timeout gap in the sandbox.

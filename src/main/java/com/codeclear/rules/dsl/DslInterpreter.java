@@ -31,7 +31,7 @@ import java.util.TreeSet;
  */
 final class DslInterpreter {
 
-    record Finding(int line, String confidence, String message) { }
+    record Finding(int line, String confidence, String message, boolean candidate) { }
 
     record Atom(String name) { }
 
@@ -107,13 +107,13 @@ final class DslInterpreter {
                     }
                     conf = a.name().equals("default") ? ruleConfidence : a.name().toUpperCase();
                 }
-                out.add(new Finding(node.getBegin().get().line, conf, render(f.message(), env, ctx)));
+                out.add(new Finding(node.getBegin().get().line, conf, render(f.message(), env, ctx), f.candidate()));
                 break; // first matching flag wins for this node
             }
         }
         // Sorted by line then confidence, de-duplicated, as the Groovy detector does.
         TreeSet<Finding> sorted = new TreeSet<>(Comparator.comparingInt(Finding::line)
-                .thenComparing(Finding::confidence).thenComparing(Finding::message));
+                .thenComparing(Finding::confidence).thenComparing(Finding::message).thenComparing(Finding::candidate));
         sorted.addAll(out);
         return List.copyOf(sorted);
     }

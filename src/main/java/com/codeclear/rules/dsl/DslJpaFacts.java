@@ -127,7 +127,7 @@ final class DslJpaFacts {
             return null;
         }
         if (e instanceof NameExpr n) {
-            String type = declaredSimpleType(n);
+            String type = p.declaredSimpleType(n);
             return p.isEntity(type) ? type : null;
         }
         if (e instanceof MethodCallExpr c) {
@@ -136,24 +136,6 @@ final class DslJpaFacts {
             if (targets.size() == 1) {
                 String t = unwrap(targets.get(0).getType());
                 return p.isEntity(t) ? t : null;
-            }
-        }
-        return null;
-    }
-
-    private static String declaredSimpleType(NameExpr n) {
-        String name = n.getNameAsString();
-        Optional<MethodDeclaration> m = n.findAncestor(MethodDeclaration.class);
-        if (m.isPresent()) {
-            for (var prm : m.get().getParameters()) {
-                if (prm.getNameAsString().equals(name)) {
-                    return unwrap(prm.getType());
-                }
-            }
-            for (VariableDeclarator d : m.get().findAll(VariableDeclarator.class)) {
-                if (d.getNameAsString().equals(name)) {
-                    return unwrap(d.getType());
-                }
             }
         }
         return null;

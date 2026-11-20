@@ -6,7 +6,7 @@
 | Category | CORRECTNESS |
 | Severity | HIGH |
 | Confidence | MEDIUM |
-| Detection type | ai |
+| Detection type | hybrid |
 | Source | java-bug-hunter: Serialization, JPA and data contracts |
 
 ## Intent

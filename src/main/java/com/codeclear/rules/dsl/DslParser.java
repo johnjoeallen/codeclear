@@ -15,7 +15,7 @@ final class DslParser {
     record Tok(K k, String t, int pos) { }
 
     private static final Set<String> RESERVED =
-            Set.of("rule", "for", "where", "unless", "require", "let", "flag", "at", "when", "confidence");
+            Set.of("rule", "for", "where", "unless", "require", "let", "flag", "candidate", "at", "when", "confidence");
 
     private final String src;
     private final List<Tok> toks;
@@ -191,9 +191,11 @@ final class DslParser {
                 expectSym("=");
                 clauses.add(new Clause.Let(name, param, expr()));
             } else if (acceptId("flag")) {
-                flags.add(flag());
+                flags.add(flag(false));
+            } else if (acceptId("candidate")) {
+                flags.add(flag(true));
             } else {
-                throw err("expected a clause (where, unless, require, let, flag)");
+                throw err("expected a clause (where, unless, require, let, flag, candidate)");
             }
         }
         if (flags.isEmpty()) {
@@ -202,7 +204,7 @@ final class DslParser {
         return new RuleAst(id, var, kind, List.copyOf(clauses), List.copyOf(flags));
     }
 
-    private Flag flag() {
+    private Flag flag(boolean candidate) {
         if (!acceptId("at")) {
             throw err("expected 'at <node>'");
         }
@@ -212,7 +214,7 @@ final class DslParser {
         if (peek().k() != K.STR) {
             throw err("expected a message string");
         }
-        return new Flag(at, when, confidence, message(next().t()));
+        return new Flag(at, when, confidence, message(next().t()), candidate);
     }
 
     private static List<Object> message(String s) {

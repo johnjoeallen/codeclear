@@ -8,11 +8,11 @@ Generated from each rule file's metadata. "AI call" is whether the tool calls th
 |---|---|---|---|---|
 | common | 4 | 7 | 8 | 19 |
 | config | 3 | 2 | 1 | 6 |
-| java | 17 | 38 | 30 | 85 |
+| java | 17 | 39 | 29 | 85 |
 | python | 12 | 26 | 56 | 94 |
 | sql | 3 | 3 | 3 | 9 |
 | typescript | 20 | 37 | 50 | 107 |
-| **All** | 59 | 113 | 148 | 320 |
+| **All** | 59 | 114 | 147 | 320 |
 
 ## common
 
@@ -93,7 +93,7 @@ Generated from each rule file's metadata. "AI call" is whether the tool calls th
 | [kafka-partition-key-ordering](java/kafka-partition-key-ordering/rule.md) | Per-entity ordering without a stable partition key | ai | Always |
 | [kafka-producer-send-unobserved](java/kafka-producer-send-unobserved/rule.md) | Producer send result ignored when success matters | hybrid | Candidates only |
 | [kafka-rebalance-and-poll-interval](java/kafka-rebalance-and-poll-interval/rule.md) | Processing time or local state breaks on rebalance | ai | Always |
-| [lazy-association-outside-session](java/lazy-association-outside-session/rule.md) | Lazy association accessed after the persistence context closes | ai | Always |
+| [lazy-association-outside-session](java/lazy-association-outside-session/rule.md) | Lazy association accessed after the persistence context closes | hybrid | Candidates only |
 | [lock-not-released-in-finally](java/lock-not-released-in-finally/rule.md) | Lock acquired without unlock in finally | ast | No |
 | [lock-ordering-deadlock](java/lock-ordering-deadlock/rule.md) | Inconsistent lock acquisition order | ai | Always |
 | [log-and-rethrow](java/log-and-rethrow/rule.md) | Exception logged and rethrown (duplicate noise) | hybrid | Candidates only |

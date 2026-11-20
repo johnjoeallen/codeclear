@@ -25,11 +25,17 @@ public final class CCRuleTestRunner {
         }
     }
 
-    private final GroovyRuleDetector detector;
+    private final CCRuleEngine engine;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
 
+    /** Runs the rule's Groovy script (the rule's {@code .dsl} detector only when it has no script). */
     public CCRuleTestRunner(GroovyRuleDetector detector) {
-        this.detector = detector;
+        this(new CCRuleEngine(detector, new com.codeclear.rules.dsl.DslRuleDetector(), CCRuleEngine.Prefer.GROOVY));
+    }
+
+    /** Runs each rule on whichever detector the engine prefers. */
+    public CCRuleTestRunner(CCRuleEngine engine) {
+        this.engine = engine;
     }
 
     public Report run(CCRuleDefinition rule) {
@@ -57,8 +63,9 @@ public final class CCRuleTestRunner {
             List<String> expected = new ArrayList<>();
             for (CCRuleTests.Expect e : c.expect()) {
                 String confidence = e.confidence() != null ? e.confidence() : rule.metadata().confidence().name();
-                expected.add(e.line() + ":" + confidence);
+                expected.add(e.path() + ":" + e.line() + ":" + confidence);
             }
+            expected.sort(null);
             if (!first.equals(second)) {
                 return new CaseResult(c.name(), false, "not deterministic: " + first + " then " + second);
             }
@@ -89,24 +96,29 @@ public final class CCRuleTestRunner {
                 .orElseThrow(() -> new IllegalArgumentException("mutation refers to unknown case '" + name + "'"));
     }
 
-    /** Findings as {@code line:confidence}, with lines relative to the snippet. Fails if the rule failed. */
+    /**
+     * Findings as {@code path:line:confidence}, with lines relative to the snippet and sorted. A case with several
+     * files is one project: all its files are analysed together and its {@code config:} lines are project facts.
+     * Fails if the rule failed.
+     */
     private List<String> actual(CCRuleDefinition rule, CCRuleTests.Case c, String sharedPrelude) {
-        if (!rule.language().equals("java")) {
+        if (!rule.language().equals("java") && !rule.language().equals("common")) {
             throw new IllegalArgumentException("the test runner supports Java rules only");
         }
-        if (c.files().size() != 1) {
-            throw new IllegalArgumentException("the Groovy runner supports single-file cases only");
-        }
-        CCRuleTests.SourceFile f = c.files().get(0);
         String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
         int offset = CCRuleTests.lineOffset(prelude);
-        CCFileAnalysis file = analyzer.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()),
-                CCChangedLines.all());
-        CCRuleResult result = detector.detect(rule, file);
-        if (!result.ok()) {
-            throw new IllegalStateException("rule failed: " + result.failure().get());
+        List<CCFileAnalysis> files = new ArrayList<>();
+        for (CCRuleTests.SourceFile f : c.files()) {
+            files.add(analyzer.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()), CCChangedLines.all()));
         }
-        return result.findings().stream().map(x -> (x.line() - offset) + ":" + x.confidence()).toList();
+        List<String> out = new ArrayList<>();
+        for (CCRuleResult result : engine.run(List.of(rule), files, c.config())) {
+            if (!result.ok()) {
+                throw new IllegalStateException("rule failed: " + result.failure().get());
+            }
+            result.findings().forEach(x -> out.add(x.path() + ":" + (x.line() - offset) + ":" + x.confidence()));
+        }
+        return out.stream().sorted().toList();
     }
 
     /** Convenience for callers that read a rule from disk. */

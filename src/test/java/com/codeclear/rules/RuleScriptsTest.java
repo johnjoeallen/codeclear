@@ -11,11 +11,12 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
-/** Runs every committed rule script against its own tests.md, through the real detector and sandbox. */
+/** Runs every committed rule detector (Groovy and restricted-language) against its own tests.md, through the real engine. */
 class RuleScriptsTest {
 
     private static final Path REVIEW_ROOT = Path.of("review");
     private static final GroovyRuleDetector DETECTOR = new GroovyRuleDetector();
+    private static final com.codeclear.rules.dsl.DslRuleDetector DSL = new com.codeclear.rules.dsl.DslRuleDetector();
 
     @AfterAll
     static void close() {
@@ -28,24 +29,37 @@ class RuleScriptsTest {
     }
 
     @TestFactory
-    Stream<DynamicTest> everyScriptIsCurrentAndPassesItsTests() {
-        List<CCRuleDefinition> withScripts = CCRuleLoader.loadAll(REVIEW_ROOT).stream()
-                .filter(r -> r.script().isPresent())
+    Stream<DynamicTest> everyDetectorIsCurrentAndPassesItsTests() {
+        List<CCRuleDefinition> withDetectors = CCRuleLoader.loadAll(REVIEW_ROOT).stream()
+                .filter(CCRuleDefinition::hasDetector)
                 .toList();
-        assertThat(withScripts).as("rules that have a script").isNotEmpty();
-        return withScripts.stream().map(rule -> dynamicTest(rule.id(), () -> {
-            assertThat(rule.stale()).as("script header matches rule.md and API version").isFalse();
-            CCRuleTestRunner.Report report = new CCRuleTestRunner(DETECTOR).run(rule);
-            assertThat(report.cases()).as("cases").isNotEmpty();
-            report.cases().stream().filter(c -> !c.passed()).forEach(c ->
-                    org.junit.jupiter.api.Assertions.fail(rule.id() + ": " + c.name() + ": " + c.detail()));
-        }));
+        assertThat(withDetectors).as("rules that have a detector").isNotEmpty();
+        List<DynamicTest> tests = new java.util.ArrayList<>();
+        for (CCRuleDefinition rule : withDetectors) {
+            if (rule.script().isPresent()) {
+                tests.add(dynamicTest(rule.id() + " [groovy]", () -> check(rule,
+                        new CCRuleEngine(DETECTOR, DSL, CCRuleEngine.Prefer.GROOVY))));
+            }
+            if (!rule.dsl().isEmpty()) {
+                tests.add(dynamicTest(rule.id() + " [dsl]", () -> check(rule,
+                        new CCRuleEngine(DETECTOR, DSL, CCRuleEngine.Prefer.DSL))));
+            }
+        }
+        return tests.stream();
+    }
+
+    private static void check(CCRuleDefinition rule, CCRuleEngine engine) {
+        assertThat(rule.stale()).as("detector headers match rule.md and the API version").isFalse();
+        CCRuleTestRunner.Report report = new CCRuleTestRunner(engine).run(rule);
+        assertThat(report.cases()).as("cases").isNotEmpty();
+        report.cases().stream().filter(c -> !c.passed()).forEach(c ->
+                org.junit.jupiter.api.Assertions.fail(rule.id() + ": " + c.name() + ": " + c.detail()));
     }
 
     /** Gate check: every "Do not flag" bullet needs at least one test case labelled do-not-flag:*. */
     @TestFactory
     Stream<DynamicTest> everyDoNotFlagBulletHasATest() {
-        return CCRuleLoader.loadAll(REVIEW_ROOT).stream().filter(r -> r.script().isPresent()).map(rule ->
+        return CCRuleLoader.loadAll(REVIEW_ROOT).stream().filter(CCRuleDefinition::hasDetector).map(rule ->
                 dynamicTest(rule.id(), () -> {
                     Path dir = rule.dir().orElseThrow();
                     String md = java.nio.file.Files.readString(dir.resolve("rule.md"));
@@ -61,7 +75,7 @@ class RuleScriptsTest {
     @Test
     void executableRulesWithoutScriptsAreStale() {
         long staleCount = CCRuleLoader.loadAll(REVIEW_ROOT).stream().filter(CCRuleDefinition::stale).count();
-        // 172 executable rules exist; two have scripts so far. This documents the backlog, it is not a target.
-        assertThat(staleCount).isEqualTo(172 - 2);
+        // 173 executable rules exist; four have a detector so far. This documents the backlog, it is not a target.
+        assertThat(staleCount).isEqualTo(173 - 4);
     }
 }

@@ -13,6 +13,9 @@ record RuleAst(String id, String var, String kind, List<Clause> clauses, List<Fl
         record Let(String name, String param, Expr body) implements Clause { }
     }
 
-    /** {@code message} parts are Strings or Exprs (from {@code {...}} placeholders). */
-    record Flag(Expr at, Expr when, Expr confidence, List<Object> message) { }
+    /**
+     * {@code message} parts are Strings or Exprs (from {@code {...}} placeholders). A {@code candidate} is evidence for
+     * the AI reviewer to confirm, not a finding.
+     */
+    record Flag(Expr at, Expr when, Expr confidence, List<Object> message, boolean candidate) { }
 }
