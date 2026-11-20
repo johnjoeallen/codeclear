@@ -8,6 +8,7 @@
 - [Problem](#problem)
 - [Concept](#concept)
 - [Rule Files](#rule-files)
+- [Script Engine](#script-engine)
 - [Generation Workflow](#generation-workflow)
 - [Runtime Integration](#runtime-integration)
 - [Which Rules Suit Deterministic Checks](#which-rules-suit-deterministic-checks)
@@ -31,7 +32,7 @@ AI-generated detectors remove most of that cost.
 
 ## Concept
 
-Use the AI **once per rule, at build time**, to write deterministic code. Use that code **on every
+Use the AI **once per rule version** (at release time, or on first use after a rule changes) to write deterministic code. Use that code **on every
 review, at run time**, with no model call.
 
 ```mermaid
@@ -48,6 +49,10 @@ flowchart LR
 ```
 
 The AI reviewer stays in place for judgement-heavy issues. Detectors take the mechanical ones.
+
+The generated detector is a **Groovy script** run through the Java scripting API (JSR-223), not
+compiled Java. Rules can be added or changed without rebuilding the JAR. See
+[Script Engine](#script-engine).
 
 ## Rule Files
 
@@ -78,25 +83,206 @@ A rule file has these sections, in this order. `review/README.md` has the templa
 
 Rules should be written so that a generator needs no further interpretation.
 
+Executable rules (`ast`, `regex`, `linter`, `hybrid`) have two companion files next to the rule:
+
+```
+review/java/lost-update-read-modify-write.md        rule (source of truth)
+review/java/lost-update-read-modify-write.groovy    generated detector
+review/java/lost-update-read-modify-write.tests.json  cases: source snippet, expected findings
+```
+
+`ai` rules have no script. The detection type in the rule file is now a statement about the
+*mechanism* the script uses (parse the tree, match text, wrap a linter) and about whether the AI
+confirms. It is not a different runtime: every executable rule runs on the Groovy engine.
+
+## Script Engine
+
+JDK 25 has no built-in script engine (Nashorn was removed in JDK 15), so the tool bundles
+`groovy-jsr223` and runs every `ast`, `regex`, `linter` and `hybrid` rule through
+`javax.script.ScriptEngine`.
+
+### Why Groovy
+
+- Scripts call the Java code-model objects directly, with no interop layer.
+- Compact closures and a Java-like syntax, which generators write reliably.
+- Statically compilable (`@CompileStatic`) so generated scripts get compile-time errors in CI,
+  not at review time.
+
+### Script contract
+
+The engine parses the file and passes the tree to the script. A script receives these bindings and returns a list of results:
+
+```groovy
+// review/java/empty-catch-block.groovy
+def results = []
+ast.findAll(CatchClause).each { c ->
+    if (c.body.isEmpty() && !c.hasComment() && !c.catchesTypes('InterruptedException')) {
+        results << finding(c.line, "Catch block swallows ${c.exceptionType}")
+    }
+}
+return results
+```
+
+| Binding | Purpose |
+|---|---|
+| `ast` | Parsed tree of the file, read-only. Language-native: JavaParser `CompilationUnit` for `.java`, tree-sitter node for Python and TypeScript, parsed document for YAML, JSON and SQL. `common` rules get a normalized view (comments, string literals, calls, catch blocks, log calls) built the same way for every language |
+| `model` | Read-only `CodeModel` facade for the project: resolved symbols, other files, config (below) |
+| `file` | Read-only file info: `path`, `language`. Used for path rules such as test sources |
+| `diff` | `ChangedLineMap` for the file |
+| `finding(line, message)` | Returns a finding. Used by `ast`, `regex` and `linter` rules |
+| `candidate(line, evidence...)` | Returns a candidate. Used by `hybrid` rules, which pass it to the AI with the rule's `AI prompt` |
+
+The engine drops any result whose line is not a changed line, applies the severity cap from the rule
+file, and stamps the source `rule:<folder>/<id>`.
+
+### Code model facade
+
+Scripts do not parse files or touch the filesystem. The core engine parses each file once, caches the
+tree, and hands it to every matching script as `ast`. For anything outside the file, scripts query a
+`CodeModel` built once per review. This is what lets rules that need context from other files run
+without the AI.
+
+| Facade | Answers |
+|---|---|
+| Symbol-resolved syntax tree | types, annotations, call targets, statement order (JavaParser with symbol solver; tree-sitter for Python and TypeScript) |
+| Call graph and type hierarchy | callers, "is this a listener or `@ExceptionHandler` boundary" |
+| Framework model | JPA entities (fetch type, `@Version`), `@Transactional` scope, security config, Kafka and Rabbit container settings, parsed from `application.yml` and `@Configuration` classes |
+| Lock and flow facts | lock acquisition order, try/finally, resource closing |
+| Diff mapping | changed lines, so findings anchor correctly |
+
+When a fact is unavailable (classpath not resolved, config not found) the facade returns an explicit
+`unknown`. A rule must treat unknown as "do not report" or emit a `LOW` confidence candidate.
+
+### Sandbox
+
+The scripts are AI-generated and run on a developer's machine against untrusted diffs. JSR-223 has no
+sandbox of its own, so the engine adds one:
+
+- Compile with `SecureASTCustomizer`: allowlist of imports and receiver classes (the facade, collections,
+  `String`, `regex`, `Math`). No `System`, `Runtime`, `ProcessBuilder`, `File*`, `Files`, `Class`,
+  reflection, `java.net`, `evaluate` or `GroovyShell`.
+- Make the `ast` read-only: expose query and traversal methods only, and deny node mutation
+  (`replace`, `remove`, `setParentNode` and similar), so one script cannot alter the tree another reads.
+- Deny metaprogramming (`metaClass`, `invokeMethod` overrides, `@Grab`).
+- Hard per-script timeout and a memory/step budget. A script that exceeds it is aborted and reported
+  as a rule failure. It never blocks the review.
+- Treat every generated script as untrusted, because it is now accepted without human review. The
+  sandbox and the acceptance gate are the only controls on user-store scripts, so a sandbox escape
+  is a code-execution bug on the developer's machine.
+- Never load a script from the reviewed repository. Scripts come only from the tool's own `review/`
+  directory, so reviewed code cannot supply a detector.
+
+### Testing
+
+`<rule>.tests.json` holds snippets and expected findings (line, rule id). A test runner loads the
+script, runs each case through the engine, and asserts the result. It is the "Required tests"
+section of the rule file in executable form, and it is what the mutation and determinism checks
+in [Quality Controls](#quality-controls) run on.
+
 ## Generation Workflow
 
-1. A maintainer writes or edits a rule file.
-2. The generator receives the rule file and a fixed prompt: produce the detector in the target
-   mechanism, plus tests covering every example and every "do not flag" item.
-3. The generated code is committed through a normal pull request.
-4. A human reviews the detector and the tests. Review checks the tests, not only the detector.
-5. CI runs the tests and a corpus check (see [Quality Controls](#quality-controls)).
-6. The rule's front matter records the generator model and date, so regeneration is traceable.
+The rule file is the only thing a maintainer edits. The tool regenerates a script **when it finds the
+script stale**, using the same AI driver it uses for review. The AI is already required for `ai` and
+`hybrid` rules, so generation adds no new dependency.
 
-When a rule changes, regenerate the detector. Never hand-edit generated code without updating the
-rule file, or the two drift apart.
+### When generation runs
+
+At the start of a review, the rule loader checks every executable rule:
+
+1. Read the rule file and compute its `rule-hash` (see [Staleness](#staleness)).
+2. Look for a script for that rule in the **script store** (below). A script is stale if it is
+   missing, or its header `rule-hash` or API version differs.
+3. For each stale script, send the rule file and the `ast` and `CodeModel` API reference for its
+   language to the AI driver, with a fixed prompt: produce the Groovy script and `tests.json`,
+   covering every example and every "do not flag" item.
+4. Gate the result (see [Acceptance gate](#acceptance-gate)). Accepted scripts are written to the
+   script store and used for this review. Rejected ones are not used.
+5. Run the review with the scripts that are current.
+
+Generation is batched and run in parallel across stale rules before the review starts. A normal
+review finds nothing stale and makes no generation call.
+
+### Script store
+
+| Location | Content |
+|---|---|
+| Bundled in the JAR | Scripts and tests generated and reviewed at release time. This is the baseline, so a fresh install needs no generation. |
+| User store (`~/.codeclear/rules/`) | Scripts generated on this machine, for rules the user added or changed, or for rules newer than the bundled scripts. It overrides the bundle for the same rule when its `rule-hash` is the current one. |
+
+The store is keyed by rule id and `rule-hash`, never by file date. Releases regenerate and commit all
+scripts through a normal pull request, with human review of the tests, so the bundled baseline is
+reviewed. The user store is generated unattended and is not.
+
+### Acceptance gate
+
+Because no human reviews a script generated at review time, the gate must be strict and automatic.
+A generated script is accepted only if all of these hold:
+
+1. It compiles under the sandbox (`SecureASTCustomizer`, import allowlist, `@CompileStatic`).
+2. Every case in its `tests.json` passes, and the cases cover every `Examples` entry and every
+   `Do not flag` bullet in the rule. The tool checks coverage by case labels, not by trusting the
+   generator.
+3. Two runs on the same input give identical output (determinism).
+4. It finishes within the per-script time budget.
+5. A mutation check passes: each "Flag" example, edited to its "OK" form, produces no finding.
+6. For a rule that has a previous accepted script, the previous `tests.json` also passes, unless the
+   rule's behaviour sections changed.
+
+On failure the errors go back to the generator for a limited number of attempts. If it still fails
+the script is rejected, the rule is reported as failed, and the fallback below applies.
+
+### Fallback
+
+A rule with no usable script (generation failed, or AI unavailable while stale) does not break the
+review:
+
+| Rule type | Behaviour |
+|---|---|
+| `hybrid` | Skip the candidate step. Send the rule's `AI prompt` for the whole changed file, as if it were an `ai` rule. |
+| `ast`, `regex`, `linter` | Use the previous accepted script from the store if one exists, and warn that it is stale. Otherwise skip the rule and report it as not run. |
+| `ai` | Unaffected. It never has a script. |
+
+The review report lists each rule that ran from a stale or missing script, so the reader knows
+coverage was reduced.
+
+### Staleness
+
+Each generated script starts with a header:
+
+```groovy
+// generated-from: review/java/empty-catch-block.md
+// rule-hash: 3f9c...      sha-256 of the generation-relevant sections
+// api-version: 1
+// generator: <model id>   generated: 2026-11-20
+```
+
+`rule-hash` covers only the sections that affect the script: metadata (`Applies to`, `Severity`,
+`Confidence`, `Detection type`), `Detect`, `Do not flag`, `Examples`, `Implementation notes` and
+`Required tests`. It does **not** cover `Intent`, `Source`, `AI prompt`, `Why hybrid` or
+`Evaluation cases`. Editing the AI prompt for a hybrid rule therefore does not regenerate the script.
+Changing the `ast` or `CodeModel` API bumps `api-version`, which makes every script stale.
+
+### Rules
+
+- Never hand-edit a generated script or its tests. The next regeneration overwrites it. Fix the rule
+  file instead.
+- A rule whose type changes to or from `ai` adds or removes its script. Editing an `ai` rule never
+  triggers generation.
+- Once accepted, a script is reused until the rule changes. A review never regenerates a current
+  script, so the same rule file gives the same findings on every run on that machine.
+- Different machines may hold different generated scripts for the same rule, because AI output is
+  not reproducible. Findings can therefore differ between users. Teams that need identical results
+  should commit the store (`codeclear rules export`) and pin it.
+- `codeclear rules regen [<rule>]` forces regeneration, and `codeclear rules check` lists stale rules
+  without generating. Release builds run `regen` and require every script to be current.
 
 ## Runtime Integration
 
 In Mrlens terms:
 
 - Add a `RuleDetector` interface that takes a `FileAnalysisInput` (path, content, changed lines)
-  and returns `Finding`s.
+  and returns `Finding`s. Its one implementation is `GroovyRuleDetector`, which compiles each script
+  once and caches it. Compile errors and sandbox violations disable that rule and are reported.
 - Run all detectors that match the file's language before the AI step. Keep only findings on
   changed lines, using the existing `ChangedLineMap`.
 - Pass the same fingerprinting, duplicate detection, dismissal and publishing path the AI findings use.
@@ -105,7 +291,8 @@ In Mrlens terms:
 - Mark the finding source (`rule:<id>` or `ai`) so the UI and score can tell them apart.
 
 Where a mature linter already implements a rule (ESLint, Checkstyle, PMD, SpotBugs, Ruff, Semgrep),
-the generator should emit configuration or a thin adapter instead of new detection code.
+the generator should emit a script that reads that linter's output instead of new detection code.
+The linter binary is an external dependency, so prefer the in-process code model for Java.
 
 ## Which Rules Suit Deterministic Checks
 
@@ -148,6 +335,11 @@ findings are passed to the model as already-reported so it does not repeat them.
 
 ## Risks
 
+- **Unreviewed generated code**: user-store scripts run without a human reading them. Mitigated by
+  the sandbox, the acceptance gate and the bundled reviewed baseline, but a gap remains if a script
+  passes weak tests. A wrong script can hide findings or add false ones silently.
+- **Review latency and cost**: a stale rule adds generation calls before the review starts. A rule
+  file change by a user costs one generation per changed rule.
 - **False positives** erode trust faster than missed findings. Keep rules narrow and prefer
   precision over recall.
 - **Generator errors**: generated code can look right and be wrong. The tests and the corpus run
@@ -160,10 +352,15 @@ findings are passed to the model as already-reported so it does not repeat them.
 
 ## Rollout
 
-1. Implement `RuleDetector` and one generated Java rule end to end (`java/empty-catch-block`).
-2. Add a corpus-run command and the suppression marker.
-3. Generate the remaining rules in `review/` one language at a time, starting with high-precision
+1. Implement `GroovyRuleDetector`, the sandbox and one generated Java rule end to end (`java/empty-catch-block`).
+   Include a test that proves a script using `System.exit` or `new File(...)` is rejected.
+2. Add a corpus-run command, the test runner and the suppression marker.
+3. Build the `CodeModel` facade on the context-heavy pilot rules: `lock-ordering-deadlock`,
+   `lazy-association-outside-session`, `lost-update-read-modify-write`, `missing-endpoint-authorization`,
+   `remote-call-in-transaction`, `broad-catch-swallowed`. Where a pilot rule can be decided by the
+   script alone, change its type from `ai` or `hybrid` to a deterministic type.
+4. Generate the remaining rules in `review/` one language at a time, starting with high-precision
    security and error-handling rules.
-4. Feed covered rule ids into the AI prompt.
-5. Measure: findings per source, fix rate, dismissal rate, review time and model cost. Retire rules
+5. Feed covered rule ids into the AI prompt.
+6. Measure: findings per source, fix rate, dismissal rate, review time and model cost. Retire rules
    with high dismissal rates.

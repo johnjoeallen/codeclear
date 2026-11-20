@@ -52,6 +52,14 @@ Preferred mechanism, existing linter equivalent, which line the finding anchors 
 The cases the generator must produce.
 ```
 
+## Executable rules
+
+Rules of type `ast`, `regex`, `linter` and `hybrid` run as Groovy scripts through the Java scripting
+API (JSR-223), with a sandbox and a read-only `CodeModel`. Each has two files beside the rule:
+`<rule-id>.groovy` (the detector) and `<rule-id>.tests.json` (cases). `ai` rules have neither.
+The tool regenerates a script automatically when its rule file changes (the script header holds a
+`rule-hash`). See `docs/ai-generated-deterministic-checks.md#script-engine` and `#generation-workflow`.
+
 ## Detection types
 
 | Type | Meaning | AI call at review time |
