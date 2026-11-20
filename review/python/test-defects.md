@@ -1,0 +1,46 @@
+# python/test-defects: Unawaited async tests, leaking fixtures, assertions that cannot fail and nondeterminism
+
+| Field | Value |
+|---|---|
+| Applies to | `**/test_*.py`, `**/*_test.py`, `**/conftest.py` |
+| Category | TESTING |
+| Severity | MEDIUM |
+| Confidence | MEDIUM |
+| Detection type | hybrid |
+| Source | python-review: Test evidence |
+
+## Intent
+Tests that cannot fail or are flaky give false confidence: async tests without a runner marker or with unawaited calls/assertions, assertions that are always true, mocks bypassing the code under test, fixtures leaking state, and dependence on time, randomness, network or ordering.
+
+## Detect
+Candidates:
+- `async def test_*` without `@pytest.mark.asyncio`/anyio marker and no `asyncio_mode = auto` shown; calls to coroutine functions in a test without `await`;
+- `assert (cond, "msg")`, `assert True`, `assert x is not None` immediately after assigning a non-None literal; `assertTrue(x, y)` misuse; `pytest.raises` block containing only the setup;
+- `time.sleep`, `datetime.now()`, `random.*` (unseeded), real `requests.*`/`socket` calls in unit tests;
+- `@patch` targeting the function under test itself; module-level mutable fixtures without teardown.
+
+## Do not flag
+- `asyncio_mode = auto` configuration; frozen time/seeded random; integration tests marked as such.
+
+## Examples
+Flag:
+```python
+async def test_save():
+    repo.save(item)                # coroutine never awaited
+    assert (item.id, "saved")      # tuple always truthy
+```
+OK:
+```python
+@pytest.mark.asyncio
+async def test_save():
+    await repo.save(item); assert item.id
+```
+
+## Implementation notes
+Python `ast` over test files; equivalent pytest `-W error::RuntimeWarning`, Ruff `PT`/`F631`. Anchor to the assertion/call.
+
+## AI prompt
+Question: "Can this test pass while the behavior it names is broken (never runs the path, asserts nothing meaningful, mocks the unit under test)?" Supply the test, the code under test and test configuration. Report only with a concrete trigger scenario; otherwise NO_FINDING.
+
+## Why hybrid
+Patterns are syntactic; whether the test is vacuous depends on the code under test.
