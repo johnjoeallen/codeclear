@@ -11,6 +11,8 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.DoubleLiteralExpr;
+import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.BreakStmt;
@@ -73,7 +75,9 @@ final class DslInterpreter {
             Map.entry("Return", ReturnStmt.class),
             Map.entry("Break", BreakStmt.class),
             Map.entry("Continue", ContinueStmt.class),
-            Map.entry("FieldDecl", FieldDeclaration.class));
+            Map.entry("FieldDecl", FieldDeclaration.class),
+            Map.entry("DoubleLit", DoubleLiteralExpr.class),
+            Map.entry("If", IfStmt.class));
 
     private static final Map<String, java.util.function.Predicate<Node>> KIND_TESTS = new HashMap<>();
 

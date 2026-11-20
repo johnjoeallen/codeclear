@@ -58,8 +58,32 @@ class DslRulesTest {
         check("return-or-throw-in-finally");
     }
 
+    @Test
+    void leftoverDebugOutput() throws IOException {
+        checkAt("common", "leftover-debug-output");
+    }
+
+    @Test
+    void logMessageWithoutStacktrace() throws IOException {
+        check("log-message-without-stacktrace");
+    }
+
+    @Test
+    void doubleCheckedLockingWithoutVolatile() throws IOException {
+        check("double-checked-locking-without-volatile");
+    }
+
+    @Test
+    void lockNotReleasedInFinally() throws IOException {
+        check("lock-not-released-in-finally");
+    }
+
     private void check(String id) throws IOException {
-        Path dir = Path.of("review/java", id);
+        checkAt("java", id);
+    }
+
+    private void checkAt(String language, String id) throws IOException {
+        Path dir = Path.of("review", language, id);
         RuleAst rule = DslParser.parse(Files.readString(dir.resolve("rule.dsl")));
         CCRuleDefinition def = CCRuleLoader.load(dir);
         String confidence = def.metadata().confidence().name();

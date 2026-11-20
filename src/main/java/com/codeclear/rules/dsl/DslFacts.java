@@ -125,7 +125,7 @@ final class DslFacts {
             "returnedEntity", "lazyAssociations", "returnsFetched", "annotations", "firstArg", "calls", "throws",
             "enclosingCatch", "enclosingMethodName", "operator", "left", "right", "typeName", "causeUnsupported",
             "initializerTypeName", "isStatic", "isFinal", "isPrivate", "classAnnotations", "usedOnlyInSynchronized",
-            "isIdentitySentinel", "escapesFinally", "assignments", "callsAfter");
+            "isIdentitySentinel", "escapesFinally", "assignments", "callsAfter", "doubleCheckedField", "isVolatile", "enclosingClassMethods");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {

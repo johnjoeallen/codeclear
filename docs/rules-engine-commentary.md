@@ -370,6 +370,34 @@ There is no review pipeline yet, so the baseline is the design as written: the A
   Java 17 preview pattern syntax, string templates, a deliberately broken test resource, a stray brace, stray text), not
   parser limits. Findings did not change, so none of the unparsed files were hiding detector results.
 
+### Five more detectors (leftover-debug-output, bigdecimal-misuse, log-message-without-stacktrace, double-checked-locking-without-volatile, lock-not-released-in-finally)
+
+- Detectors now number 14; 159 executable rules still have none. `bigdecimal-misuse` has two files (`rule.dsl` for the
+  constructor, `equals.dsl` for `.equals`). New language surface: kinds `DoubleLit` and `If`, a few fields, and three lock
+  facts (`releasedInNextFinally`, `releasedInEnclosingFinally`, `releasedElsewhere`), plus `doubleCheckedField`.
+- **Mutation testing** left no unexplained survivors. It found redundant clauses (removed) and one real test gap (`warn` on a
+  receiver that is not a logger). `bigdecimal-misuse` keeps one deliberate redundancy: the double-literal alternative is the
+  syntactic safety net the rule text asks for, and the resolved type covers it when types resolve.
+- **Real code again found what hand-written cases did not.** Over the 62 projects the first drafts had these problems, each
+  fixed, tested and written into the `rule.md`:
+  - `leftover-debug-output`: 1,902 findings, 767 of them helper methods of command-line programs that have a `main` method
+    (the rule only exempted `main` itself). The exemption now covers any method of a class that has `main`.
+  - `lock-not-released-in-finally`: `try { lock.lock(); ... } finally { lock.unlock(); }` was reported with a message that
+    said the lock was not released in a finally. It is released; acquiring before the `try` is only the safer form. The
+    acquire-inside-try variant is now exempt. A second acquire/release method pair in the same class also made the "split across
+    methods" LOW rule misfire; a release only counts as split when its method does not acquire the lock itself.
+  - `log-message-without-stacktrace`: any use of the exception triggered it, so `ex.getClass().getSimpleName()` was flagged.
+    The trigger is now exactly `getMessage()`, `getLocalizedMessage()` and `toString()`.
+  - `Applies to: any source file outside tests` was not understood by the loader, so the rule could never have run.
+- **Sweep totals now:** leftover-debug-output 1,135 (about 1,050 in the `tutorials` repo, which is demo code), log-injection 224,
+  exception-cause-dropped 113, interrupt-flag-not-restored 111, optional-get-without-check 76, empty-catch-block 47,
+  reference-equality-on-values 35, log-message-without-stacktrace 31, bigdecimal-misuse 29, lock-not-released-in-finally 25
+  (7 HIGH, all real: demo code that acquires with no `finally`; 18 LOW from name guesses and lock wrappers),
+  shared-simpledateformat 16, lazy-association-outside-session 10, return-or-throw-in-finally 6,
+  double-checked-locking-without-volatile 0.
+- **Zero findings for double-checked locking is correct, not a gap:** the corpus has 5 real double-checked-locking classes
+  and all declare the field `volatile`. The pattern is covered by 10 test cases.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate

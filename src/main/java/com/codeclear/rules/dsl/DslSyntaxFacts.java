@@ -53,6 +53,7 @@ final class DslSyntaxFacts {
             case "assignments": return List.copyOf(n.findAll(com.github.javaparser.ast.expr.AssignExpr.class));
             case "callsAfter": return callsAfter(n);
             case "enclosingCatch": return enclosingCatch(n);
+            case "enclosingClassMethods": return enclosingClassMethods(n);
             case "enclosingMethodName": return n.findAncestor(MethodDeclaration.class).map(MethodDeclaration::getNameAsString).orElse(null);
             default: break;
         }
@@ -66,6 +67,7 @@ final class DslSyntaxFacts {
         } else if (n instanceof ObjectCreationExpr o) {
             switch (name) {
                 case "args": return List.copyOf(o.getArguments());
+                case "firstArg": return o.getArguments().isEmpty() ? null : o.getArgument(0);
                 case "typeName": return o.getType().getNameAsString();
                 case "causeUnsupported": return causeUnsupported(o, model);
                 default: break;
@@ -84,12 +86,16 @@ final class DslSyntaxFacts {
                 case "isStatic": return f.isStatic();
                 case "isFinal": return f.isFinal();
                 case "isPrivate": return f.isPrivate();
+                case "isVolatile": return f.isVolatile();
                 case "classAnnotations":
                     return f.findAncestor(ClassOrInterfaceDeclaration.class)
                             .map(c -> c.getAnnotations().stream().map(a -> a.getNameAsString()).toList()).orElse(List.of());
                 case "usedOnlyInSynchronized": return usedOnlyInSynchronized(f);
                 default: break;
             }
+        }
+        if (name.equals("doubleCheckedField") && n instanceof com.github.javaparser.ast.stmt.IfStmt i) {
+            return doubleCheckedField(i);
         }
         if (name.equals("isIdentitySentinel")) {
             return n instanceof NameExpr x && identitySentinel(x);
@@ -103,6 +109,15 @@ final class DslSyntaxFacts {
     static Object fact(Object target, String name, List<Object> args) {
         if (name.equals("mentions") && target instanceof Node n && args.size() == 1 && args.get(0) instanceof String id) {
             return mentions(n, id);
+        }
+        if (name.equals("releasedInNextFinally") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
+            return releasedInNextFinally(c, names);
+        }
+        if (name.equals("releasedInEnclosingFinally") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
+            return releasedInEnclosingFinally(c, names);
+        }
+        if (name.equals("releasedElsewhere") && target instanceof MethodCallExpr c && args.size() == 1 && args.get(0) instanceof List<?> names) {
+            return releasedElsewhere(c, names);
         }
         if (name.equals("carries") && target instanceof Node n && args.size() == 1 && args.get(0) instanceof String id) {
             return carries(n, id);
@@ -122,6 +137,136 @@ final class DslSyntaxFacts {
     private static boolean mentions(Node n, String id) {
         return (n instanceof NameExpr x && x.getNameAsString().equals(id))
                 || n.findAll(NameExpr.class).stream().anyMatch(x -> x.getNameAsString().equals(id));
+    }
+
+    // ---- locks ------------------------------------------------------------------------------------------------
+
+    /** The acquire is a statement, the very next statement is a try, and its finally calls one of the release methods on the same lock. */
+    private static boolean releasedInNextFinally(MethodCallExpr acquire, List<?> releaseNames) {
+        Optional<com.github.javaparser.ast.stmt.ExpressionStmt> stmt = acquire.findAncestor(com.github.javaparser.ast.stmt.ExpressionStmt.class);
+        if (stmt.isEmpty() || stmt.get().getExpression() != acquire || acquire.getScope().isEmpty()) {
+            return false;
+        }
+        Optional<Node> parent = stmt.get().getParentNode();
+        if (parent.isEmpty() || !(parent.get() instanceof com.github.javaparser.ast.stmt.BlockStmt block)) {
+            return false;
+        }
+        int at = block.getStatements().indexOf(stmt.get());
+        if (at < 0 || at + 1 >= block.getStatements().size()
+                || !(block.getStatement(at + 1) instanceof TryStmt t) || t.getFinallyBlock().isEmpty()) {
+            return false;
+        }
+        String lock = acquire.getScope().get().toString();
+        return t.getFinallyBlock().get().findAll(MethodCallExpr.class).stream()
+                .anyMatch(c -> releaseNames.contains(c.getNameAsString())
+                        && c.getScope().map(sc -> sc.toString().equals(lock)).orElse(false));
+    }
+
+    /** The acquire is inside the try block of a try whose finally releases the same lock: {@code try { lock.lock(); ... } finally { lock.unlock(); }}. */
+    private static boolean releasedInEnclosingFinally(MethodCallExpr acquire, List<?> releaseNames) {
+        if (acquire.getScope().isEmpty()) {
+            return false;
+        }
+        String lock = acquire.getScope().get().toString();
+        Node below = acquire;
+        for (Optional<Node> parent = acquire.getParentNode(); parent.isPresent(); parent = parent.get().getParentNode()) {
+            Node a = parent.get();
+            if (boundary(a)) {
+                return false;
+            }
+            final Node child = below;
+            if (a instanceof TryStmt t && t.getTryBlock() == child && t.getFinallyBlock().isPresent()
+                    && t.getFinallyBlock().get().findAll(MethodCallExpr.class).stream()
+                    .anyMatch(c -> releaseNames.contains(c.getNameAsString())
+                            && c.getScope().map(sc -> sc.toString().equals(lock)).orElse(false))) {
+                return true;
+            }
+            below = a;
+        }
+        return false;
+    }
+
+    /** The names of the methods of every class the node is inside, nearest first: {@code 'main' in n.enclosingClassMethods}. */
+    private static List<String> enclosingClassMethods(Node n) {
+        List<String> out = new java.util.ArrayList<>();
+        for (Optional<Node> a = n.getParentNode(); a.isPresent(); a = a.get().getParentNode()) {
+            if (a.get() instanceof com.github.javaparser.ast.body.TypeDeclaration<?> td) {
+                td.getMethods().forEach(m -> out.add(m.getNameAsString()));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Another method of the class releases the same lock without acquiring it itself: acquire and release are split
+     * across methods, as in a lock wrapper. A second method that also acquires and releases the lock is an ordinary
+     * user of it, not the other half of a split.
+     */
+    private static boolean releasedElsewhere(MethodCallExpr acquire, List<?> releaseNames) {
+        Optional<ClassOrInterfaceDeclaration> cls = acquire.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (cls.isEmpty() || acquire.getScope().isEmpty()) {
+            return false;
+        }
+        String lock = acquire.getScope().get().toString();
+        Optional<MethodDeclaration> mine = acquire.findAncestor(MethodDeclaration.class);
+        for (MethodDeclaration m : cls.get().getMethods()) {
+            if (Optional.of(m).equals(mine)) {
+                continue;
+            }
+            boolean releases = m.findAll(MethodCallExpr.class).stream().anyMatch(c -> releaseNames.contains(c.getNameAsString())
+                    && c.getScope().map(sc -> sc.toString().equals(lock)).orElse(false));
+            boolean acquiresToo = m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getNameAsString().equals(acquire.getNameAsString())
+                    && c.getScope().map(sc -> sc.toString().equals(lock)).orElse(false));
+            if (releases && !acquiresToo) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ---- double-checked locking --------------------------------------------------------------------------------
+
+    /**
+     * For {@code if (f == null) { synchronized (...) { if (f == null) { f = ...; } } }} the declaration of the field
+     * {@code f} in the enclosing class, otherwise null. A name that is not a field of the class (a local) gives null.
+     */
+    private static FieldDeclaration doubleCheckedField(com.github.javaparser.ast.stmt.IfStmt outer) {
+        String f = nullCheckedName(outer.getCondition());
+        if (f == null || outer.getElseStmt().isPresent()) {
+            return null;
+        }
+        for (SynchronizedStmt sync : outer.getThenStmt().findAll(SynchronizedStmt.class)) {
+            for (com.github.javaparser.ast.stmt.IfStmt inner : sync.getBody().findAll(com.github.javaparser.ast.stmt.IfStmt.class)) {
+                if (f.equals(nullCheckedName(inner.getCondition()))
+                        && inner.getThenStmt().findAll(com.github.javaparser.ast.expr.AssignExpr.class).stream()
+                        .anyMatch(a -> f.equals(assignedName(a.getTarget())))) {
+                    return outer.findAncestor(ClassOrInterfaceDeclaration.class).flatMap(c -> c.getFields().stream()
+                            .filter(d -> d.getVariables().stream().anyMatch(v -> v.getNameAsString().equals(f))).findFirst()).orElse(null);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** The name in {@code x == null}, {@code null == x} and the same with {@code this.x}; null for anything else. */
+    private static String nullCheckedName(com.github.javaparser.ast.expr.Expression cond) {
+        while (cond instanceof com.github.javaparser.ast.expr.EnclosedExpr e) {
+            cond = e.getInner();
+        }
+        if (!(cond instanceof BinaryExpr b) || b.getOperator() != BinaryExpr.Operator.EQUALS) {
+            return null;
+        }
+        if (b.getRight() instanceof com.github.javaparser.ast.expr.NullLiteralExpr) {
+            return assignedName(b.getLeft());
+        }
+        return b.getLeft() instanceof com.github.javaparser.ast.expr.NullLiteralExpr ? assignedName(b.getRight()) : null;
+    }
+
+    private static String assignedName(com.github.javaparser.ast.expr.Expression e) {
+        if (e instanceof NameExpr n) {
+            return n.getNameAsString();
+        }
+        return e instanceof FieldAccessExpr f && f.getScope() instanceof com.github.javaparser.ast.expr.ThisExpr ? f.getNameAsString() : null;
     }
 
     /** Methods that read only a description of an exception, not the exception itself. */

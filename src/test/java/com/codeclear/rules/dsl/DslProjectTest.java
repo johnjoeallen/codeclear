@@ -29,6 +29,11 @@ class DslProjectTest {
     }
 
     @Test
+    void bigDecimalMisuse() throws Exception {
+        check("bigdecimal-misuse", Path.of("review/java/bigdecimal-misuse"), List.of("rule.dsl", "equals.dsl"));
+    }
+
+    @Test
     void logInjection() throws Exception {
         check("log-injection", Path.of("review/common/log-injection"), List.of("rule.dsl"));
     }
@@ -41,7 +46,7 @@ class DslProjectTest {
         }
         List<String> failures = new ArrayList<>();
         for (CCRuleTests.Case c : tests.cases()) {
-            String got = run(rules, c).toString();
+            String got = run(rules, c, tests.sharedPrelude()).toString();
             String exp = expected(c).toString();
             if (!got.equals(exp)) {
                 failures.add(c.name() + ": got " + got + ", expected " + exp);
@@ -64,7 +69,7 @@ class DslProjectTest {
                 boolean caught = false;
                 for (CCRuleTests.Case c : tests.cases()) {
                     try {
-                        if (!run(variant, c).toString().equals(expected(c).toString())) {
+                        if (!run(variant, c, tests.sharedPrelude()).toString().equals(expected(c).toString())) {
                             caught = true;
                             break;
                         }
@@ -88,16 +93,17 @@ class DslProjectTest {
         return c.expect().stream().map(e -> e.path() + ":" + e.line()).sorted().toList();
     }
 
-    private static List<String> run(List<RuleAst> rules, CCRuleTests.Case c) {
+    private static List<String> run(List<RuleAst> rules, CCRuleTests.Case c, String sharedPrelude) {
+        String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
         List<CCFileAnalysis> files = new ArrayList<>();
         List<CompilationUnit> units = new ArrayList<>();
         for (CCRuleTests.SourceFile f : c.files()) {
-            CCFileAnalysis fa = ANALYZER.analyze(f.path(), CCRuleTests.analysisText("", f.source()), CCChangedLines.all());
+            CCFileAnalysis fa = ANALYZER.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()), CCChangedLines.all());
             files.add(fa);
             units.add((CompilationUnit) fa.ast());
         }
         DslProject project = new DslProject(units, new HashMap<>(c.config()));
-        int offset = CCRuleTests.lineOffset("");
+        int offset = CCRuleTests.lineOffset(prelude);
         List<String> out = new ArrayList<>();
         for (RuleAst rule : rules) {
             for (CCFileAnalysis fa : files) {

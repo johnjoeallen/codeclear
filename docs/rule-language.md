@@ -86,12 +86,12 @@ error. Constants: `LOW`, `MEDIUM`, `HIGH`, `DEFAULT`, `PRESENT`. Literals: `'str
 
 Kinds to iterate with `Kind.each`: `Catch`, `Call`, `Name`, `Field`, `Param`, `ExprStmt`, `Method`, `Binary` (an operator
 expression), `StringLit`, `New` (a constructor call), `Throw`, `Return`, `Break`, `Continue`, `FieldDecl` (a field
-declaration, never a local variable) and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
+declaration, never a local variable), `DoubleLit` (a double or float literal), `If` and `Jump` (any of `Return`, `Throw`, `Break`, `Continue`). `Loop` can be used in
 `instanceof` and `inside`, not iterated.
 
 | Node | Fields |
 |---|---|
-| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName` |
+| any node | `text`, `inTransaction`, `calls` (the calls inside it), `throws` (the throw statements inside it), `assignments`, `callsAfter` (calls in the enclosing method that start after it ends), `enclosingCatch`, `enclosingMethodName`, `enclosingClassMethods` (the method names of every class around it: `'main' in n.enclosingClassMethods`) |
 | `file` (always available) | `path`, `language`, `isTest` |
 | `Catch` | `param`, `body` |
 | `Param` | `name`, `type` (text), `annotations` (list of names) |
@@ -101,9 +101,10 @@ declaration, never a local variable) and `Jump` (any of `Return`, `Throw`, `Brea
 | `Name` | `name`, `declaredType` |
 | any expression | `isIdentitySentinel` (a `static final` field whose comment calls it an identity sentinel; false for anything else) |
 | `Binary` | `operator` (`==`, `!=`, `+`, ...), `left`, `right` |
-| `New` | `args`, `typeName`, `causeUnsupported` (the exception class is in the file or the JDK and no constructor takes a cause) |
+| `New` | `args`, `firstArg`, `typeName`, `causeUnsupported` (the exception class is in the file or the JDK and no constructor takes a cause) |
 | `Throw` | `expression` |
-| `FieldDecl` | `name`, `typeName` (simple name, no generics or package), `initializerTypeName`, `isStatic`, `isFinal`, `isPrivate`, `classAnnotations`, `usedOnlyInSynchronized` |
+| `FieldDecl` | `name`, `typeName` (simple name, no generics or package), `initializerTypeName`, `isStatic`, `isFinal`, `isPrivate`, `isVolatile`, `classAnnotations`, `usedOnlyInSynchronized` |
+| `If` | `doubleCheckedField` (the field declaration `f` in `if (f == null) { synchronized (...) { if (f == null) { f = ...; } } }`, or missing) |
 | `Jump` | `escapesFinally` (leaves a `finally` block: not through a nested lambda, class or method, not a break or continue whose loop is inside the finally, not a throw caught by a nested try) |
 | `Field` | `name`, `scope` |
 | any expression | `type` (qualified name, missing when unresolved), `fetched` |
@@ -123,6 +124,9 @@ Facts are reviewed Java that does the work a rule should not express itself. The
 | `expr.fetched` | The entity was produced by a join-fetch query or entity graph, possibly several calls away |
 | `node.inTransaction` | The node runs inside a transaction, directly or because every caller does |
 | `project.config('key')` | A project configuration value, for example `spring.jpa.open-in-view` |
+| `call.releasedInNextFinally(['unlock', 'release'])` | The call is a statement, the next statement is a `try`, and its `finally` calls one of those methods on the same receiver |
+| `call.releasedInEnclosingFinally(names)` | The call is inside the `try` block of a `try` whose `finally` calls one of those methods on the same receiver |
+| `call.releasedElsewhere(names)` | Another method of the class releases the same receiver without acquiring it itself (acquire and release split across methods) |
 | `node.mentions(name)` | The node is, or contains, a use of that variable |
 | `node.carries(name)` | The node passes the variable on: it is the variable, a local variable assigned from it, or contains it as something other than the receiver of `getMessage()`, `toString()` and similar. `e` and `e.getCause()` carry `e`; `e.getMessage()` does not |
 

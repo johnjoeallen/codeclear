@@ -20,7 +20,7 @@ Per language, in non-test source:
 - Go: `fmt.Print*` outside `main`.
 
 ## Do not flag
-- Command-line tools and scripts whose purpose is console output (`main` methods, `bin/`, `scripts/`, `cli`).
+- Command-line tools and scripts whose purpose is console output (`main` methods and the other methods of a class that has one, `bin/`, `scripts/`, `cli`).
 - Test files, and `console.error` / `console.warn` in front-end error boundaries.
 
 ## Examples

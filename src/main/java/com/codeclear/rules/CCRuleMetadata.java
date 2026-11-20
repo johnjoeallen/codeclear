@@ -40,7 +40,8 @@ public record CCRuleMetadata(
             }
         }
         String appliesTo = require(fields, "applies to");
-        List<String> globs = appliesTo.strip().equalsIgnoreCase("any source file")
+        // "any source file" and "any source file outside tests": the second excludes tests in the rule itself (file.isTest)
+        List<String> globs = appliesTo.strip().toLowerCase(Locale.ROOT).startsWith("any source file")
                 ? SOURCE_FILES
                 : Arrays.stream(appliesTo.split(","))
                         .map(g -> g.replace("`", "").strip())

@@ -17,6 +17,7 @@ A call to `lock()`, `lockInterruptibly()`, `readLock().lock()`, `writeLock().loc
 
 ## Do not flag
 - `tryLock()` guarded by `if`, whose `unlock()` is in a `finally` inside the branch.
+- An acquire inside the `try` block of a `try` whose `finally` releases the same lock (`try { lock.lock(); ... } finally { lock.unlock(); }`): the lock is released, although acquiring before the `try` is the safer form.
 - Acquire/release split across methods of a lock-wrapper class (`acquire`/`release` pairs with the same field) marked `confidence: LOW`.
 
 ## Examples
