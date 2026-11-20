@@ -231,7 +231,7 @@ class CCReviewServiceTest {
                 .review(new CCReviewRequest(List.of(CCReviewFile.whole("web/app.ts", "const x = 1;"))));
 
         assertThat(r.skippedRules()).extracting(CCSkippedRule::reason).containsExactly(CCSkippedRule.Reason.NO_ANALYZER);
-        assertThat(r.notes()).anyMatch(n -> n.contains("only Java has an analyzer"));
+        assertThat(r.notes()).anyMatch(n -> n.contains("only Java and SQL have an analyzer"));
     }
 
     @Test

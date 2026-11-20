@@ -27,6 +27,7 @@ public final class CCRuleTestRunner {
 
     private final CCRuleEngine engine;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
+    private final SqlFileAnalyzer sqlAnalyzer = new SqlFileAnalyzer();
 
     /** Runs the rule's Groovy script (the rule's {@code .dsl} detector only when it has no script). */
     public CCRuleTestRunner(GroovyRuleDetector detector) {
@@ -102,8 +103,8 @@ public final class CCRuleTestRunner {
      * Fails if the rule failed.
      */
     private List<String> actual(CCRuleDefinition rule, CCRuleTests.Case c, String sharedPrelude) {
-        if (!rule.language().equals("java") && !rule.language().equals("common")) {
-            throw new IllegalArgumentException("the test runner supports Java rules only");
+        if (!rule.language().equals("java") && !rule.language().equals("common") && !rule.language().equals("sql")) {
+            throw new IllegalArgumentException("the test runner supports Java and SQL rules only");
         }
         String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
         int offset = CCRuleTests.lineOffset(prelude);
@@ -112,7 +113,8 @@ public final class CCRuleTestRunner {
             // Lines in a case's "changed:" list are source lines; the prelude shifts them in the analysed text.
             CCChangedLines changed = c.changedLines() == null ? CCChangedLines.all()
                     : CCChangedLines.of(c.changedLines().stream().map(l -> l + offset).collect(java.util.stream.Collectors.toSet()));
-            files.add(analyzer.analyze(f.path(), CCRuleTests.analysisText(prelude, f.source()), changed));
+            String text = CCRuleTests.analysisText(prelude, f.source());
+            files.add(f.path().endsWith(".sql") ? sqlAnalyzer.analyze(f.path(), text, changed) : analyzer.analyze(f.path(), text, changed));
         }
         List<String> out = new ArrayList<>();
         for (CCRuleResult result : engine.run(List.of(rule), files, c.config())) {

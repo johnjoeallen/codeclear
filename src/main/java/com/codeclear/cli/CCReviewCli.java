@@ -37,8 +37,8 @@ public final class CCReviewCli {
     static final String USAGE_TEXT = """
             Usage: codeclear [options] [path ...]
 
-            Reviews Java files with the rules in the rules folder. A path is a file or a folder; a folder is searched
-            for .java files. The default is the current folder.
+            Reviews Java and SQL files with the rules in the rules folder. A path is a file or a folder; a folder is
+            searched for .java and .sql files. The default is the current folder.
 
             Options (written --name=value):
               --diff=<rev>        review only the lines changed since a git revision (for example main or HEAD~1)
@@ -211,7 +211,7 @@ public final class CCReviewCli {
         return values == null || values.isEmpty() ? fallback : values.get(values.size() - 1);
     }
 
-    /** The files to review: the named files, and the .java files under the named folders, limited to changed lines with a diff. */
+    /** The files to review: the named files, and the .java and .sql files under the named folders, limited to changed lines with a diff. */
     private static List<CCReviewFile> collect(Path dir, List<String> paths, String diffRev) throws IOException {
         Map<String, Set<Integer>> changed = diffRev == null ? null : CCGitDiff.changedLines(dir, diffRev);
         Map<String, Path> selected = new LinkedHashMap<>();
@@ -221,7 +221,7 @@ public final class CCReviewCli {
                 selected.put(relative(dir, root), root);
             } else if (Files.isDirectory(root)) {
                 try (Stream<Path> walk = Files.walk(root)) {
-                    for (Path f : walk.filter(Files::isRegularFile).filter(f -> f.toString().endsWith(".java"))
+                    for (Path f : walk.filter(Files::isRegularFile).filter(f -> f.toString().endsWith(".java") || f.toString().toLowerCase().endsWith(".sql"))
                             .filter(f -> !skipped(root, f)).sorted().toList()) {
                         selected.put(relative(dir, f), f);
                     }

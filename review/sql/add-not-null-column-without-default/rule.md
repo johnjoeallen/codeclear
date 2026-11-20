@@ -33,6 +33,8 @@ ALTER TABLE orders ADD COLUMN region VARCHAR(10) NOT NULL DEFAULT 'EU';
 ## Implementation notes
 Parse statements (split on `;`, strip comments) before matching. Dialects differ; start with PostgreSQL, MySQL and SQL Server syntax.
 
+The SQL analyzer is a tokenizer: it removes comments, splits statements at `;` and at a `GO` line, and cuts an `ALTER TABLE` into its `ADD` definitions at top-level commas, so each column of a multi-column `ADD` is checked on its own line. Constraints (`ADD CONSTRAINT`, `PRIMARY KEY`, ...) are not columns. A dollar-quoted body (`$$ ... $$`) belongs to the statement that opens it, and its code is checked line by line.
+
 ## Required tests
 Missing default (finding), with default (no finding), `IDENTITY` (no finding), multi-column `ADD` (finding for the right column), commented-out statement (no finding).
 

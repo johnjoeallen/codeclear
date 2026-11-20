@@ -53,6 +53,9 @@ final class DslFacts {
                 default -> unknown(t, name);
             };
         }
+        if (t instanceof com.codeclear.rules.CCSqlModel.Node sqlNode) {
+            return sqlField(sqlNode, name, t);
+        }
         if (!(t instanceof Node n)) {
             return unknown(t, name);
         }
@@ -118,6 +121,34 @@ final class DslFacts {
         return unknown(t, name);
     }
 
+    /** The fields of a SQL statement, column or line. A name that belongs to another kind is missing, not an error. */
+    private static Object sqlField(com.codeclear.rules.CCSqlModel.Node n, String name, Object t) {
+        return switch (n) {
+            case com.codeclear.rules.CCSqlModel.Statement s -> switch (name) {
+                case "text" -> s.text();
+                case "code" -> s.code();
+                case "precedingComment" -> s.precedingComment();
+                case "hasTopLevelWhere" -> s.hasTopLevelWhere();
+                case "tableCreatedInFile" -> s.tableCreatedInFile();
+                default -> unknown(t, name);
+            };
+            case com.codeclear.rules.CCSqlModel.Column c -> switch (name) {
+                case "text" -> c.text();
+                case "code" -> c.code();
+                case "name" -> c.name();
+                case "tableCreatedInFile" -> c.tableCreatedInFile();
+                default -> unknown(t, name);
+            };
+            case com.codeclear.rules.CCSqlModel.Line l -> switch (name) {
+                case "text" -> l.text();
+                case "code" -> l.code();
+                case "statementCode" -> l.statementCode();
+                case "executesBuiltString" -> l.executesBuiltString();
+                default -> unknown(t, name);
+            };
+        };
+    }
+
     /** Every field name the schema defines for some kind. A known name on the wrong kind is missing, not an error. */
     private static final java.util.Set<String> KNOWN = java.util.Set.of("path", "language", "isTest", "text", "param",
             "body", "name", "type", "statements", "hasComment", "expression", "nameNode", "args", "scope",
@@ -130,7 +161,8 @@ final class DslFacts {
             "iteratedType", "followedByExit", "iterable", "updatesCurrentKey", "enclosingClassAnnotations", "isDiscarded", "sameClassTransactionalTarget", "assertions",
             "inDataClass", "chainCalls", "chainStartsStream", "hasSideEffectStage", "holderInitializer", "isLocal", "usedInArithmetic",
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
-            "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName");
+            "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
+            "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {

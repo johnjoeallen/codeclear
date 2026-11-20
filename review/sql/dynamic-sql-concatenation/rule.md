@@ -34,6 +34,8 @@ EXEC sp_executesql N'SELECT * FROM users WHERE name = @n', N'@n nvarchar(100)', 
 ## Implementation notes
 Rules are dialect specific: implement per dialect and detect the dialect from syntax markers (`@var`, `$$`).
 
+Checked line by line, so a concatenation continued on the next line is not seen. `EXEC @sql` is flagged when the same file assigns `@sql` with `+` or `||` and another `@variable` (`SET @sql = ... + @x`); appending constants to `@sql` itself is not; `EXEC(...)` is flagged when a `+` joins a `@variable`. `EXECUTE IMMEDIATE` and PL/pgSQL `EXECUTE` are flagged on `||` with a variable. A line that mentions `sp_executesql`, `USING`, `format(` or `quote_ident`/`quote_literal` is skipped. Concatenating only constants is not flagged.
+
 ## Required tests
 Concatenated `EXEC` (finding), `sp_executesql` with parameters (no finding), PL/pgSQL `format('%L')` (no finding), `EXECUTE ... USING` (no finding).
 

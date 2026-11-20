@@ -96,6 +96,56 @@ final class DslInterpreter {
                 || n instanceof DoStmt);
     }
 
+    /** The kinds of a SQL file: {@code Statement}, {@code Column} (added by an ALTER TABLE) and {@code Line}. */
+    private static final Set<String> SQL_KINDS = Set.of("Statement", "Column", "Line");
+
+    private List<Finding> runSql(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
+        if (file.sql() == null) {
+            return List.of();
+        }
+        List<? extends com.codeclear.rules.CCSqlModel.Node> nodes = switch (rule.kind()) {
+            case "Statement" -> file.sql().statements();
+            case "Column" -> file.sql().columns();
+            default -> file.sql().lines();
+        };
+        List<Finding> out = new ArrayList<>();
+        Ctx ctx = new Ctx(file, ruleConfidence, project);
+        for (com.codeclear.rules.CCSqlModel.Node n : nodes) {
+            Map<String, Object> env = new HashMap<>();
+            env.put(rule.var(), n);
+            env.put("file", file.file());
+            if (project != null) {
+                env.put("project", project);
+            }
+            if (!passes(rule, env, ctx)) {
+                continue;
+            }
+            for (Flag f : rule.flags()) {
+                if (f.when() != null && !bool(eval(f.when(), env, ctx))) {
+                    continue;
+                }
+                Object at = eval(f.at(), env, ctx);
+                if (!(at instanceof com.codeclear.rules.CCSqlModel.Node target)) {
+                    throw new IllegalStateException("'at' must be a statement, column or line of the file, got " + at);
+                }
+                String conf = ruleConfidence;
+                if (f.confidence() != null) {
+                    Object c = eval(f.confidence(), env, ctx);
+                    if (!(c instanceof Atom a)) {
+                        throw new IllegalStateException("confidence must be low, medium, high or default");
+                    }
+                    conf = a.name().equals("default") ? ruleConfidence : a.name().toUpperCase();
+                }
+                out.add(new Finding(target.line(), conf, render(f.message(), env, ctx), f.candidate()));
+                break;
+            }
+        }
+        TreeSet<Finding> sorted = new TreeSet<>(Comparator.comparingInt(Finding::line)
+                .thenComparing(Finding::confidence).thenComparing(Finding::message).thenComparing(Finding::candidate));
+        sorted.addAll(out);
+        return List.copyOf(sorted);
+    }
+
     private static final Set<String> ATOMS = Set.of("present", "default", "low", "medium", "high");
 
     /** @param ruleConfidence the confidence the rule's metadata declares, used for the atom {@code default} */
@@ -104,6 +154,9 @@ final class DslInterpreter {
     }
 
     List<Finding> run(RuleAst rule, CCFileAnalysis file, String ruleConfidence, DslProject project) {
+        if (SQL_KINDS.contains(rule.kind())) {
+            return runSql(rule, file, ruleConfidence, project);
+        }
         Class<? extends Node> kind = KINDS.get(rule.kind());
         java.util.function.Predicate<Node> pseudo = KIND_TESTS.get(rule.kind());
         if (kind == null && pseudo == null) {

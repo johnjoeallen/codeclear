@@ -47,6 +47,7 @@ public class CCReviewService implements AutoCloseable {
     private final CCCandidateConfirmer confirmer;
     private final String aiDriverId;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
+    private final com.codeclear.rules.SqlFileAnalyzer sqlAnalyzer = new com.codeclear.rules.SqlFileAnalyzer();
 
     /** The service the application runs: rules from the configured folder, the configured AI driver. */
     @Autowired
@@ -94,6 +95,10 @@ public class CCReviewService implements AutoCloseable {
         List<CCFileAnalysis> analyses = new ArrayList<>();
         for (CCReviewFile f : request.files()) {
             sources.put(f.path(), f.content());
+            if (f.path().toLowerCase().endsWith(".sql")) {
+                analyses.add(sqlAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
+                continue;
+            }
             if (!f.path().endsWith(JAVA)) {
                 continue;
             }
@@ -103,9 +108,9 @@ public class CCReviewService implements AutoCloseable {
                 notes.add("not analysed: " + e.getMessage());
             }
         }
-        long other = request.files().stream().filter(f -> !f.path().endsWith(JAVA)).count();
+        long other = request.files().stream().filter(f -> !f.path().endsWith(JAVA) && !f.path().toLowerCase().endsWith(".sql")).count();
         if (other > 0) {
-            notes.add(other + " file(s) not analysed: only Java has an analyzer so far");
+            notes.add(other + " file(s) not analysed: only Java and SQL have an analyzer so far");
         }
 
         List<CCSkippedRule> skipped = new ArrayList<>();

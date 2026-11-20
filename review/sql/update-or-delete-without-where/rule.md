@@ -32,6 +32,8 @@ UPDATE accounts SET status = 'CLOSED' WHERE closed_at IS NOT NULL;
 ## Implementation notes
 Tokenise rather than regex the whole file so that a `WHERE` in a subquery or comment is not mistaken for a top-level one.
 
+A statement is checked as a whole, so a `WHERE` in a subquery does not count (it is inside parentheses). Statements inside a dollar-quoted function body are not looked at. An `UPDATE ... FROM` or `DELETE ... FROM` that joins with `ON` is not flagged.
+
 ## Required tests
 No `WHERE` (finding), `WHERE` in a subquery only (finding), top-level `WHERE` (no finding), marker comment (no finding).
 

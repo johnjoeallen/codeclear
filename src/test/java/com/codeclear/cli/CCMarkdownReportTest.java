@@ -175,7 +175,7 @@ class CCMarkdownReportTest {
 
     @Test
     void notesAreListed() {
-        CCReviewResult r = new CCReviewResult(List.of(), List.of(), List.of(), List.of("1 file(s) not analysed: only Java has an analyzer so far"),
+        CCReviewResult r = new CCReviewResult(List.of(), List.of(), List.of(), List.of("1 file(s) not analysed: only Java and SQL have an analyzer so far"),
                 1, 0, "dummy", "not ready", List.of());
 
         assertThat(CCMarkdownReport.render(r, Map.of(), 1)).contains("## Notes", "- 1 file(s) not analysed");

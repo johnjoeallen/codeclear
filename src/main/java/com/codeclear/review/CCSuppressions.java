@@ -28,6 +28,7 @@ final class CCSuppressions {
 
     private static final Pattern SLASH = Pattern.compile("(//|/\\*)\\s*CodeClear\\s*(?:\\(([^)]*)\\))?\\s*:", Pattern.CASE_INSENSITIVE);
     private static final Pattern HASH = Pattern.compile("#\\s*CodeClear\\s*(?:\\(([^)]*)\\))?\\s*:", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DASH = Pattern.compile("--\\s*CodeClear\\s*(?:\\(([^)]*)\\))?\\s*:", Pattern.CASE_INSENSITIVE);
     private static final Set<String> HASH_EXTENSIONS = Set.of(".py", ".yml", ".yaml", ".properties", ".sh", ".toml", ".conf");
 
     /** Line number to the rules the comment names; an empty set means every rule. */
@@ -56,6 +57,10 @@ final class CCSuppressions {
         for (int i = 0; i < text.length; i++) {
             Matcher m = SLASH.matcher(text[i]);
             boolean found = m.find();
+            if (!found && path.toLowerCase().endsWith(".sql")) {
+                m = DASH.matcher(text[i]);
+                found = m.find();
+            }
             if (!found && hash) {
                 m = HASH.matcher(text[i]);
                 found = m.find();

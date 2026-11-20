@@ -11,6 +11,7 @@ arbitrary code. A rule can only read the fields and call the facts listed here, 
 - [Structure](#structure)
 - [Expressions](#expressions)
 - [Node kinds and fields](#node-kinds-and-fields)
+- [SQL files](#sql-files)
 - [Host facts](#host-facts)
 - [What is deliberately missing](#what-is-deliberately-missing)
 
@@ -133,6 +134,21 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `project` (when the run has a project) | `project.config('key')` |
 
 A statement is not an expression: `log.debug("x");` is an `ExprStmt` whose `expression` is a `Call`.
+
+## SQL files
+
+A `.sql` file is read by a tokenizer, not a parser: it removes comments, splits statements at `;` and at a line that is only
+`GO`, keeps a `$$ ... $$` body with the statement that opens it, and does not know a dialect. A rule for SQL iterates one of
+three kinds, and `file.isTest`, `report` and `candidate` work as for Java:
+
+| Kind | One per | Fields |
+|---|---|---|
+| `Statement` | statement | `text` (comments removed), `code` (strings blanked too), `precedingComment`, `hasTopLevelWhere`, `tableCreatedInFile` |
+| `Column` | column added by `ALTER TABLE ... ADD [COLUMN]` (constraints are not columns) | `name`, `text`, `code`, `tableCreatedInFile` |
+| `Line` | non-blank line of code | `text`, `code`, `statementCode`, `executesBuiltString` (`EXEC @v` where the file assigns `@v` by concatenation with another variable) |
+
+A statement is reported on its first line; a column and a line on their own line. `code` is the field to match keywords and
+operators against, because the contents of strings are blank in it.
 
 ## Host facts
 
