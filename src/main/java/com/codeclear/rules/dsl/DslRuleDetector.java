@@ -44,7 +44,13 @@ public final class DslRuleDetector {
                 units.add(cu);
             }
         }
-        return new Session(new DslProject(units, new HashMap<>(config)));
+        DslProject project = new DslProject(units, new HashMap<>(config));
+        for (CCFileAnalysis f : files) {
+            if (f.config() != null) {
+                f.config().settings().forEach(s -> project.addSetting(s.key()));
+            }
+        }
+        return new Session(project);
     }
 
     public final class Session {

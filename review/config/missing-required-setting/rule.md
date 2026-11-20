@@ -27,6 +27,8 @@ OK: both renamed together.
 ## Implementation notes
 Candidate generation is a repository search; the AI reviewer judges whether the key is provided elsewhere (`hybrid`).
 
+Reduced to what a configuration file can show by itself: a value with a `${some.key}` placeholder that has no `:default`, where no configuration file of the same run defines the key (in any relaxed spelling, or a key below it), and that is not an upper-case environment variable name or an `env.`/`systemProperties.`/`random.` source. Whether a key that was removed or renamed is still read by source code, and `@Value`/`os.environ` reads with no definition, need the changed files of a diff and the source in the same run, and are not detected.
+
 ## Required tests
 Rename without consumer update (finding), rename with update (no finding), new key with default (no finding), new key without definition (finding).
 

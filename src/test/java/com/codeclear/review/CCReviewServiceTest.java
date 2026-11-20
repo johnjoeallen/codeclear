@@ -254,7 +254,8 @@ class CCReviewServiceTest {
         assertThat(r.findings()).extracting(CCReviewFinding::ruleId).contains("java/empty-catch-block");
         assertThat(r.rulesRun()).isGreaterThanOrEqualTo(4);
         assertThat(r.skipped(CCSkippedRule.Reason.NEEDS_AI)).isGreaterThan(0);
-        assertThat(r.skipped(CCSkippedRule.Reason.NO_DETECTOR)).isGreaterThan(0);
+        // Every rule that applies to a Java file has a detector, or needs the AI.
+        assertThat(r.skipped(CCSkippedRule.Reason.NO_DETECTOR)).isZero();
         assertThat(r.skipped(CCSkippedRule.Reason.FAILED)).isZero();
     }
 }

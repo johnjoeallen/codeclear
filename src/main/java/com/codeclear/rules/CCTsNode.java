@@ -373,6 +373,39 @@ public final class CCTsNode implements CCModelNode {
         return false;
     }
 
+    /** The leftmost identifier of a member or subscript chain without calls ({@code props.a[0].b} is {@code props}); empty otherwise. */
+    public String rootName() {
+        CCTsNode n = this;
+        while (n != null && (n.type().equals("member_expression") || n.type().equals("subscript_expression"))) {
+            n = n.field("object");
+        }
+        return n != null && (n.type().equals("identifier") || n.type().equals("this")) ? n.text() : "";
+    }
+
+    /** The code at or below this node declares {@code const [name, setName] = useState(...)} (or useReducer). */
+    public boolean declaresState(String name) {
+        for (CCTsNode d : descendants("variable_declarator")) {
+            CCTsNode n = d.field("name");
+            CCTsNode v = d.field("value");
+            if (n != null && v != null && n.type().equals("array_pattern") && n.childAt(0) != null && n.childAt(0).text().equals(name)
+                    && v.text().matches("(?s)\\s*(React\\.)?use(State|Reducer)\\b.*")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Some function around this node declares {@code const [name, setName] = useState(...)} (or useReducer). */
+    public boolean stateDeclaredAround(String name) {
+        for (CCTsNode p = parent(); p != null; p = p.parent()) {
+            if ((p.type().equals("function_declaration") || p.type().equals("arrow_function") || p.type().equals("function_expression")
+                    || p.type().equals("method_definition")) && p.declaresState(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The previous named sibling, or null. */
     public CCTsNode previous() {
         TSNode s = node.getPrevNamedSibling();

@@ -120,9 +120,11 @@ declaration, never a local variable), `DoubleLit` (a double or float literal), `
 | `Call` and `New` (locals) | `assignedToLocal` (the value initialises a local variable, a try-with-resources one included), `inTryResource`, `closedOrHandedOn` (the method closes that local, returns it, stores it or passes it to another call) |
 | any node (enclosing) | `enclosingCallName` (the nearest call around it), `enclosingCalls` (the names of every call around it, nearest first), `enclosingStatement`, `enclosingClass` |
 | `If` (shared state) | `i.guardedField`: the field of the class that its condition reads (not a local or a parameter), or missing |
+| `project.hasSetting('a.b')` | some config file of the run defines that key, in any relaxed spelling (`a.b`, `a_b`, `aB`), or a key below it |
 | `project.mentions('X')` | some file of the project uses that name as a type or identifier |
 | any node (tree) | `parent` is the node it is inside |
 | any node (names) | `identifiers`: the variable, field and called-method names used in it, never text from a string; `enclosingLoop`: the nearest loop around it; `Name.fieldDeclText`: the source of the field declaration it refers to, annotations included |
+| `Comment` (Java) | `restatesCode` (a line comment whose words are 80 percent or more in the statement next to it), `restatingFirst` (the first such comment of the file), `restatingInFile` (how many there are) |
 | `Comment` | `blockSize`, `codeLines`, `codeScore` (the percentage), `blockText`: for the first of a run of line comments on consecutive lines (or for a block comment) the lines in the run, how many look like code, and their text; 0 for a comment that continues a run |
 | `Call` (callees) | `c.targetAnnotations()` and `c.targetReturnTypes()`: the annotations (as source text) and the return types of the project methods the call may reach |
 | any node (locks) | `inSynchronized` (inside a `synchronized` block or method) |
@@ -169,6 +171,7 @@ one per scalar value:
 | `key` | the key path in lower-case kebab form with dots: `server.sslEnabled` is `server.ssl-enabled`; list items are `ports[0]` |
 | `rawKey` | the key path as written |
 | `value` | the value as text; empty for null |
+| `placeholders` | the keys of the `${a.b}` placeholders in the value that have no `:default` |
 | `profile` | the Spring profile of the document (`application-dev.yml`, or `spring.config.activate.on-profile`), or empty |
 | `s.siblingValue('allow-credentials')` | the value of the setting beside this one (same parent key), or missing |
 
@@ -190,6 +193,9 @@ Windows; a file with a syntax error still gives a tree. `.tsx` and `.jsx` files 
 | `n.tokens` | the unnamed children as text: `is`, `not`, `==`, `async` |
 | `n.parent`, `n.next`, `n.previous`, `n.lastChild` | related nodes, or missing |
 | `n.following`, `n.childAt(1)` | the named siblings after this node, and the i-th named child (from 0) |
+| `n.rootName` | the leftmost identifier of a member or subscript chain without calls (`props.a[0].b` is `props`) |
+| `n.stateDeclaredAround('x')` | a function around the node declares `const [x, setX] = useState(...)` |
+| `f.declaresState('x')` | the code declares `const [x, setX] = useState(...)` (or `useReducer`) |
 | `n.fieldName` | the name the parent gives this node: `body`, `condition`, `cause` |
 | `n.field('body')` | the child the grammar gives that field name, or missing |
 | `n.child('block')` | the first named child of that type, or missing |

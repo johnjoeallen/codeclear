@@ -34,6 +34,8 @@ const t = setTimeout(onTimeout, 5000); try { await work(); } finally { clearTime
 ## Implementation notes
 Anchor to the creation call.
 
+Detected on an expression statement `setInterval(...)` inside a function (the id is thrown away); on a stored timer in a function that has a `clearTimeout`/`clearInterval` but not in a `finally`, when the function awaits; and on `on`/`addListener`/`addEventListener` inside a function that mentions no `off`, `removeListener`, `removeEventListener`, `once` or `signal`, is not named like an initializer, and is not a `useEffect` callback. Module-level listeners are never matched. Timers that are not `unref()`ed are not detected.
+
 ## Required tests
 Clear after await without `finally` (finding), `finally` (no finding), listener in handler without off (finding), module-level listener (no finding).
 

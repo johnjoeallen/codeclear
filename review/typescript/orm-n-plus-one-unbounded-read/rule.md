@@ -35,6 +35,8 @@ const items = await Item.findAll({ where: { orderId: orders.map((o) => o.id) } }
 ## Implementation notes
 Anchor to the in-loop query or client creation.
 
+Detected on an awaited `find*`, `findOne`, `query`, `get`, `fetch` or `load` call on an ORM-looking receiver inside a loop or inside the callback of `map`, `forEach`, `flatMap`, `filter` or `reduce`; on `findMany()`, `findAll()`, `find()` and `all()` with no arguments or an empty object, with no `take`, `limit`, `skip` or `cursor`, in a request handler; and on `new PrismaClient`, `Pool`, `Sequelize`, `MongoClient`, `DataSource` or `Knex` inside a function not named like an initializer. Relation access in a loop (lazy loading) is not detected. Files under `scripts`, `seeds`, `migrations`, `bin`, `cli` and `tools` are skipped.
+
 ## Required tests
 Query in loop (finding), batched (no finding), `new PrismaClient` in handler (finding), module-level client (no finding), `findMany` with `take` (no finding).
 

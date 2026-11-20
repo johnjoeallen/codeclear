@@ -27,6 +27,8 @@ OK: `// normalise to UTC before comparing` above `t = t.toUtc();`.
 ## Implementation notes
 Comment-aware tokenizer per language; anchor to the first candidate in the file. Report one finding per file.
 
+Java files only, for now. A line comment is "restating" when it is not a directive (`eslint`, `noqa`, `nolint`, `checkstyle`, `CodeClear`, `license`, `generated`) and gives no reason (`because`, `so that`, `since`, `why`, `workaround`, `must`, `unit`, `otherwise`, ...), and 80 percent or more of its words (camel case split, plural `s` dropped) are in the first line of the statement on the next line, or of the statement that ends on its own line. One finding is reported per file, on the first such comment, and only when the file has three or more.
+
 ## Required tests
 Three restating comments (candidate), two (none), comment adding a reason (none), directive (none), doc comment (none).
 

@@ -84,6 +84,9 @@ final class DslSyntaxFacts {
                 return names;
             }
             case "parent": return n.getParentNode().orElse(null);
+            case "restatesCode": return n instanceof Comment c && restates(c, false);
+            case "restatingFirst": return n instanceof Comment c && restates(c, true);
+            case "restatingInFile": return n instanceof Comment c ? (long) restatingComments(c).size() : 0L;
             case "blockSize": case "codeLines": case "codeScore": case "blockText":
                 return n instanceof Comment c ? commentBlock(c, name) : null;
             case "identifiers": {
@@ -1173,6 +1176,78 @@ final class DslSyntaxFacts {
             }
         }
         return scope.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> o.getArguments().stream().anyMatch(isLocal));
+    }
+
+    private static final java.util.Set<String> STOP_WORDS = java.util.Set.of("a", "an", "the", "of", "to", "in", "on", "for", "and",
+            "or", "is", "are", "be", "this", "that", "it", "we", "with", "by", "at", "as", "from", "new", "set", "get", "if", "then");
+    private static final Pattern REASON = Pattern.compile("(?is).*(because|so that|since|why|due to|to avoid|workaround|note:|todo|fixme|hack|must|should|unit|seconds|millis|ms\\b|bytes|otherwise|except|only if|never|always|careful|beware).*");
+    private static final Pattern DIRECTIVE = Pattern.compile("(?is).*(eslint|noqa|nolint|checkstyle|nopmd|suppresswarnings|codeclear|copyright|license|generated|auto-generated|spotbugs|sonar|istanbul|prettier|@formatter|fmt:).*");
+
+    private static List<String> tokens(String text) {
+        List<String> out = new java.util.ArrayList<>();
+        for (String w : text.replaceAll("([a-z0-9])([A-Z])", "$1 $2").toLowerCase(java.util.Locale.ROOT).split("[^a-z0-9]+")) {
+            if (!w.isEmpty() && !STOP_WORDS.contains(w)) {
+                out.add(w.endsWith("s") && w.length() > 3 ? w.substring(0, w.length() - 1) : w);
+            }
+        }
+        return out;
+    }
+
+    /** The line comments of the file that say again what the statement next to them says. */
+    private static List<Comment> restatingComments(Comment from) {
+        List<Comment> out = new java.util.ArrayList<>();
+        for (Comment c : from.findCompilationUnit().map(cu -> cu.getAllComments()).orElse(List.of())) {
+            if (restates(c, false)) {
+                out.add(c);
+            }
+        }
+        out.sort(java.util.Comparator.comparingInt(x -> x.getBegin().map(p -> p.line).orElse(0)));
+        return out;
+    }
+
+    /** A line comment whose words (80 percent or more) are all in the code on the next line, or the line it trails. */
+    private static boolean restates(Comment c, boolean firstOnly) {
+        if (!(c instanceof com.github.javaparser.ast.comments.LineComment) || c.getBegin().isEmpty()) {
+            return false;
+        }
+        String content = c.getContent().strip();
+        if (content.isEmpty() || DIRECTIVE.matcher(content).matches() || REASON.matcher(content).matches()) {
+            return false;
+        }
+        List<String> words = tokens(content);
+        if (words.isEmpty()) {
+            return false;
+        }
+        int line = c.getBegin().get().line;
+        String code = c.findCompilationUnit().map(cu -> cu.findAll(Statement.class).stream()
+                .filter(s -> s.getBegin().isPresent() && (s.getBegin().get().line == line + 1 || s.getEnd().map(e -> e.line == line).orElse(false)
+                        && s.getBegin().get().line == line))
+                .filter(s -> !(s instanceof com.github.javaparser.ast.stmt.BlockStmt))
+                .map(s -> {
+                    // The statement as code: a comment attached to it is not part of what the comment is compared with.
+                    Statement copy = s.clone();
+                    copy.getAllContainedComments().forEach(Comment::remove);
+                    copy.removeComment();
+                    return copy.toString().split("\\R")[0];
+                }).findFirst().orElse("")).orElse("");
+        if (code.isBlank()) {
+            return false;
+        }
+        List<String> codeWords = new java.util.ArrayList<>(tokens(code));
+        // Operators say a word too: i++ is "increment", i-- is "decrement".
+        if (code.contains("++")) {
+            codeWords.add("increment");
+        }
+        if (code.contains("--")) {
+            codeWords.add("decrement");
+        }
+        long hits = words.stream().filter(w -> codeWords.stream().anyMatch(cw -> cw.equals(w) || (w.length() > 4 && cw.startsWith(w)))).count();
+        boolean restates = hits * 100 >= 80L * words.size();
+        if (!restates || !firstOnly) {
+            return restates;
+        }
+        List<Comment> all = restatingComments(c);
+        return !all.isEmpty() && all.get(0) == c;
     }
 
     private static final Pattern CODE_LIKE = Pattern.compile(

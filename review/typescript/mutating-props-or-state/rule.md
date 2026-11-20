@@ -35,6 +35,8 @@ setItems((prev) => [...prev, x]);
 ## Implementation notes
 Equivalent: `react/no-direct-mutation-state`, `no-param-reassign` with `props: true`. Anchor to the mutation.
 
+Detected on an assignment (or `+=`) to a property or index, and on `push`, `pop`, `shift`, `unshift`, `splice`, `sort`, `reverse`, `fill` or `copyWithin`, whose target chain starts at `props`; at a state variable declared in the same function with `useState`/`useReducer`; or at a parameter of the function when the function returns it. A file that mentions `immer`, `produce(`, `createSlice`, `createReducer` or `useImmer` is skipped. A copy (`[...a].sort()`, `a.slice().sort()`) has a call at its root, so it is never matched.
+
 ## Required tests
 `state.push` then set (finding), spread copy (no finding), ref mutation (no finding), Immer draft (no finding).
 

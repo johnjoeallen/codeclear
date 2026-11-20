@@ -259,6 +259,18 @@ final class DslProject {
     }
 
     private java.util.Set<String> mentionIndex;
+    private final java.util.Set<String> settings = new java.util.HashSet<>();
+
+    /** A key that some configuration file of the run defines (in kebab form with dots, as the config analyzer writes it). */
+    void addSetting(String key) {
+        settings.add(key);
+    }
+
+    /** Some configuration file of the run defines this key, spelt in any of the relaxed ways. */
+    boolean hasSetting(String key) {
+        String k = key.replaceAll("([a-z0-9])([A-Z])", "$1-$2").replace('_', '-').toLowerCase(java.util.Locale.ROOT);
+        return settings.contains(k) || settings.stream().anyMatch(s -> s.startsWith(k + ".") || s.startsWith(k + "["));
+    }
 
     String config(String key) {
         return config.get(key);

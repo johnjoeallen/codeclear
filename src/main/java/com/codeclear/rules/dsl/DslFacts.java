@@ -69,6 +69,7 @@ final class DslFacts {
                 case "parent" -> n.parent();
                 case "next" -> n.next();
                 case "previous" -> n.previous();
+                case "rootName" -> n.rootName();
                 case "hasNearbyComment" -> n.hasNearbyComment();
                 case "lastChild" -> n.lastChild();
                 case "tokens" -> n.tokens();
@@ -84,6 +85,15 @@ final class DslFacts {
                 case "rawKey" -> s.rawKey();
                 case "value" -> s.value();
                 case "profile" -> s.profile();
+                case "placeholders" -> {
+                    // The keys of ${a.b} placeholders in the value that have no :default.
+                    java.util.List<String> keys = new java.util.ArrayList<>();
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\$\\{([^}:]+)\\}").matcher(s.value());
+                    while (m.find()) {
+                        keys.add(m.group(1).strip());
+                    }
+                    yield keys;
+                }
                 default -> unknown(t, name);
             };
         }
@@ -194,7 +204,7 @@ final class DslFacts {
             "neverReferenced", "inPublicMethod", "marker", "markerText", "usesGeneratedId", "assignedToLocal", "inTryResource",
             "inReadOnlyTransaction", "mutatedAfterInit", "assignedAfterInit", "inLevelGuard", "catches", "hasInitializer", "inSynchronized", "closedOrHandedOn", "boundName",
             "code", "precedingComment", "hasTopLevelWhere", "tableCreatedInFile", "statementCode", "executesBuiltString",
-            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following", "enclosingCallName", "enclosingCalls", "returnType", "blockSize", "codeLines", "codeScore", "blockText", "identifiers", "enclosingLoop", "fieldDeclText", "guardedField", "enclosingStatement", "enclosingClass");
+            "key", "rawKey", "value", "profile", "children", "parent", "next", "fieldName", "isError", "line", "previous", "lastChild", "tokens", "endLine", "hasNearbyComment", "positional", "following", "enclosingCallName", "enclosingCalls", "returnType", "rootName", "restatesCode", "restatingFirst", "restatingInFile", "blockSize", "codeLines", "codeScore", "blockText", "identifiers", "enclosingLoop", "fieldDeclText", "guardedField", "enclosingStatement", "enclosingClass");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -243,6 +253,12 @@ final class DslFacts {
             if (name.equals("normalizedAfterCheck") && args.isEmpty()) {
                 return n.normalizedAfterCheck();
             }
+            if (name.equals("stateDeclaredAround") && args.size() == 1 && args.get(0) instanceof String id) {
+                return n.stateDeclaredAround(id);
+            }
+            if (name.equals("declaresState") && args.size() == 1 && args.get(0) instanceof String id) {
+                return n.declaresState(id);
+            }
             if (name.equals("mutatesSelfAttribute") && args.size() == 1 && args.get(0) instanceof String id) {
                 return n.mutatesSelfAttribute(id);
             }
@@ -274,6 +290,9 @@ final class DslFacts {
         }
         if (name.equals("targetReturnTypes") && target instanceof MethodCallExpr call && project != null) {
             return project.targets(call).stream().map(m -> m.getType().toString()).toList();
+        }
+        if (name.equals("hasSetting") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String id) {
+            return p.hasSetting(id);
         }
         if (name.equals("mentions") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String id) {
             return p.mentions(id); // some file of the project uses this name as a type or identifier
