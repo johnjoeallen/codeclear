@@ -185,7 +185,8 @@ final class DslInterpreter {
             }
             case Expr.Field f -> DslFacts.field(eval(f.target(), env, ctx), f.name(), ctx.file().model(), ctx.project());
             case Expr.FactCall c -> DslFacts.fact(eval(c.target(), env, ctx), c.name(),
-                    c.args().stream().map(a -> eval(a, env, ctx)).toList());
+                    c.args().stream().map(a -> eval(a, env, ctx)).toList(), ctx.project(),
+                    (pred, arg) -> bool(applyPred(pred, arg, ctx)));
             case Expr.Apply a -> {
                 if (!(env.get(a.fn()) instanceof Pred p) || a.args().size() != 1) {
                     throw new IllegalArgumentException("'" + a.fn() + "' is not a one-argument predicate");

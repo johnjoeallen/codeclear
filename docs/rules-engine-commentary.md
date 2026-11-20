@@ -172,6 +172,32 @@ decide pass or fail; the tests are held out from the generator (they were `tests
   getters, reflective or framework-generated calls).
 - A spec ambiguity surfaced: the N+1 flag does not need a transaction, so the condition was dropped.
 
+### Experiment: a taint rule, `common/log-injection` (test scope only)
+
+- The other large fact family (about 13 rules). The rule is 25 lines; the engine is `DslTaint`, about 190 lines of
+  reviewed Java; 31 cases in `review/common/log-injection/tests.md`.
+- **Design that worked: policy in the rule, mechanism in the host.** The rule defines what is a source and what
+  neutralises a value as two named predicates (`isSource`, `isSanitized`) and asks `a.tainted(isSource, isSanitized)`.
+  The host walks the flow and calls the predicates back. This needed one language feature: predicates passed as
+  arguments to a fact. Other taint rules (SQL, command, path, SSRF) would reuse the engine and differ only in policy.
+- **Flow handled:** concatenation, ternaries, casts, local variables with strong updates (a later assignment in an
+  enclosing block kills earlier ones; a branch-only sanitiser does not), compound assignment, pass-through string
+  methods, getters on a tainted object, `String.format`/`valueOf`, parameters (any caller may pass taint) and values
+  returned from project methods. Interprocedural flow needs no AI, as with `fetched`.
+- **Defects the tests found:** `replaceAll` was missing from the pass-through list, so a `replaceAll` that does not
+  strip line breaks wrongly cleared the taint. A second gap was in the mutation harness, not the rule: with a failing
+  baseline case every mutant counted as killed. The harness now requires a passing baseline.
+- **Mutation testing** exposed untested log levels (`trace`, `debug`, `error`) and a missing "not a log call" case;
+  two survivors remain, both equivalent (`c.scope exists`, `c.args is not empty`).
+- **Not handled, and where a rule would still be wrong:** values stored in fields or collections and logged
+  elsewhere, aliasing, lambdas, framework data binding into object fields, and path sensitivity beyond block
+  dominance. A sanitiser is accepted by its name or a text match, not proven to remove line breaks.
+- **Structured loggers** are modelled as a config key (`logging.structured`). The real engine must parse
+  logback, log4j2 and Spring logging config into such facts.
+- **Still judgement:** `rule.md` asks to report SECURITY only for request parameters, headers and body, and
+  LOGGING/INFO otherwise. That split is deterministic too (run `tainted` twice with narrower source predicates) and
+  was not built; how attacker-controlled a value really is stays with the AI.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
@@ -204,6 +230,8 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 | R12 | Write rule text precisely enough to implement: name the heuristic lists, and state what a guard is. | Every first-shot generator miss traced to vague prose. |
 | R13 | On gate failure, retry the generator with the failing case's source, expected and actual result. | Both failing generators fixed themselves in one round. |
 | R14 | If a restricted language is adopted, put computation in hand-written host facts (`guarded`, types, taint, framework classification) and keep the language itself tiny. | Rules then stay short, and the dangerous analysis is reviewed Java rather than generated code. |
+| R15 | Pass policy to host facts as predicates: the rule says what is a source and what is a sanitiser, the host walks the flow. | One reviewed taint engine serves every taint rule, and a generated rule cannot change how flow is computed. |
+| R16 | Only run mutation testing against a passing baseline. | A failing case makes every mutant look killed. |
 
 ## Open questions
 
@@ -216,7 +244,7 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 | Q5 | Is the acceptance gate strong enough without a human? | Gate: sandbox compile, tests covering every example and "do not flag" bullet, determinism, time budget, mutation check, previous tests. Whether weak generated tests can slip a wrong script through is unproven. |
 | Q6 | Should the rollout order change to build the sandbox and gate first? | The doc's Rollout section still reads as if only maintainers generate. Not yet updated. |
 | Q7 | Should `Detection type` collapse to a single `script` type later? | Possible bulk edit plus regenerating `INDEX.md`. |
-| Q8 | Groovy or a restricted rule language? | Both pass the same tests on two rules. The language removes the sandbox problem and enables automatic mutation testing; it costs about 1,150 lines of host code plus every fact family, and is unproven on tier 2 rules. Decide after porting a harder rule. |
+| Q8 | Groovy or a restricted rule language? | Both pass the same tests on the two Groovy rules; the language also expressed a tier 2 rule (lazy associations) and a taint rule (log injection) as 12 to 25 line rules over host facts. It removes the sandbox problem and enables automatic mutation testing; it costs the language plus every fact family in reviewed Java. Leaning: adopt the language. Not yet measured: speed, real RE2/J, project-wide engine, symbol resolution (Q3). |
 | Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Yes, with a project model and call-graph facts (see Discoveries). Open: replacing name-and-arity matching with real symbol resolution (Q3), and a project-wide engine instead of per-file. |
 | Q10 | Which model does review-time work? | Run the 548 `Evaluation cases` across models and compare accuracy, false-positive rate and cost per completed review. |
 
@@ -247,6 +275,7 @@ decide pass or fail; the tests are held out from the generator (they were `tests
 
 ### Next candidates
 
-- Decide Q8. Next experiment: a taint rule (source to sink) to test the other large fact family.
+- Decide Q8 (leaning to the restricted language). Open work either way: a project-wide engine, symbol resolution, and config parsing facts.
+- Measure the language's speed against the Groovy detector on a real project.
 - Update the design doc's Rollout section (Q6) and the regex-timeout gap in the sandbox.
 - Run the model comparison on the `Evaluation cases` (Q10).

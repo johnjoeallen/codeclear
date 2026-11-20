@@ -73,6 +73,7 @@ final class DslFacts {
             switch (name) {
                 case "name": return p.getNameAsString();
                 case "type": return p.getType().toString();
+                case "annotations": return p.getAnnotations().stream().map(a -> a.getNameAsString()).toList();
                 default: break;
             }
         } else if (n instanceof BlockStmt b) {
@@ -90,6 +91,7 @@ final class DslFacts {
                 case "name": return c.getNameAsString();
                 case "nameNode": return c.getName();
                 case "args": return List.copyOf(c.getArguments());
+                case "firstArg": return c.getArguments().isEmpty() ? null : c.getArgument(0);
                 case "scope": return c.getScope().orElse(null);
                 default: break;
             }
@@ -116,7 +118,7 @@ final class DslFacts {
     private static final java.util.Set<String> KNOWN = java.util.Set.of("path", "language", "isTest", "text", "param",
             "body", "name", "type", "statements", "hasComment", "expression", "nameNode", "args", "scope",
             "declaredType", "inTransaction", "lazyAssociation", "dereferenced", "fetched", "inController",
-            "returnedEntity", "lazyAssociations", "returnsFetched");
+            "returnedEntity", "lazyAssociations", "returnsFetched", "annotations", "firstArg");
 
     private static Object unknown(Object t, String name) {
         if (KNOWN.contains(name)) {
@@ -125,7 +127,13 @@ final class DslFacts {
         throw new IllegalArgumentException("no field '" + name + "' anywhere in the schema (typo?)");
     }
 
-    static Object fact(Object target, String name, List<Object> args) {
+    static Object fact(Object target, String name, List<Object> args, DslProject project,
+                       java.util.function.BiPredicate<DslInterpreter.Pred, Object> apply) {
+        if (name.equals("tainted") && target instanceof Expression e && args.size() == 2
+                && args.get(0) instanceof DslInterpreter.Pred src && args.get(1) instanceof DslInterpreter.Pred san
+                && project != null) {
+            return new DslTaint(src, san, apply, project).tainted(e);
+        }
         if (name.equals("config") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String k) {
             return p.config(k);
         }

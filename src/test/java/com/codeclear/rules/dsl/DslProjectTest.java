@@ -26,9 +26,18 @@ class DslProjectTest {
 
     @Test
     void lazyAssociationRules() throws Exception {
-        CCRuleTests.Tests tests = CCRuleTests.load(TESTS);
+        check("lazy-association", TESTS, List.of("lazy-association-outside-session", "lazy-entity-serialized"));
+    }
+
+    @Test
+    void logInjection() throws Exception {
+        check("log-injection", Path.of("review/common/log-injection"), List.of("log-injection"));
+    }
+
+    private void check(String label, Path testsDir, List<String> ruleNames) throws Exception {
+        CCRuleTests.Tests tests = CCRuleTests.load(testsDir);
         List<RuleAst> rules = new ArrayList<>();
-        for (String r : List.of("lazy-association-outside-session", "lazy-entity-serialized")) {
+        for (String r : ruleNames) {
             rules.add(DslParser.parse(Files.readString(DIR.resolve(r + ".rule"))));
         }
         List<String> failures = new ArrayList<>();
@@ -40,9 +49,13 @@ class DslProjectTest {
             }
         }
         int total = tests.cases().size();
-        System.out.println("DSL lazy-association: " + (total - failures.size()) + "/" + total + " cases pass");
+        System.out.println("DSL " + label + ": " + (total - failures.size()) + "/" + total + " cases pass");
         failures.forEach(f -> System.out.println("  FAIL " + f));
 
+        if (!failures.isEmpty()) {
+            // mutants are only meaningful against a passing baseline: a failing case would "kill" every mutant
+            assertThat(failures).isEmpty();
+        }
         for (int ri = 0; ri < rules.size(); ri++) {
             List<DslMutator.Mutant> mutants = DslMutator.mutants(rules.get(ri));
             List<String> survivors = new ArrayList<>();
