@@ -19,6 +19,28 @@ class DslParserTest {
             }
             """;
 
+    /** Every committed .dsl file must parse with the current syntax, whether or not it has tests yet. */
+    @Test
+    void everyCommittedDslFileUsesTheCurrentSyntax() throws java.io.IOException {
+        try (var files = java.nio.file.Files.walk(java.nio.file.Path.of("review"))) {
+            var dsl = files.filter(f -> f.toString().endsWith(".dsl")).sorted().toList();
+            assertThat(dsl).as(".dsl files under review/").isNotEmpty();
+            for (var f : dsl) {
+                String source = java.nio.file.Files.readString(f);
+                assertThat(source).as(f + " starts with a rule 'name' line").containsPattern("(?m)^rule '[^']+'");
+                // The old syntax had these line-leading keywords, which the current language does not have.
+                assertThat(source).as(f + " has no old-syntax clause").doesNotContainPattern("(?m)^(for |where |unless |require |let |flag |candidate at )");
+                DslParser.parse(source);
+            }
+        }
+    }
+
+    @Test
+    void theOldSyntaxIsNoLongerAccepted() {
+        assertThatThrownBy(() -> DslParser.parse("rule x\nfor c: Catch\nunless file.isTest\nflag at c \"m\""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     void layoutDoesNotMatter() {
         String oneLine = "rule 'x' def quiet = { s -> s instanceof ExprStmt } Catch.each { c -> only c.param.name in ['a','b'] "
