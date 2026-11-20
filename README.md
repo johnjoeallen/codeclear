@@ -3,11 +3,16 @@ CodeClear: AI code review that gets your branch clear before it ever reaches a P
 
 ## Command-line review
 
+The launcher scripts review the Java files under the paths you give; with none, the current folder. No server starts and no
+browser opens.
+
 ```
-./codeclear.sh review src                       # review the Java files under src
-./codeclear.sh review --diff=main --fail-on=high   # only lines changed since main; exit 1 on a high finding
-./codeclear.sh review --format=json src > report.json
-./codeclear.sh review --help
+./codeclear.sh src                                 # review the Java files under src
+./codeclear.sh                                     # review the current folder
+./codeclear.sh --diff=main --fail-on=high          # only lines changed since main; exit 1 on a high finding
+./codeclear.sh --format=json src > report.json
+./codeclear.sh --help
+./codeclear.sh serve                               # start the web application instead
 ```
 
 `codeclear.ps1` takes the same arguments on Windows. The review needs no AI backend: it runs every rule that has a

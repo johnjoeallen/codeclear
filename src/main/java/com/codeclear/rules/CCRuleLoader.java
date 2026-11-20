@@ -31,11 +31,9 @@ public final class CCRuleLoader {
     /** Loads one rule from its folder. */
     public static CCRuleDefinition load(Path ruleDir) {
         try {
-            String markdown = Files.readString(ruleDir.resolve("rule.md"), StandardCharsets.UTF_8);
+            String markdown = text(ruleDir.resolve("rule.md"));
             Path scriptFile = ruleDir.resolve("rule.groovy");
-            Optional<String> script = Files.exists(scriptFile)
-                    ? Optional.of(Files.readString(scriptFile, StandardCharsets.UTF_8))
-                    : Optional.empty();
+            Optional<String> script = Files.exists(scriptFile) ? Optional.of(text(scriptFile)) : Optional.empty();
             String id = ruleDir.getParent().getFileName() + "/" + ruleDir.getFileName();
             return new CCRuleDefinition(id, Optional.of(ruleDir), CCRuleMetadata.parse(markdown), hash(markdown), script,
                     loadDsl(ruleDir), aiPrompt(markdown));
@@ -59,10 +57,18 @@ public final class CCRuleLoader {
                             .thenComparing(f -> f.getFileName().toString()))
                     .toList();
             for (Path f : dsl) {
-                out.put(f.getFileName().toString(), Files.readString(f, StandardCharsets.UTF_8));
+                out.put(f.getFileName().toString(), text(f));
             }
         }
         return out;
+    }
+
+    /**
+     * Reads a rule file with LF line endings. Git for Windows may check files out with CRLF, and the rule hash, the section
+     * patterns and the metadata parser all expect LF; without this the same rule would hash differently on two machines.
+     */
+    private static String text(Path file) throws IOException {
+        return Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
     /** Loads every rule under a review root, sorted by id. */

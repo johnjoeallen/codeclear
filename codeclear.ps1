@@ -1,9 +1,11 @@
 <#
 CodeClear launcher (PowerShell). Bootstrap only: all behavior lives in the backend.
-Usage: codeclear.ps1                start the web application
-       codeclear.ps1 review [options] [path ...]   run a review in the terminal (see: codeclear.ps1 review --help)
-Env: CODECLEAR_PORT (default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1,
-     CODECLEAR_RULES (rules folder for review, default: review next to this script)
+Usage: codeclear.ps1 [options] [path ...]   review the Java files under each path (default: the current folder)
+       codeclear.ps1 --help                 show the review options
+       codeclear.ps1 serve                  start the web application and open the browser
+A leading "review" is accepted and ignored, so "codeclear.ps1 review src" also works.
+Env: CODECLEAR_PORT (serve, default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1 (serve),
+     CODECLEAR_RULES (rules folder for a review, default: review next to this script)
 #>
 $ErrorActionPreference = 'Stop'
 
@@ -34,14 +36,17 @@ if ($javaMajor -lt $RequiredJava) {
     Write-Error "Java $RequiredJava or newer is required (found: $(if ($javaMajor) { $javaMajor } else { 'unknown' }))"
 }
 
-# 2b. "codeclear.ps1 review ..." runs the command-line review and exits: no server, no browser.
-#     The rules folder defaults to the "review" folder next to this script (CODECLEAR_RULES overrides it).
-if ($args.Count -gt 0 -and $args[0] -eq 'review') {
+# 2b. The default is a command-line review: no server, no browser, nothing started that the review does not need.
+#     Only "serve" starts the web application. The rules folder defaults to the "review" folder next to this script
+#     (CODECLEAR_RULES overrides it); it goes first so an explicit --rules=<dir> from the caller wins.
+$rest = @($args)
+if ($rest.Count -gt 0 -and $rest[0] -eq 'serve') {
+    $rest = @($rest | Select-Object -Skip 1)
+} else {
+    if ($rest.Count -gt 0 -and $rest[0] -eq 'review') { $rest = @($rest | Select-Object -Skip 1) }
     $RulesDir = if ($env:CODECLEAR_RULES) { $env:CODECLEAR_RULES } else { Join-Path $Dir 'review' }
     $extra = @()
     if (Test-Path $RulesDir) { $extra = @("--rules=$RulesDir") }
-    # The default rules folder goes first so an explicit --rules=<dir> from the caller wins.
-    $rest = @($args | Select-Object -Skip 1)
     & java -jar $Jar review @extra @rest
     exit $LASTEXITCODE
 }
@@ -66,5 +71,5 @@ if ($env:CODECLEAR_NO_BROWSER -ne '1') {
 }
 
 Write-Host "Starting CodeClear on http://127.0.0.1:$Port/ (Ctrl+C to stop)"
-& java -jar $Jar "--server.port=$Port" @args
+& java -jar $Jar "--server.port=$Port" @rest
 exit $LASTEXITCODE

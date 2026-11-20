@@ -35,7 +35,7 @@ public final class CCReviewCli {
     public static final int USAGE = 2;
 
     static final String USAGE_TEXT = """
-            Usage: codeclear review [options] [path ...]
+            Usage: codeclear [options] [path ...]
 
             Reviews Java files with the rules in the rules folder. A path is a file or a folder; a folder is searched
             for .java files. The default is the current folder.
@@ -52,6 +52,8 @@ public final class CCReviewCli {
               --help              show this text
 
             Exit codes: 0 done, 1 findings at or above --fail-on, 2 bad usage or an error.
+
+            To start the web application instead, run: codeclear serve
             """;
 
     private static final Set<String> SKIPPED_DIRS = Set.of(".git", "target", "build", "node_modules", "out", ".idea", ".gradle");

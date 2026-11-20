@@ -173,7 +173,7 @@ class CCReviewCliTest {
         Run r = run(cli(), dir, "--help");
 
         assertThat(r.exit()).isZero();
-        assertThat(r.out()).contains("Usage: codeclear review", "--diff=<rev>", "--fail-on=<level>");
+        assertThat(r.out()).contains("Usage: codeclear [options]", "--diff=<rev>", "--fail-on=<level>", "codeclear serve");
     }
 
     @Test
@@ -208,11 +208,16 @@ class CCReviewCliTest {
             return new CCReviewService(List.of(EMPTY_CATCH_RULE), ENGINE, NO_AI, "test");
         });
 
+        // An absolute path is built from the temp folder's own root ("/" on Linux, "C:\\" on Windows): Path.of("/abs") has
+        // no drive on Windows and would not equal the drive-qualified path the command resolves it to.
+        Path first = dir.getRoot().resolve("abs").resolve("rules");
+        Path last = dir.getRoot().resolve("abs").resolve("last");
+
         run(cli, dir, "src");
         run(cli, dir, "src", "--rules=custom/rules");
-        run(cli, dir, "src", "--rules=/abs/rules", "--rules=/abs/last");
+        run(cli, dir, "src", "--rules=" + first, "--rules=" + last);
 
-        assertThat(seen).containsExactly(dir.resolve("review"), dir.resolve("custom/rules"), Path.of("/abs/last"));
+        assertThat(seen).containsExactly(dir.resolve("review"), dir.resolve("custom/rules"), last);
     }
 
     @Test

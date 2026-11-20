@@ -31,12 +31,15 @@ class LauncherScriptTest {
     }
 
     private static Result launch(Path dir, String... args) throws Exception {
-        List<String> cmd = new java.util.ArrayList<>(List.of("bash", Path.of("codeclear.sh").toAbsolutePath().toString()));
+        // bash (Git Bash included) takes forward slashes; dirname in the script does not understand backslashes
+        List<String> cmd = new java.util.ArrayList<>(List.of("bash",
+                Path.of("codeclear.sh").toAbsolutePath().toString().replace('\\', '/')));
         cmd.addAll(List.of(args));
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
         Map<String, String> env = pb.environment();
-        env.put("PATH", dir + ":" + env.get("PATH"));
-        env.put("CODECLEAR_JAR", dir.resolve("codeclear.jar").toString());
+        env.put("PATH", dir + java.io.File.pathSeparator + env.get("PATH"));
+        env.put("CODECLEAR_JAR", dir.resolve("codeclear.jar").toString().replace('\\', '/'));
+        env.put("CODECLEAR_NO_BROWSER", "1"); // a test must never open a browser
         Process p = pb.start();
         String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         return new Result(p.waitFor(), out);
@@ -110,5 +113,57 @@ class LauncherScriptTest {
         stubJava(dir, "openjdk version \"25.0.4\"");
 
         assertThat(launch(dir, "review", "src").output()).contains("review --rules=").contains(" src");
+    }
+
+    @Test
+    void aFolderArgumentReviewsItWithoutStartingTheWebApplication(@TempDir Path dir) throws Exception {
+        requireBash();
+        stubJava(dir, "openjdk version \"25.0.4\"");
+
+        Result r = launch(dir, "../redkite");
+
+        assertThat(r.exit()).isZero();
+        assertThat(r.output()).contains("FAKEJAVA -jar").contains(" review --rules=").contains("../redkite")
+                .doesNotContain("Starting CodeClear").doesNotContain("--server.port");
+    }
+
+    @Test
+    void noArgumentsReviewsTheCurrentFolderToo(@TempDir Path dir) throws Exception {
+        requireBash();
+        stubJava(dir, "openjdk version \"25.0.4\"");
+
+        Result r = launch(dir);
+
+        assertThat(r.output()).contains(" review --rules=").doesNotContain("Starting CodeClear").doesNotContain("--server.port");
+    }
+
+    @Test
+    void aLeadingReviewIsAcceptedButNotRepeated(@TempDir Path dir) throws Exception {
+        requireBash();
+        stubJava(dir, "openjdk version \"25.0.4\"");
+
+        assertThat(launch(dir, "review", "src").output()).contains(" review --rules=").doesNotContain("review review");
+    }
+
+    @Test
+    void onlyServeStartsTheWebApplication(@TempDir Path dir) throws Exception {
+        requireBash();
+        stubJava(dir, "openjdk version \"25.0.4\"");
+
+        Result r = launch(dir, "serve");
+
+        assertThat(r.output()).contains("Starting CodeClear on http://127.0.0.1:8080/").contains("--server.port=8080")
+                .doesNotContain(" review ").doesNotContainPattern("\\bserve\\b");
+    }
+
+    @Test
+    void underGitBashTheRulesFolderIsGivenToJavaAsAWindowsPath(@TempDir Path dir) throws Exception {
+        requireBash();
+        stubJava(dir, "openjdk version \"25.0.4\"");
+        Path cygpath = dir.resolve("cygpath");
+        Files.writeString(cygpath, "#!/bin/sh\necho C:/converted/review\n", StandardCharsets.UTF_8);
+        assertThat(cygpath.toFile().setExecutable(true)).isTrue();
+
+        assertThat(launch(dir, "src").output()).contains("--rules=C:/converted/review");
     }
 }

@@ -1,0 +1,9 @@
+# Scripts must keep LF line endings: a CRLF bash script fails under Git Bash.
+*.sh      text eol=lf
+*.ps1     text eol=crlf
+
+# Rule files are hashed (the rule-hash header of a detector), and tests parse their text, so keep them identical on
+# every platform.
+review/**/*.md      text eol=lf
+review/**/*.dsl     text eol=lf
+review/**/*.groovy  text eol=lf

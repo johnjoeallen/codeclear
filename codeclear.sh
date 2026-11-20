@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # CodeClear launcher (bash / Git Bash). Bootstrap only: all behavior lives in the backend.
-# Usage: codeclear.sh                 start the web application
-#        codeclear.sh review [options] [path ...]   run a review in the terminal (see: codeclear.sh review --help)
-# Env: CODECLEAR_PORT (default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1,
-#      CODECLEAR_RULES (rules folder for review, default: review next to this script)
+# Usage: codeclear.sh [options] [path ...]   review the Java files under each path (default: the current folder)
+#        codeclear.sh --help                 show the review options
+#        codeclear.sh serve                  start the web application and open the browser
+# A leading "review" is accepted and ignored, so "codeclear.sh review src" also works.
+# Env: CODECLEAR_PORT (serve, default 8080), CODECLEAR_JAR (explicit jar path), CODECLEAR_NO_BROWSER=1 (serve),
+#      CODECLEAR_RULES (rules folder for a review, default: review next to this script)
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,15 +30,23 @@ if [[ -z "$JAVA_MAJOR" || "$JAVA_MAJOR" -lt "$REQUIRED_JAVA" ]]; then
   echo "error: Java $REQUIRED_JAVA or newer is required (found: ${JAVA_MAJOR:-unknown})" >&2; exit 1
 fi
 
-# 2b. "codeclear.sh review ..." runs the command-line review and exits: no server, no browser.
-#     The rules folder defaults to the "review" folder next to this script (CODECLEAR_RULES overrides it).
-if [[ "${1:-}" == "review" ]]; then
-  RULES_DIR="${CODECLEAR_RULES:-$DIR/review}"
-  EXTRA=()
-  [[ -d "$RULES_DIR" ]] && EXTRA+=("--rules=$RULES_DIR")
-  shift  # drop "review"; the default rules folder goes first so an explicit --rules=<dir> from the caller wins
-  exec java -jar "$JAR" review ${EXTRA[@]+"${EXTRA[@]}"} "$@"
-fi
+# 2b. The default is a command-line review: no server, no browser, nothing started that the review does not need.
+#     Only "serve" starts the web application. The rules folder defaults to the "review" folder next to this script
+#     (CODECLEAR_RULES overrides it); it goes first so an explicit --rules=<dir> from the caller wins.
+case "${1:-}" in
+  serve) shift ;;
+  *)
+    [[ "${1:-}" == "review" ]] && shift
+    RULES_DIR="${CODECLEAR_RULES:-$DIR/review}"
+    EXTRA=()
+    if [[ -d "$RULES_DIR" ]]; then
+      # Git Bash / MSYS: give the native Java a Windows path with forward slashes (C:/Users/...), not /c/Users/...
+      if command -v cygpath >/dev/null 2>&1; then RULES_DIR="$(cygpath -m "$RULES_DIR")"; fi
+      EXTRA+=("--rules=$RULES_DIR")
+    fi
+    exec java -jar "$JAR" review ${EXTRA[@]+"${EXTRA[@]}"} "$@"
+    ;;
+esac
 
 # 3. Copilot CLI is optional (only needed for the Copilot provider), so warn rather than fail.
 if ! command -v copilot.exe >/dev/null 2>&1 && ! command -v copilot >/dev/null 2>&1; then

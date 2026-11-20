@@ -51,21 +51,23 @@ The review pipeline is composed of three stages: source resolution, AI review, a
 
 The app runs **natively on Windows** (Linux/macOS are not a first target) and is started from a launcher script rather than an installer:
 
-- `codeclear.ps1` (PowerShell) and `codeclear.sh` (bash, e.g. Git Bash) are thin equivalents that do the same things: check prerequisites (Java 25, and `copilot.exe` when the Copilot provider is enabled), start the **prebuilt** JAR (`codeclear.jar`, distributed with the launcher scripts; users do not build from source), start the backend bound to `127.0.0.1`, and open the browser.
+- `codeclear.ps1` (PowerShell) and `codeclear.sh` (bash, e.g. Git Bash) are thin equivalents that do the same things: check prerequisites (Java 25), then run the **prebuilt** JAR (`codeclear.jar`, distributed with the launcher scripts; users do not build from source). **By default they run a command-line review** of the paths given (see 2.2): no server, no browser. `codeclear serve` starts the web application instead: it also checks for `copilot.exe` when the Copilot provider is enabled, binds the backend to `127.0.0.1` and opens the browser.
 - The backend invokes the Windows `copilot.exe` directly. It is not run inside WSL, which avoids Windows/Linux path translation.
 - The scripts contain bootstrap logic only; all behavior lives in the backend so the two scripts cannot drift apart.
 
 ### 2.2 Command-Line Review
 
-The same launcher scripts run a review in the terminal, with no server and no browser:
+The launcher scripts review by default, with no server and no browser:
 
 ```
-codeclear.sh review [options] [path ...]       (codeclear.ps1 review ... on PowerShell)
+codeclear.sh [options] [path ...]              (codeclear.ps1 ... on PowerShell)
+codeclear.sh serve                             start the web application and open the browser
 ```
 
-The jar dispatches on the first argument: `review` runs `CCCliMain` and exits before Spring Boot is touched (no
-context, no web server; it loads the rules, reviews the target and prints), and anything else starts the web application. A path is a file or a
-folder (searched for `.java` files); the default is the current folder. Options are written `--name=value`:
+A leading `review` is accepted and ignored, so `codeclear.sh review src` also works. The jar dispatches on its first
+argument: `review` runs `CCCliMain` and exits before Spring Boot is touched (no context, no web server; it loads the rules,
+reviews the target and prints), and anything else starts the web application, which is what `serve` runs. A path is a
+file or a folder (searched for `.java` files); the default is the current folder. Options are written `--name=value`:
 
 | Option | Meaning |
 |---|---|

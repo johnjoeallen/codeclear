@@ -312,6 +312,9 @@ There is no review pipeline yet, so the baseline is the design as written: the A
   browser. The jar dispatches on the first argument and starts Spring without a web server; the launchers pass the
   bundled rules folder. Options: `--diff=<rev>` (only changed lines, from `git diff --unified=0 --relative`),
   `--format=text|json`, `--fail-on=<severity>`, `--config=k=v`, `--rules=<dir>`, `--show-skipped`, `--help`.
+- The launchers review by default (`codeclear.sh [options] [path ...]`); only `codeclear.sh serve` starts the web
+  application and opens the browser. Before this the command needed the word `review`, and without it the launcher started
+  Spring and opened a page, which is what people running `codeclear.sh <folder>` hit.
 - The command runs without Spring: `CodeClearApplication.main` hands `review` to `CCCliMain` before any Spring class is
   used, so a small folder reviews in about 0.45 s (it was 0.9 s with a Spring context) and 191 files in 1.4 s. The
   launchers pass the rules folder as `--rules=`, ahead of the caller's arguments so an explicit one wins.
