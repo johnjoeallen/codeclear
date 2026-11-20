@@ -177,3 +177,19 @@ class C {
   }
 }
 ```
+
+## Case: a stream used only as the scope of a method reference (Do not flag: consumed)
+
+covers: do-not-flag:stream-consumed
+
+```java path=src/main/java/C.java
+class C {
+  void f(Path root) throws IOException {
+    try (Stream<Path> walk = Files.walk(root)) {
+      for (Path p : (Iterable<Path>) walk::iterator) {
+        use(p);
+      }
+    }
+  }
+}
+```

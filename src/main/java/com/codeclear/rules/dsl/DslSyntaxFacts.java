@@ -336,7 +336,10 @@ final class DslSyntaxFacts {
     private static boolean neverReferenced(VariableDeclarator v) {
         Node scope = v.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).map(c -> (Node) c).orElse(null);
         return scope != null && v.getParentNode().orElse(null) instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr
-                && scope.findAll(NameExpr.class).stream().noneMatch(x -> x.getNameAsString().equals(v.getNameAsString()));
+                && scope.findAll(NameExpr.class).stream().noneMatch(x -> x.getNameAsString().equals(v.getNameAsString()))
+                // walk::iterator names the variable as the scope of a method reference, which is not a NameExpr
+                && scope.findAll(com.github.javaparser.ast.expr.MethodReferenceExpr.class).stream()
+                        .noneMatch(r -> r.getScope().toString().equals(v.getNameAsString()));
     }
 
     /** The calls this one is made on, nearest first: {@code a.stream().map(f).count()} gives {@code map}, {@code stream}. */
