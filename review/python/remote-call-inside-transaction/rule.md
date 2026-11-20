@@ -36,6 +36,8 @@ resp = requests.post(PAY_URL, json=...)
 ## Implementation notes
 Python `ast` with a client-call blocklist; anchor to the call.
 
+Detected on calls to `requests.*`, `httpx.*`, a `*session*`/`*client*`/`*http*` verb, `publish`, `produce`, `apply_async`, `delay`, a producer `send`, `time.sleep` and `asyncio.sleep`, inside a `with` whose header mentions `atomic`, `begin`, `conn`, `connection` or `transaction`, or inside a function decorated with `@...atomic`. A call inside an argument of `on_commit(...)` is skipped, since it runs after the commit. `boto3` client calls are not matched by name.
+
 ## AI prompt
 Question: "Does this call inside the transaction cause lock/pool pressure or an irreversible side effect that rollback cannot undo, given the shown latency and failure behavior?" Supply the block and the called client. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

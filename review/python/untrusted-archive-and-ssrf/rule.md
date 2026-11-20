@@ -34,6 +34,8 @@ tarfile.open(upload).extractall(DEST, filter="data")
 ## Implementation notes
 Python `ast` taint-lite; anchor to the sink call.
 
+Detected on `extract`/`extractall` in a module that mentions `tarfile` or `zipfile`, and on `shutil.unpack_archive`, in a function that mentions `request`, `upload`, `file` or `files`, without a `filter=` argument; and on `requests`/`httpx`/session/`urlopen` calls whose first argument mentions `request` or is a variable assigned from it, in a function that mentions no allow-list (`allowlist`, `allowed`, `ALLOWED_HOSTS`, `is_private`), unless `allow_redirects=False`.
+
 ## AI prompt
 Question: "Is the archive/URL attacker-controlled, and do visible checks (member validation, host allow-list, redirect handling, network egress controls) prevent traversal or internal access?" Supply the handler and validation helpers. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

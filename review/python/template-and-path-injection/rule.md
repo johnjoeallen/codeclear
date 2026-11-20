@@ -34,6 +34,8 @@ return render_template_string("Hello {{ n }}", n=request.args["name"])
 ## Implementation notes
 Python `ast` taint-lite; anchor to the sink.
 
+Detected on `render_template_string`, `Template(...)`, `from_string(...)` with a source that is not a literal and is derived from `request` (or a variable assigned from it) or is a parameter of the enclosing function; and on `open`, `send_file`, `send_from_directory`, `os.path.join`, `Path`, `shutil.*`, `os.remove`, `os.listdir` with such an argument, unless the function mentions `secure_filename`, `is_relative_to`, `resolve`, `realpath`, `commonpath` or `allowed`.
+
 ## AI prompt
 Question: "Is the value attacker-controlled at this sink, and does a visible validation/containment check prevent traversal or template injection?" Supply the handler and helpers. Report only with a concrete trigger scenario (payload, effect); otherwise NO_FINDING.
 

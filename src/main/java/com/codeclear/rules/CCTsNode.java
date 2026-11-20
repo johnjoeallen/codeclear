@@ -231,6 +231,52 @@ public final class CCTsNode implements CCModelNode {
         return n;
     }
 
+    /**
+     * This node mentions {@code name}, or an identifier in it is assigned in {@code scope} from an expression that mentions
+     * {@code name} (one step: {@code q = request.json} then {@code find(q)}).
+     */
+    public boolean derivedFrom(String name, CCTsNode scope) {
+        if (mentions(name)) {
+            return true;
+        }
+        for (CCTsNode id : descendants("identifier")) {
+            for (CCTsNode a : scope.descendants("assignment")) {
+                CCTsNode left = a.field("left");
+                CCTsNode right = a.field("right");
+                if (left != null && right != null && left.text().equals(id.text()) && right.mentions(name)) {
+                    return true;
+                }
+            }
+        }
+        if (type().equals("identifier")) {
+            for (CCTsNode a : scope.descendants("assignment")) {
+                CCTsNode left = a.field("left");
+                CCTsNode right = a.field("right");
+                if (left != null && right != null && left.text().equals(text()) && right.mentions(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** An identifier in this node is a parameter of {@code function}. */
+    public boolean usesParameterOf(CCTsNode function) {
+        CCTsNode parameters = function == null ? null : function.field("parameters");
+        if (parameters == null) {
+            return false;
+        }
+        if (type().equals("identifier") && parameters.mentions(text())) {
+            return true;
+        }
+        for (CCTsNode id : descendants("identifier")) {
+            if (parameters.mentions(id.text())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** A function or lambda that gives this parameter name a default value ({@code lambda x=x: ...}). */
     public boolean bindsByDefault(String name) {
         CCTsNode parameters = field("parameters");

@@ -33,6 +33,8 @@ if hmac.compare_digest(request.headers["X-Signature"], expected): ...
 ## Implementation notes
 Python `ast` name heuristics for comparisons; webhook route detection by decorator path/function name.
 
+Two files. `rule.dsl` flags `==` and `!=` where an operand is named like a secret (`signature`, `sig`, `token`, `secret`, `api_key`, `hmac`, `digest`, `expected`, `computed`) or is a `hexdigest()`/`digest()` call, unless the other operand is `None` or a literal. `handler.dsl` flags a function named or routed as a webhook or callback that reads the request body and never mentions `compare_digest`, `construct_event`, `verify`, `verify_signature` or a timestamp.
+
 ## AI prompt
 Question: "Does the provider protocol require signature verification and replay protection here, and does a visible middleware already perform it?" Supply the route, middleware and provider docs/config if shown. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

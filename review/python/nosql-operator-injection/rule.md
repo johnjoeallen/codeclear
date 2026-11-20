@@ -32,6 +32,8 @@ db.users.find_one({"name": str(body.name), "pwd_hash": hash_(body.pwd)})
 ## Implementation notes
 Python `ast` taint-lite from request accessors to filter dict; anchor to the query call.
 
+Detected in modules that mention `pymongo`, `motor` or `mongoengine`: `find`, `find_one`, `update_*`, `delete_*`, `replace_one`, `count_documents`, `aggregate`, `distinct`, `find_one_and_*` and mongoengine `objects(...)` with an argument that mentions `request`, or a variable assigned from it, and is not wrapped in `str(...)`. A function that mentions `validate`, `schema`, `Schema`, `pydantic` or `marshmallow` is treated as validating.
+
 ## AI prompt
 Question: "Can the attacker supply an object (not a string) for this field, and does validation upstream prevent that?" Supply the handler and request model. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 
