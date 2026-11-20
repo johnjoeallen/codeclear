@@ -21,26 +21,52 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeS
 public final class JavaFileAnalyzer {
 
     private final JavaParser parser;
+    private final JavaParser lenient;
     private final CCCodeModel model = new JavaParserModel();
 
     public JavaFileAnalyzer() {
         CombinedTypeSolver solver = new CombinedTypeSolver(new ReflectionTypeSolver(true));
-        ParserConfiguration config = new ParserConfiguration()
-                .setLanguageLevel(ParserConfiguration.LanguageLevel.BLEEDING_EDGE)
-                .setSymbolResolver(new JavaSymbolSolver(solver));
-        this.parser = new JavaParser(config);
+        // The newest syntax the parser knows. Java 25 features (module imports, flexible constructor bodies) are only
+        // accepted at this level; the highest-level shortcut BLEEDING_EDGE lags behind.
+        this.parser = new JavaParser(new ParserConfiguration()
+                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_25)
+                .setSymbolResolver(new JavaSymbolSolver(solver)));
+        // Second chance for a file the validator rejects: the review is of code that already compiles, so a validation
+        // rule that is stricter or older than the compiler must not hide the whole file. RAW parses the grammar only.
+        this.lenient = new JavaParser(new ParserConfiguration()
+                .setLanguageLevel(ParserConfiguration.LanguageLevel.RAW)
+                .setSymbolResolver(new JavaSymbolSolver(solver)));
     }
 
     /**
-     * @throws IllegalArgumentException when the source does not parse; the caller should skip the file
+     * @throws IllegalArgumentException when the source does not parse; the caller should skip the file. The message names
+     *                                  the file and the line of the first problem.
      */
     public CCFileAnalysis analyze(String path, String source, CCChangedLines changedLines) {
         ParseResult<CompilationUnit> result = parser.parse(source);
-        if (!result.isSuccessful() || result.getResult().isEmpty()) {
-            String problem = result.getProblems().isEmpty() ? "unknown error" : result.getProblems().get(0).getMessage();
-            throw new IllegalArgumentException("cannot parse " + path + ": " + problem);
+        if (!usable(result)) {
+            ParseResult<CompilationUnit> second = lenient.parse(source);
+            if (usable(second)) {
+                result = second;
+            } else {
+                throw new IllegalArgumentException("cannot parse " + path + describe(result));
+            }
         }
         return new CCFileAnalysis(new CCFileInfo(path, "java"), result.getResult().get(), model, changedLines);
+    }
+
+    private static boolean usable(ParseResult<CompilationUnit> result) {
+        return result.isSuccessful() && result.getResult().isPresent();
+    }
+
+    /** {@code :<line>: <message>} for the first problem, as the compiler would say it. */
+    private static String describe(ParseResult<CompilationUnit> result) {
+        if (result.getProblems().isEmpty()) {
+            return ": unknown error";
+        }
+        var problem = result.getProblems().get(0);
+        String line = problem.getLocation().flatMap(l -> l.getBegin().getRange()).map(r -> ":" + r.begin.line).orElse("");
+        return line + ": " + problem.getMessage().split("\\R", 2)[0];
     }
 
     private static final class JavaParserModel implements CCCodeModel {

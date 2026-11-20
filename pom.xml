@@ -20,7 +20,7 @@
   <properties>
     <java.version>25</java.version>
     <groovy.version>4.0.30</groovy.version>
-    <javaparser.version>3.26.2</javaparser.version>
+    <javaparser.version>3.28.2</javaparser.version>
   </properties>
 
   <dependencies>

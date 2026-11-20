@@ -354,6 +354,22 @@ There is no review pipeline yet, so the baseline is the design as written: the A
   `JAVA_TOOL_OPTIONS` is set (java prints `Picked up JAVA_TOOL_OPTIONS: ...` first). They now take the first line that
   contains `version "`; a test runs the bash launcher against a stub `java` to keep it fixed.
 
+### Reading the Java the projects are written in
+
+- A reviewer reported `not analysed: cannot parse ...: "var" is not allowed here` for a file that compiles on Java 25.
+  Cause: JavaParser 3.26.2 validates up to Java 21 and rejects `var` inside record patterns (`case P(var x, var y)`,
+  `o instanceof P(var x, var y)`), and also `_` (unnamed variables, final in Java 22). Java 25 syntax (module imports,
+  flexible constructor bodies) needs the `JAVA_25` language level, which the old parser did not have.
+- Fix: JavaParser 3.28.2 with the `JAVA_25` language level, and a second parse with no validation when the validator rejects
+  a file the grammar accepts, so a validator quirk never hides a whole file. Parse errors now name the line
+  (`cannot parse A.java:3: ...`).
+- **Version matters.** 3.28.0 has a `JAVA_25` level that breaks `yield` in switch expressions: upgrading to it fixed 6 files
+  and broke 12 others, which a re-run of the sweep showed. 3.28.2 fixes that. The analyzer tests keep `yield`, record
+  patterns, unnamed variables, module imports and flexible constructors parsing.
+- Across the 62 projects, files not analysed fell from 18 to 12. All 12 are invalid Java (templates with `${package}`,
+  Java 17 preview pattern syntax, string templates, a deliberately broken test resource, a stray brace, stray text), not
+  parser limits. Findings did not change, so none of the unparsed files were hiding detector results.
+
 ### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
 
 - Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
