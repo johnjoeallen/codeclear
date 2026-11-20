@@ -69,7 +69,7 @@ interface UserRepository {
 
 ## Case: a repository method that returns Optional or is NonNull (Do not flag)
 
-covers: do-not-flag:non-null-return,required:optional
+covers: do-not-flag:non-null-return,do-not-flag:optional-return,required:optional
 
 ```java path=src/main/java/C.java
 class C {
