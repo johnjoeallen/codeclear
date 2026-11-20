@@ -86,6 +86,8 @@ final class DslSyntaxFacts {
                 case "assertions": return assertions(m);
                 default: break;
             }
+        } else if (n instanceof Comment c && (name.equals("marker") || name.equals("markerText"))) {
+            return commentMarker(c, name.equals("marker"));
         } else if (n instanceof VariableDeclarator v) {
             switch (name) {
                 case "name": return v.getNameAsString();
@@ -256,6 +258,31 @@ final class DslSyntaxFacts {
     private static boolean isDiscarded(MethodCallExpr c) {
         return c.getParentNode().orElse(null) instanceof com.github.javaparser.ast.stmt.ExpressionStmt s && s.getExpression() == c
                 && !(s.getParentNode().orElse(null) instanceof LambdaExpr);
+    }
+
+    private static final Pattern TODO_MARKER = Pattern.compile("\\b(TODO|FIXME|HACK|XXX)\\b");
+
+    /**
+     * The first TODO-style marker inside a comment. As a node ({@code node = true}) it is positioned on the line of the marker,
+     * so a long comment is reported where its TODO is and not where the comment starts; as text it is that line, without the
+     * comment decoration ({@code //}, {@code *}).
+     */
+    private static Object commentMarker(Comment comment, boolean node) {
+        java.util.regex.Matcher m = TODO_MARKER.matcher(comment.getContent());
+        if (!m.find() || comment.getBegin().isEmpty()) {
+            return null;
+        }
+        String content = comment.getContent();
+        int line = comment.getBegin().get().line + (int) content.substring(0, m.start()).chars().filter(ch -> ch == '\n').count();
+        if (node) {
+            com.github.javaparser.ast.comments.LineComment at = new com.github.javaparser.ast.comments.LineComment();
+            at.setRange(new com.github.javaparser.Range(new com.github.javaparser.Position(line, 1), new com.github.javaparser.Position(line, 1)));
+            return at;
+        }
+        int start = content.lastIndexOf('\n', m.start()) + 1;
+        int end = content.indexOf('\n', m.start());
+        String text = content.substring(start, end < 0 ? content.length() : end).strip().replaceFirst("^[*/\\s]+", "").strip();
+        return text.length() > 200 ? text.substring(0, 200) + "..." : text;
     }
 
     // ---- data classes, arithmetic, streams, per-thread holders ---------------------------------------------------

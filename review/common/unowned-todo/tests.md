@@ -26,7 +26,7 @@ class C {
 }
 ```
 
-## Case: block, Javadoc and trailing comments, and a multi-line comment reported at its first line
+## Case: block, Javadoc and trailing comments, and a multi-line comment reported on the line of its TODO
 
 covers: detect:comment-kinds
 
@@ -36,9 +36,9 @@ class C {
   /** TODO javadoc */  // FLAG
   void f() {
     int x = 1; // TODO trailing  // FLAG
-    /*  // FLAG
+    /*
      * more text
-     * TODO inside a long comment
+     * TODO inside a long comment  // FLAG
      */
   }
 }
@@ -125,5 +125,38 @@ class C {
   // retries are handled by the caller
   /** The value. */
   int x;
+}
+```
+
+## Case: a long comment with the TODO deep inside is reported on the TODO line, and only that line has to be changed
+
+covers: detect:marker-line
+
+changed: 6
+
+```java path=src/main/java/C.java
+class C {
+  /**
+   * Explains the algorithm at length.
+   * Line two of the explanation.
+   * Line three of the explanation.
+   * TODO tune the batch size  // FLAG
+   */
+  void f() { }
+}
+```
+
+## Case: the first marker of a comment with several is the one reported
+
+covers: detect:marker-line
+
+```java path=src/main/java/C.java
+class C {
+  /*
+   * intro
+   * FIXME first  // FLAG
+   * TODO second
+   */
+  void f() { }
 }
 ```

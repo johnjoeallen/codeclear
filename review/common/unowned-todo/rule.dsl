@@ -11,5 +11,6 @@ Comment.each { c ->
     skip c.text ==~ /(?s).*\b(TODO|FIXME|HACK|XXX)\s*\([^)]+\).*/
     skip c.text ==~ /(?s).*([A-Z][A-Z0-9]+-\d+|#\d+|https?:\/\/\S+).*/
 
-    report c, "This TODO-style comment has no owner and no ticket: write TODO(name) or reference an issue"
+    // Reported on the line of the marker itself, and quoting it, so that a long comment is not tagged at its first line.
+    report c.marker, "This TODO has no owner and no ticket: write TODO(name) or reference an issue (${c.markerText})"
 }
