@@ -27,7 +27,7 @@ class DslTaintBudgetTest {
         src.append("  void f(HttpServletRequest request) {\n    log.info(get(request.getParameter(\"u\")));\n  }\n}\n");
         CCFileAnalysis fa = new JavaFileAnalyzer().analyze("src/main/java/Big.java", src.toString(), CCChangedLines.all());
         DslProject project = new DslProject(List.of((CompilationUnit) fa.ast()), new HashMap<>());
-        RuleAst rule = DslParser.parse(Files.readString(Path.of("src/test/resources/dsl/log-injection.rule")));
+        RuleAst rule = DslParser.parse(Files.readString(Path.of("review/common/log-injection/rule.dsl")));
         var findings = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5),
                 () -> new DslInterpreter().run(rule, fa, "MEDIUM", project));
         assertThat(findings).isNotNull(); // finishing within the budget is the point; the result may be empty

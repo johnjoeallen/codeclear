@@ -22,6 +22,7 @@ Each rule has its own folder, `<folder>/<rule-id>/`, with kebab-case rule ids un
 review/java/empty-catch-block/
   rule.md         the rule (source of truth)
   rule.groovy     generated detector (executable rules only)
+  rule.dsl        the same detector in the experimental restricted rule language (a few rules only)
   tests.md        test cases as Markdown (executable rules only)
 ```
 
@@ -114,3 +115,11 @@ class A { void f() { try { run(); } catch (Exception e) { } } }  // FLAG
 Optional pieces: a `## Prelude` section (declarations placed before every source, not counted in line numbers);
 a ```` ```java prelude ```` block inside a case to replace it; `config: key=value` lines for a project-wide case; several
 `path=` blocks for a case spanning files; a `## Mutations` list of `flagged case` -> `fixed case` pairs.
+
+### `rule.dsl` (experimental)
+
+A few rules also have a detector written in the restricted rule language, beside or instead of `rule.groovy`. Each
+`.dsl` file carries the same `generated-from` / `rule-hash` header as a script and is checked against the rule's
+`tests.md`. The language and its engine are test-scope code (`src/test/java/com/codeclear/rules/dsl/`) and are not yet
+used by the product. A rule that needs several detectors keeps them as `rule.dsl` plus named files (for example
+`serialized.dsl`).

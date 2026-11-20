@@ -1,3 +1,7 @@
+# generated-from: review/java/lazy-association-outside-session/rule.md
+# rule-hash: e5730b9c640a7bb9d815684f64f56819098189fd8bcf0240deb673b29877077b
+# api-version: 1
+# generator: claude-sonnet-5-5   generated: 2026-11-21
 rule lazy-entity-serialized
 for    m: Method
 unless file.isTest

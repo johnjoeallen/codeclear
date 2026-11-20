@@ -33,9 +33,22 @@ class DslRulesTest {
         check("optional-get-without-check");
     }
 
+    /** Every committed .dsl file records the hash of the rule.md it was written from, as the Groovy scripts do. */
+    @Test
+    void dslHeadersAreCurrent() throws IOException {
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("(?m)^# rule-hash: (\\w+)$");
+        try (var dirs = Files.walk(Path.of("review"))) {
+            for (Path f : dirs.filter(x -> x.toString().endsWith(".dsl")).toList()) {
+                var m = p.matcher(Files.readString(f));
+                assertThat(m.find()).as(f + " has a rule-hash header").isTrue();
+                assertThat(m.group(1)).as(f + " matches rule.md").isEqualTo(CCRuleLoader.load(f.getParent()).ruleHash());
+            }
+        }
+    }
+
     private void check(String id) throws IOException {
-        RuleAst rule = DslParser.parse(Files.readString(Path.of("src/test/resources/dsl/" + id + ".rule")));
         Path dir = Path.of("review/java", id);
+        RuleAst rule = DslParser.parse(Files.readString(dir.resolve("rule.dsl")));
         CCRuleDefinition def = CCRuleLoader.load(dir);
         String confidence = def.metadata().confidence().name();
         CCRuleTests.Tests tests = CCRuleTests.load(dir);

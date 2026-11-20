@@ -1,3 +1,7 @@
+# generated-from: review/java/empty-catch-block/rule.md
+# rule-hash: f048993f9cff87c64bd101e2a389c4cb36615f2ab41d78c2a934d89510222587
+# api-version: 1
+# generator: claude-sonnet-5-5   generated: 2026-11-21
 rule empty-catch-block
 for    c: Catch
 unless file.isTest

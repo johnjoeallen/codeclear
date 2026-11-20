@@ -118,7 +118,7 @@ changed-line filter).
 
 ### Experiment: the two Groovy rules in a restricted language (test scope only)
 
-Code under `src/test/java/com/codeclear/rules/dsl/`, rules under `src/test/resources/dsl/`.
+Engine code under `src/test/java/com/codeclear/rules/dsl/`; the rules are `rule.dsl` files in their rule folders under `review/`, beside `rule.groovy` where one exists.
 
 - Both rules pass their existing tests unchanged: 17 and 33 cases. Size: 53 to 15 lines and 160 to 22. The
   90 lines of guard logic in `optional-get-without-check` became one host fact, `c.guarded(recv, present)`,

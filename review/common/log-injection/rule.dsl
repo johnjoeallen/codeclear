@@ -1,3 +1,7 @@
+# generated-from: review/common/log-injection/rule.md
+# rule-hash: fbf77d01c58cf0d89bc06f54fcbc432f848dc5a3cf7157cafac72a519cf9df10
+# api-version: 1
+# generator: claude-sonnet-5-5   generated: 2026-11-21
 rule log-injection
 for    c: Call
 unless file.isTest

@@ -21,24 +21,23 @@ import com.codeclear.rules.CCRuleTests;
 class DslProjectTest {
 
     private static final JavaFileAnalyzer ANALYZER = new JavaFileAnalyzer();
-    private static final Path DIR = Path.of("src/test/resources/dsl");
     private static final Path TESTS = Path.of("review/java/lazy-association-outside-session");
 
     @Test
     void lazyAssociationRules() throws Exception {
-        check("lazy-association", TESTS, List.of("lazy-association-outside-session", "lazy-entity-serialized"));
+        check("lazy-association", TESTS, List.of("rule.dsl", "serialized.dsl"));
     }
 
     @Test
     void logInjection() throws Exception {
-        check("log-injection", Path.of("review/common/log-injection"), List.of("log-injection"));
+        check("log-injection", Path.of("review/common/log-injection"), List.of("rule.dsl"));
     }
 
     private void check(String label, Path testsDir, List<String> ruleNames) throws Exception {
         CCRuleTests.Tests tests = CCRuleTests.load(testsDir);
         List<RuleAst> rules = new ArrayList<>();
         for (String r : ruleNames) {
-            rules.add(DslParser.parse(Files.readString(DIR.resolve(r + ".rule"))));
+            rules.add(DslParser.parse(Files.readString(testsDir.resolve(r))));
         }
         List<String> failures = new ArrayList<>();
         for (CCRuleTests.Case c : tests.cases()) {

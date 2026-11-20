@@ -1,3 +1,7 @@
+# generated-from: review/java/optional-get-without-check/rule.md
+# rule-hash: b714e80c6a48f20f9c06556b6ecb4a14eb4c5ea3cdf17276e2b55d49944bb020
+# api-version: 1
+# generator: claude-sonnet-5-5   generated: 2026-11-21
 rule optional-get-without-check
 for    c: Call
 where  c.name in ["get", "getAsInt", "getAsLong", "getAsDouble"]

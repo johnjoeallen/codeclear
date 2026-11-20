@@ -50,9 +50,10 @@ class DslBenchTest {
         DslProject project = new DslProject(units, new HashMap<>());
         long projMs = (System.nanoTime() - t1) / 1_000_000;
         Map<String, RuleAst> rules = new LinkedHashMap<>();
-        for (String n : List.of("empty-catch-block", "optional-get-without-check", "log-injection",
-                "lazy-association-outside-session", "lazy-entity-serialized")) {
-            rules.put(n, DslParser.parse(Files.readString(Path.of("src/test/resources/dsl/" + n + ".rule"))));
+        for (String n : List.of("java/empty-catch-block/rule.dsl", "java/optional-get-without-check/rule.dsl",
+                "common/log-injection/rule.dsl", "java/lazy-association-outside-session/rule.dsl",
+                "java/lazy-association-outside-session/serialized.dsl")) {
+            rules.put(n, DslParser.parse(Files.readString(Path.of("review/" + n))));
         }
         System.out.printf("BENCH files=%d lines=%d parse=%dms project-model=%dms%n", files.size(), lines, parseMs, projMs);
         for (int round = 0; round < 3; round++) {
@@ -66,7 +67,7 @@ class DslBenchTest {
                         // a rule that cannot evaluate a file contributes nothing
                     }
                 }
-                if (round == 2 && e.getKey().equals("log-injection") && System.getProperty("bench.out") != null) {
+                if (round == 2 && e.getKey().equals("common/log-injection/rule.dsl") && System.getProperty("bench.out") != null) {
                     StringBuilder b = new StringBuilder();
                     for (CCFileAnalysis fa : files) {
                         try {
