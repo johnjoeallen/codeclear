@@ -35,6 +35,8 @@ keys = [o["Key"] for p in s3.get_paginator("list_objects_v2").paginate(Bucket=b)
 ## Implementation notes
 Python `ast`; anchor to the call.
 
+Only in modules that mention `boto3`, `botocore` or `aioboto3`. `list_objects(_v2)`, `scan`, `list_*` and `describe_*` called on an object are flagged unless the function mentions `NextToken`, `ContinuationToken`, `LastEvaluatedKey`, `ExclusiveStartKey`, `get_paginator`, `paginate`, `Marker` or `MaxKeys`; `query` is left out because it is too common a name. `boto3.client/resource/Session` is flagged in a loop or in a function other than `__init__`, `main`, `get_client` and similar, and when called in a function without `config=`. Module-level creation (Lambda init) is never flagged. Sharing a session with threads is not detected.
+
 ## AI prompt
 Question: "Does the caller need all results, and can the result exceed one page; does the missing timeout/retry config or client sharing cause a demonstrated failure on this path?" Supply the call, expected sizes, concurrency model. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

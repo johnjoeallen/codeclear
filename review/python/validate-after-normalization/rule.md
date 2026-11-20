@@ -34,6 +34,8 @@ if not path.is_relative_to(BASE): abort(400)
 ## Implementation notes
 Python `ast` order-of-operations over a single variable's use-def chain; anchor to the validation.
 
+Detected in a function that checks a variable in an `if` or `assert` (`startswith`, `endswith`, `".." in`, `in ALLOWED`, a hostname or netloc test) and later assigns the same variable from `unquote`, `normalize`, `normpath`, `abspath`, `realpath`, `urljoin`, `lower` or `decode` of itself. A function that mentions `is_relative_to` or `commonpath` is skipped. Whether the value reaches a file or network sink is not followed.
+
 ## AI prompt
 Question: "Does the later decoding/normalization allow input that passes the check to reach the final operation in a form the check would have rejected?" Supply the function, any sanitizer, and the sink. Report only with a concrete trigger scenario (payload, path reached); otherwise NO_FINDING.
 

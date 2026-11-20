@@ -33,6 +33,8 @@ r.incr(k)
 ## Implementation notes
 Python `ast` call-sequence match on receiver names bound to `redis.Redis`/`StrictRedis`; anchor to the second call.
 
+Only in modules that mention `redis`, `cache` or `memcache`. A `set(k, ...)` is flagged when the same function has `get(k)` on the same object, and mentions none of `watch`, `pipeline`, `eval`, `lock`, `register_script`, `incr` or `hincrby`; `set(..., nx=...)` is skipped. `expire(k, ...)` after `set(k, ...)` on the same object is flagged.
+
 ## AI prompt
 Question: "Can concurrent callers interleave between the two commands with a harmful result, or can failure between them leave a permanent key?" Supply the code, concurrency and script/transaction use. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

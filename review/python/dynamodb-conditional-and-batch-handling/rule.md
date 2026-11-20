@@ -35,6 +35,8 @@ while resp.get("UnprocessedItems"): ...
 ## Implementation notes
 Python `ast`; anchor to the call.
 
+Two files. `rule.dsl` flags `batch_write_item`/`batch_get_item` in a function that never mentions `UnprocessedItems` or `UnprocessedKeys`; a float in `Item=`; and `get_item`/`query` without `ConsistentRead=True` in a function that also writes. `conditional.dsl` flags a `try` around a write with a `ConditionExpression` whose `except ClientError` (or `Exception`) neither re-raises nor mentions `ConditionalCheckFailed`. `batch_writer()` is another method, so it is never matched.
+
 ## AI prompt
 Question: "Is a conflict/unprocessed item/stale read treated as success, or does a retry drop the original condition or repeat writes, causing an incorrect outcome?" Supply the call, handling code and the consistency requirement. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

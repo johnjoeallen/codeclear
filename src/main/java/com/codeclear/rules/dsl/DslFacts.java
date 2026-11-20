@@ -236,6 +236,13 @@ final class DslFacts {
             if (name.equals("usesParameterOf") && args.size() == 1 && (args.get(0) == null || args.get(0) instanceof com.codeclear.rules.CCTsNode)) {
                 return n.usesParameterOf((com.codeclear.rules.CCTsNode) args.get(0));
             }
+            if (name.equals("hasCallOn") && args.size() == 3 && args.get(0) instanceof String r && args.get(1) instanceof String m
+                    && (args.get(2) == null || args.get(2) instanceof String)) {
+                return n.hasCallOn(r, m, (String) args.get(2));
+            }
+            if (name.equals("normalizedAfterCheck") && args.isEmpty()) {
+                return n.normalizedAfterCheck();
+            }
             if (name.equals("mutatesSelfAttribute") && args.size() == 1 && args.get(0) instanceof String id) {
                 return n.mutatesSelfAttribute(id);
             }

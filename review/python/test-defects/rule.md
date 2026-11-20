@@ -39,6 +39,8 @@ async def test_save():
 ## Implementation notes
 Python `ast` over test files; equivalent pytest `-W error::RuntimeWarning`, Ruff `PT`/`F631`. Anchor to the assertion/call.
 
+For test files. Flags an `async def test_*` with no asyncio, anyio or trio decorator in a module that does not mention `pytestmark` or `asyncio_mode`; `assert (cond, "msg")`; `assert True`; `assertTrue(a, b)` with a non-string `b`; and `time.sleep`, `datetime.now`, unseeded `random.*`, `requests.*` and `socket` calls in a module that mentions none of `freeze_time`, `seed`, `responses`, `mock`, `patch` or `monkeypatch`. Files under `integration`, `e2e` or `functional` are skipped. `@patch` of the function under test and `pytest.raises` blocks with only setup are not detected.
+
 ## AI prompt
 Question: "Can this test pass while the behavior it names is broken (never runs the path, asserts nothing meaningful, mocks the unit under test)?" Supply the test, the code under test and test configuration. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

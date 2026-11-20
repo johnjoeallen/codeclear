@@ -307,6 +307,53 @@ public final class CCTsNode implements CCModelNode {
         return false;
     }
 
+    /** There is a call {@code receiver.method(key, ...)} at or below this node (the key is compared as text). */
+    public boolean hasCallOn(String receiver, String method, String key) {
+        for (CCTsNode c : descendants("call")) {
+            CCTsNode f = c.field("function");
+            if (f != null && f.text().equals(receiver + "." + method)) {
+                CCTsNode first = c.args().isEmpty() ? null : c.args().get(0);
+                if (key == null || (first != null && first.text().equals(key))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static final java.util.regex.Pattern CHECK = java.util.regex.Pattern.compile(
+            "(?s).*(\\.startswith\\(|\\.endswith\\(|[\"'] in |\\bin\\s+[A-Z_]{3,}|\\.\\./|\\bnot in\\b|\\.hostname|\\.netloc).*");
+    private static final java.util.regex.Pattern NORMALIZE = java.util.regex.Pattern.compile(
+            "(?s)\\s*(urllib\\.parse\\.)?(unquote|unquote_plus|normalize|normpath|abspath|realpath|urljoin|lower|casefold|decode)\\b.*|.*\\.(lower|casefold|decode|normalize)\\(.*");
+
+    /**
+     * Inside this function: a validation of a variable ({@code startswith}, a {@code ..} test, membership in an allow-list) in an
+     * {@code if} or {@code assert}, and after it an assignment that normalises that variable ({@code unquote}, {@code normpath},
+     * {@code lower}, {@code urljoin}, ...). The assignment, or null.
+     */
+    public CCTsNode normalizedAfterCheck() {
+        for (CCTsNode check : descendants(null)) {
+            if (!(check.type().equals("if_statement") || check.type().equals("assert_statement"))) {
+                continue;
+            }
+            CCTsNode cond = check.type().equals("if_statement") ? check.field("condition") : check.childAt(0);
+            if (cond == null || !CHECK.matcher(cond.text()).matches()) {
+                continue;
+            }
+            for (CCTsNode id : cond.descendants("identifier")) {
+                for (CCTsNode a : descendants("assignment")) {
+                    CCTsNode left = a.field("left");
+                    CCTsNode right = a.field("right");
+                    if (left != null && right != null && a.line() > check.line() && left.text().equals(id.text())
+                            && right.mentions(id.text()) && NORMALIZE.matcher(right.text()).matches()) {
+                        return a;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     /** A function or lambda that gives this parameter name a default value ({@code lambda x=x: ...}). */
     public boolean bindsByDefault(String name) {
         CCTsNode parameters = field("parameters");

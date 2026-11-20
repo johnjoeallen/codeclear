@@ -33,6 +33,8 @@ with open(path) as f: data = f.read()
 ## Implementation notes
 Python `ast`; equivalent Ruff `SIM115`, pylint `consider-using-with`. Anchor to the acquisition.
 
+Detected on `x = open(...)`, `socket.socket`, `subprocess.Popen`, `Session()`, `urlopen` and `requests.get(stream=True)` outside a `with`, and on a bare `lock.acquire()`, in a function with no `finally` that mentions `close`, `release`, `terminate`, `kill` or `wait`. A handle that the function returns or keeps on `self`, `ExitStack` and `closing` are skipped. An early `return` between acquisition and release is not looked for separately.
+
 ## AI prompt
 Question: "Is the resource released on success, failure and cancellation, or owned by a framework/caller that closes it?" Supply the function and callers. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 
