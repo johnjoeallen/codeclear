@@ -134,8 +134,8 @@ Structured concurrency (Java 25) is used to fan out parallel file-content fetche
 | analysis.diff | Unified diff parser and changed-line map |
 | analysis.source | File content resolver |
 | analysis.model | CCChangedFile, CCFinding, CCFindingCategory, and related types |
-| ai | CCAiReviewer interface, prompt builder, assessment parser, finding validator, instruction loader, redactor |
-| ai.copilot | GitHub Copilot reviewer implementation and `copilot.exe` process runner |
+| ai | CCAiReviewer, CCAiDriver interface and registry, prompt builder, assessment parser, finding validator, instruction loader, redactor |
+| ai.copilot | Copilot driver (`copilot.exe` process runner) |
 | publishing | CCPublisher interface, publishing service, post preview and result models |
 | credentials | Local credential store and model |
 | prefs | User preferences store |
@@ -290,21 +290,26 @@ The deviation assessment is only included in the final prompt when intent text i
 
 CC looks for a repo-level agent instruction file at `.codeClear/agent.md` and additional instruction files under `.codeClear/instructions/`. If absent, it falls back to defaults bundled in the JAR.
 
-### 7.4 AI Provider Abstraction
+### 7.4 AI Driver Abstraction
 
-Three implementations of CCAiReviewer are planned:
+Transport is separated from review logic by a **driver** layer. `CCAiDriver` is the only code that talks to an AI backend: it takes a `CCAiRequest` (system prompt, user prompt, optional model, working directory, timeout, JSON flag) and returns a `CCAiResponse` (text, model used, optional token counts, duration). It also reports readiness through `status()` for `/api/config/ai`.
 
-- **CCCopilotAiReviewer** — GitHub Copilot via the native `copilot.exe` CLI (the only fully implemented provider at launch; see 7.5)
-- **CCAnthropicAiReviewer** — Claude via HTTP API
-- **CCOpenAiCompatibleAiReviewer** — any OpenAI-compatible endpoint
+Prompt building, batching, assessment parsing and finding validation live in a single provider-neutral `CCAiReviewer` that calls whichever driver is active. Adding a backend means adding one driver class; nothing in the pipeline changes. Drivers are discovered as Spring beans by `CCAiDriverRegistry` and selected by id from configuration (`codeclear.ai.driver`).
 
-The active provider is selected by configuration. Provider-specific settings are kept in namespaced config sections.
+Planned drivers:
 
-### 7.5 Copilot Provider (`copilot.exe`)
+- **copilot** — runs the native `copilot.exe` CLI (the first driver implemented; see 7.5)
+- **anthropic** — Claude via the HTTP API
+- **openai** — OpenAI, and any OpenAI-compatible endpoint
 
-Copilot is integrated by launching the installed `copilot.exe` rather than calling an HTTP API:
+The reviewer may be asked to use a different driver per review (the UI's provider picker); settings for each driver live in a namespaced config section.
 
-- The reviewer spawns `copilot.exe` with `ProcessBuilder` in non-interactive (single prompt) mode, using the repo being reviewed as the working directory. The exact flags and output mode must be confirmed against the installed version.
+
+### 7.5 Copilot Driver (`copilot.exe`)
+
+The `copilot` driver launches the installed `copilot.exe` rather than calling an HTTP API:
+
+- The driver spawns `copilot.exe` with `ProcessBuilder` in non-interactive (single prompt) mode, using the repo being reviewed as the working directory. The exact flags and output mode must be confirmed against the installed version.
 - Authentication is owned by the CLI. CodeClear never sees Copilot tokens; `/api/config/ai` reports whether the executable was found and is signed in, and the UI shows setup guidance if not.
 - The CLI cannot enforce a JSON schema, so the prompt instructs the model to emit findings as JSON. The reviewer extracts and validates it through the existing assessment parser and finding validator, and retries once with a repair prompt on failure.
 - The executable path is configurable (default: resolved from `PATH`). Each prompt has a timeout (`prompt-timeout-seconds`); stdout and stderr are captured, and cancelling a review destroys the whole process tree.
@@ -499,6 +504,7 @@ CC is configured through the bundled application properties file. Values can be 
 | max-batches | 40 | Maximum batches per review |
 | full-file-max-chars | 48,000 | File content threshold; larger files are omitted from the prompt |
 | prompt-timeout-seconds | 300 | Per-prompt AI call timeout |
+| ai.driver | copilot | Default AI driver id (`copilot`, `anthropic`, `openai`) |
 | copilot.cli-path | `copilot.exe` | Path to the Copilot CLI; resolved from `PATH` by default |
 | default-scope | COMMITTED | Default diff scope for local-branch reviews |
 | agent-file | .codeClear/agent.md | Repo-level agent instruction file |
