@@ -57,7 +57,7 @@ class CCReviewCliTest {
     }
 
     private static CCReviewCli cli(CCRuleDefinition... rules) {
-        return new CCReviewCli(new CCReviewService(List.of(rules), ENGINE, NO_AI, "test"));
+        return new CCReviewCli(rulesDir -> new CCReviewService(List.of(rules), ENGINE, NO_AI, "test"));
     }
 
     private static final CCRuleDefinition EMPTY_CATCH_RULE = rule("java/empty-catch", CCRuleSeverity.MEDIUM, CCDetectionType.AST,
@@ -200,8 +200,46 @@ class CCReviewCliTest {
     }
 
     @Test
-    void frameworkSettingsPassedOnTheCommandLineAreNotRejected(@TempDir Path dir) throws Exception {
-        assertThat(run(cli(EMPTY_CATCH_RULE), project(dir), "--codeclear.rules-dir=/x", "--logging.level.root=ERROR").exit()).isZero();
+    void theRulesFolderIsResolvedAgainstTheWorkingDirectoryAndDefaultsToReview(@TempDir Path dir) throws Exception {
+        project(dir);
+        List<Path> seen = new ArrayList<>();
+        CCReviewCli cli = new CCReviewCli(rulesDir -> {
+            seen.add(rulesDir);
+            return new CCReviewService(List.of(EMPTY_CATCH_RULE), ENGINE, NO_AI, "test");
+        });
+
+        run(cli, dir, "src");
+        run(cli, dir, "src", "--rules=custom/rules");
+        run(cli, dir, "src", "--rules=/abs/rules", "--rules=/abs/last");
+
+        assertThat(seen).containsExactly(dir.resolve("review"), dir.resolve("custom/rules"), Path.of("/abs/last"));
+    }
+
+    @Test
+    void aMissingRulesFolderIsAnErrorNotAnEmptyReview(@TempDir Path dir) throws Exception {
+        project(dir);
+        CCReviewCli cli = new CCReviewCli(rulesDir -> CCCliMain.service(rulesDir));
+
+        Run r = run(cli, dir, "src", "--rules=nope");
+
+        assertThat(r.exit()).isEqualTo(CCReviewCli.USAGE);
+        assertThat(r.err()).contains("rules folder not found").contains("--rules=<dir>");
+    }
+
+    @Test
+    void settingsMeantForTheWebApplicationAreRejectedNowThatNoSpringStarts(@TempDir Path dir) throws Exception {
+        assertThat(run(cli(EMPTY_CATCH_RULE), project(dir), "--codeclear.rules-dir=/x").exit()).isEqualTo(CCReviewCli.USAGE);
+    }
+
+    @Test
+    void theRealRulesFolderWorksWithoutSpring(@TempDir Path dir) throws Exception {
+        project(dir);
+        CCReviewCli cli = new CCReviewCli(CCCliMain::service);
+
+        Run r = run(cli, dir, "src", "--rules=" + Path.of("review").toAbsolutePath());
+
+        assertThat(r.exit()).isZero();
+        assertThat(r.out()).contains("src/main/java/A.java:3", "java/empty-catch-block", "AI: dummy");
     }
 
     @Test

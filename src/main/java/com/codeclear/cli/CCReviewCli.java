@@ -47,7 +47,7 @@ public final class CCReviewCli {
                                   (default never)
               --config=<key=value>  a project configuration fact for cross-file rules, repeatable
                                   (for example --config=spring.jpa.open-in-view=false)
-              --rules=<dir>       the rules folder (default: the review folder next to the launcher)
+              --rules=<dir>       the rules folder (default: ./review; the launcher passes the one next to it)
               --show-skipped      list every rule that did not run, with the reason
               --help              show this text
 
@@ -55,12 +55,17 @@ public final class CCReviewCli {
             """;
 
     private static final Set<String> SKIPPED_DIRS = Set.of(".git", "target", "build", "node_modules", "out", ".idea", ".gradle");
-    private static final Set<String> FRAMEWORK_PREFIXES = Set.of("codeclear.", "spring.", "logging.", "server.");
 
-    private final CCReviewService service;
+    /** Builds the review service for a rules folder. Called once the options are valid, so bad usage never loads rules. */
+    @FunctionalInterface
+    public interface ServiceFactory {
+        CCReviewService create(Path rulesDir);
+    }
 
-    public CCReviewCli(CCReviewService service) {
-        this.service = service;
+    private final ServiceFactory factory;
+
+    public CCReviewCli(ServiceFactory factory) {
+        this.factory = factory;
     }
 
     /**
@@ -87,9 +92,7 @@ public final class CCReviewCli {
             return OK;
         }
         for (String name : options.keySet()) {
-            boolean known = Set.of("diff", "format", "fail-on", "config", "rules", "show-skipped").contains(name)
-                    || FRAMEWORK_PREFIXES.stream().anyMatch(name::startsWith);
-            if (!known) {
+            if (!Set.of("diff", "format", "fail-on", "config", "rules", "show-skipped").contains(name)) {
                 err.println("error: unknown option --" + name + "\n\n" + USAGE_TEXT);
                 return USAGE;
             }
@@ -131,7 +134,14 @@ public final class CCReviewCli {
             return USAGE;
         }
 
-        CCReviewResult result = service.review(new CCReviewRequest(files, config));
+        Path rulesDir = dir.resolve(last(options, "rules", "review")).normalize();
+        CCReviewResult result;
+        try (CCReviewService service = factory.create(rulesDir)) {
+            result = service.review(new CCReviewRequest(files, config));
+        } catch (IllegalArgumentException | IllegalStateException | java.io.UncheckedIOException e) {
+            err.println("error: " + e.getMessage());
+            return USAGE;
+        }
         out.print(format.equals("json") ? CCReviewReport.json(result) + "\n" : CCReviewReport.text(result, options.containsKey("show-skipped")));
         if (failOn != null) {
             for (CCReviewFinding f : result.findings()) {

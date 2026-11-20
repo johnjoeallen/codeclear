@@ -95,10 +95,20 @@ class LauncherScriptTest {
     }
 
     @Test
+    void anExplicitRulesFolderComesAfterTheDefaultSoItWins(@TempDir Path dir) throws Exception {
+        requireBash();
+        stubJava(dir, "openjdk version \"25.0.4\"");
+
+        String out = launch(dir, "review", "--rules=/mine", "src").output();
+
+        assertThat(out.indexOf("--rules=")).isLessThan(out.indexOf("--rules=/mine"));
+    }
+
+    @Test
     void theReviewRulesFolderIsPassedToTheJar(@TempDir Path dir) throws Exception {
         requireBash();
         stubJava(dir, "openjdk version \"25.0.4\"");
 
-        assertThat(launch(dir, "review", "src").output()).contains("--codeclear.rules-dir=").contains("review src");
+        assertThat(launch(dir, "review", "src").output()).contains("review --rules=").contains(" src");
     }
 }

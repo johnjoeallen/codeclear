@@ -33,8 +33,9 @@ fi
 if [[ "${1:-}" == "review" ]]; then
   RULES_DIR="${CODECLEAR_RULES:-$DIR/review}"
   EXTRA=()
-  [[ -d "$RULES_DIR" ]] && EXTRA+=("--codeclear.rules-dir=$RULES_DIR")
-  exec java -jar "$JAR" "$@" ${EXTRA[@]+"${EXTRA[@]}"}
+  [[ -d "$RULES_DIR" ]] && EXTRA+=("--rules=$RULES_DIR")
+  shift  # drop "review"; the default rules folder goes first so an explicit --rules=<dir> from the caller wins
+  exec java -jar "$JAR" review ${EXTRA[@]+"${EXTRA[@]}"} "$@"
 fi
 
 # 3. Copilot CLI is optional (only needed for the Copilot provider), so warn rather than fail.

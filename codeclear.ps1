@@ -39,8 +39,10 @@ if ($javaMajor -lt $RequiredJava) {
 if ($args.Count -gt 0 -and $args[0] -eq 'review') {
     $RulesDir = if ($env:CODECLEAR_RULES) { $env:CODECLEAR_RULES } else { Join-Path $Dir 'review' }
     $extra = @()
-    if (Test-Path $RulesDir) { $extra = @("--codeclear.rules-dir=$RulesDir") }
-    & java -jar $Jar @args @extra
+    if (Test-Path $RulesDir) { $extra = @("--rules=$RulesDir") }
+    # The default rules folder goes first so an explicit --rules=<dir> from the caller wins.
+    $rest = @($args | Select-Object -Skip 1)
+    & java -jar $Jar review @extra @rest
     exit $LASTEXITCODE
 }
 

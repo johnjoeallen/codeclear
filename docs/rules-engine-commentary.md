@@ -312,7 +312,10 @@ There is no review pipeline yet, so the baseline is the design as written: the A
   browser. The jar dispatches on the first argument and starts Spring without a web server; the launchers pass the
   bundled rules folder. Options: `--diff=<rev>` (only changed lines, from `git diff --unified=0 --relative`),
   `--format=text|json`, `--fail-on=<severity>`, `--config=k=v`, `--rules=<dir>`, `--show-skipped`, `--help`.
-- Tried end to end against a small project: two findings in about 0.9 s including startup, `--diff=HEAD` reduced it to
+- The command runs without Spring: `CodeClearApplication.main` hands `review` to `CCCliMain` before any Spring class is
+  used, so a small folder reviews in about 0.45 s (it was 0.9 s with a Spring context) and 191 files in 1.4 s. The
+  launchers pass the rules folder as `--rules=`, ahead of the caller's arguments so an explicit one wins.
+- Tried end to end against a small project: two findings in about 0.9 s including startup (before Spring was removed), `--diff=HEAD` reduced it to
   the one changed line, `--fail-on` gave exit codes 1 and 0, a bad option gave 2.
 - Not built: reading project configuration (`application.yml`, logback) into facts automatically, so cross-file rules rely
   on `--config` for now; non-Java languages; packaging the rules folder with the jar.

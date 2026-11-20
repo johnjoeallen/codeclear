@@ -63,8 +63,8 @@ The same launcher scripts run a review in the terminal, with no server and no br
 codeclear.sh review [options] [path ...]       (codeclear.ps1 review ... on PowerShell)
 ```
 
-The jar dispatches on the first argument: `review` starts the application without a web server, runs `CCReviewCli`
-through `CCReviewService`, prints the result and exits; anything else starts the web application. A path is a file or a
+The jar dispatches on the first argument: `review` runs `CCCliMain` and exits before Spring Boot is touched (no
+context, no web server; it loads the rules, reviews the target and prints), and anything else starts the web application. A path is a file or a
 folder (searched for `.java` files); the default is the current folder. Options are written `--name=value`:
 
 | Option | Meaning |
@@ -73,10 +73,10 @@ folder (searched for `.java` files); the default is the current folder. Options 
 | `--format=<text\|json>` | Terminal report (default) or the whole result as JSON |
 | `--fail-on=<level>` | Exit 1 when a finding has this severity or worse (`critical`, `high`, `medium`, `low`, `info`); default `never` |
 | `--config=<key=value>` | A project configuration fact for cross-file rules, repeatable (for example `spring.jpa.open-in-view=false`) |
-| `--rules=<dir>` | The rules folder; default is the `review` folder next to the launcher (`CODECLEAR_RULES` also sets it) |
+| `--rules=<dir>` | The rules folder; the launcher passes the `review` folder next to it (`CODECLEAR_RULES` changes that), and an explicit `--rules=` wins. Without the launcher the default is `./review` |
 | `--show-skipped` | List every rule that did not run, with the reason |
 
-Any `--codeclear.*`, `--spring.*` or `--logging.*` setting is passed through to the application. Exit codes: 0 reviewed,
+Exit codes: 0 reviewed,
 1 findings at or above `--fail-on`, 2 bad usage or an error (unknown option, missing path, nothing to review, git failure).
 With no AI backend the report says which rules were not checked and why; see 7.6.
 
