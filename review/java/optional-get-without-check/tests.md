@@ -183,6 +183,33 @@ class S {
 }
 ```
 
+## Case: guarded: assertThat(x).isPresent()
+
+covers: do-not-flag:isPresent
+
+```java path=src/main/java/S.java
+class S {
+  void f(Optional<User> a, Optional<User> b, Optional<User> c, Optional<User> d) {
+    assertThat(a).isPresent();
+    User ua = a.get();
+    assertThat(b).isPresent().isNotEmpty();
+    User ub = b.get();
+    assertThat(c).isNotEmpty();
+    User uc = c.get();
+    assertThat(d).isEmpty();
+    User ud = d.get();  // FLAG
+  }
+  void g(Optional<User> a, Optional<User> b) {
+    assertThat(b).isPresent();
+    User ua = a.get();  // FLAG
+  }
+  void h(Optional<User> a) {
+    User ua = a.get();  // FLAG
+    assertThat(a).isPresent();
+  }
+}
+```
+
 ## Case: guarded: continue in loop
 
 covers: do-not-flag:isEmpty-exit

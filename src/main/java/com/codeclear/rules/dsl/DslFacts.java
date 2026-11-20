@@ -246,6 +246,19 @@ final class DslFacts {
         return false;
     }
 
+    /** {@code assertThat(v).isPresent()}, also when more assertions are chained after it. */
+    private static boolean assertsPresent(Expression e, String v) {
+        boolean present = false;
+        for (Expression x = e; x instanceof MethodCallExpr c; x = c.getScope().orElse(null)) {
+            if (c.getNameAsString().equals("assertThat") && c.getArguments().size() == 1) {
+                return present && c.getArgument(0).toString().equals(v);
+            }
+            present |= c.getNameAsString().equals("isPresent") || c.getNameAsString().equals("isNotEmpty")
+                    && c.getArguments().isEmpty();
+        }
+        return false;
+    }
+
     private static boolean isGuarded(MethodCallExpr call, String v) {
         Node child = call;
         while (true) {
@@ -302,6 +315,9 @@ final class DslFacts {
                         return true;
                     }
                     if (s instanceof AssertStmt a && presentWhenTrue(a.getCheck(), v)) {
+                        return true;
+                    }
+                    if (s instanceof ExpressionStmt e && assertsPresent(e.getExpression(), v)) {
                         return true;
                     }
                 }

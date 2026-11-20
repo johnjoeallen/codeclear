@@ -15,7 +15,7 @@
 ## Detect
 A `.get()` call (or `getAsInt()`, `getAsLong()`, `getAsDouble()`) on an expression whose static
 type is `Optional`, `OptionalInt`, `OptionalLong` or `OptionalDouble`, when no dominating guard on that same variable appears earlier in the same method. A guard is an
-`isPresent()` / `isEmpty()` check (if, else, ternary, `&&`/`||`, or an earlier early-exit `if`), an `assert`,
+`isPresent()` / `isEmpty()` check (if, else, ternary, `&&`/`||`, or an earlier early-exit `if`), an `assert` or an earlier `assertThat(x).isPresent()` / `isNotEmpty()` statement,
 or an enclosing `ifPresent` / `ifPresentOrElse` lambda. When the variable is a method parameter, the callers in the project are followed (a few hops): the parameter is guarded when the method has callers and every one passes `Optional.of(...)` or a variable that is guarded at the call, or is itself a parameter whose callers all guard it. `orElse*` is not a guard: it does not prove presence.
 
 ## Do not flag

@@ -1,5 +1,5 @@
 // generated-from: review/java/optional-get-without-check/rule.md
-// rule-hash: ea620cfc905c1a71ba198b8d84c700bd3eb21b752058179ae336fb183e9eb249
+// rule-hash: ac03f73e34cc54e7e1cdb68198f070596873e865ecfd624ece106c661dfe0cd9
 // api-version: 1
 // generator: claude-sonnet-5-5   generated: 2026-11-21
 rule 'optional-get-without-check'
