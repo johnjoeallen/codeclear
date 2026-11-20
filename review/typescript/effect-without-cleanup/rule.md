@@ -33,6 +33,8 @@ useEffect(() => { const id = setInterval(poll, 1000); return () => clearInterval
 ## Implementation notes
 Anchor to the registration call. No standard ESLint rule covers all cases; use AST.
 
+One finding per `useEffect`/`useLayoutEffect`, anchored to the effect call and not to each registration. The effect callback is searched for `setInterval`, `setTimeout`, `addEventListener`, `.subscribe`, `new WebSocket` and `new EventSource`; the text of its top-level `return` must mention the matching release (`clearInterval`, `clearTimeout`, `removeEventListener`, `unsubscribe`, `close`). A `setTimeout` whose callback only calls `setX(...)`, a listener on an object created inside the effect, and a returned name or member (the subscription's own unsubscribe) are not flagged.
+
 ## Required tests
 Interval without cleanup (finding), interval with cleanup (no finding), listener without remove (finding), returned unsubscribe (no finding).
 

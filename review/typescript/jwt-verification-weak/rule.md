@@ -34,6 +34,8 @@ jwt.verify(token, key, { algorithms: ['RS256'], issuer: ISS, audience: AUD });
 ## Implementation notes
 Anchor to the verify/decode call.
 
+`jwt.decode` is flagged when its result is assigned to `req.`/`ctx.`/`res.locals`/`session`, returned, or (through a variable) used in an `if`, a return or such an assignment; a decode that is only logged or shown is not. `jwt.verify` is flagged for `ignoreExpiration: true`, an `algorithms` list that contains `none`, and no `algorithms` at all. `jwtVerify` is flagged for no `issuer` or `audience` when the file reads an `iss` or `aud` property. Options held in a variable or a spread are not looked into. Choosing the key from a `complete`-decoded `header.alg` is not detected.
+
 ## Required tests
 `decode` for auth (finding), `ignoreExpiration` (finding), pinned verify (no finding), `decode` for logging (no finding).
 

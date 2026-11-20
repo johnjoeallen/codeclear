@@ -10,7 +10,7 @@ import org.treesitter.TreeSitterPython;
 import org.treesitter.TreeSitterTypescript;
 
 /**
- * Parses Python and TypeScript (and JavaScript, which the TypeScript grammar reads) with tree-sitter into the
+ * Parses Python and TypeScript (and JavaScript, which the TypeScript grammar reads; JSX is not part of that grammar, so it becomes error nodes) with tree-sitter into the
  * {@link CCTsTree} the rules receive. The grammars are native libraries bundled in the jar for Linux, macOS and Windows.
  * Tree-sitter recovers from syntax errors, so a file with one is still analysed.
  *
@@ -24,7 +24,8 @@ public final class TreeSitterFileAnalyzer {
         if (p.endsWith(".py")) {
             return "python";
         }
-        if (p.endsWith(".ts") || p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs") || p.endsWith(".mts") || p.endsWith(".cts")) {
+        if (p.endsWith(".ts") || p.endsWith(".js") || p.endsWith(".mjs") || p.endsWith(".cjs") || p.endsWith(".mts") || p.endsWith(".cts")
+                || p.endsWith(".tsx") || p.endsWith(".jsx")) {
             return "typescript";
         }
         return null;

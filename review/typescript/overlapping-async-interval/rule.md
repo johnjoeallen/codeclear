@@ -33,6 +33,8 @@ const loop = async () => { try { await syncAll(); } finally { setTimeout(loop, 1
 ## Implementation notes
 Anchor to the `setInterval` call. Multi-replica duplication: see `scheduled-task-overlap-replicas`.
 
+Detected on `setInterval` with an inline `async` function or one that contains an `await`. A callback with an `if` that tests a name containing `running`, `busy`, `inflight`, `locked`, `pending` or `active` is treated as guarded. A callback passed by name is not followed.
+
 ## Required tests
 Async interval without guard (finding), guard flag (no finding), sync callback (no finding), recursive setTimeout (no finding).
 

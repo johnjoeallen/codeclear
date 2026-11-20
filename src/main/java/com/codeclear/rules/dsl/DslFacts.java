@@ -223,6 +223,9 @@ final class DslFacts {
             if (name.equals("child") && args.size() == 1 && args.get(0) instanceof String ty) {
                 return n.child(ty);
             }
+            if (name.equals("declaredAsNewIn") && args.size() == 1 && args.get(0) instanceof com.codeclear.rules.CCTsNode scope) {
+                return n.declaredAsNewIn(scope);
+            }
             if (name.equals("countOf") && args.size() == 1 && args.get(0) instanceof String id) {
                 return n.countOf(id);
             }
@@ -231,6 +234,9 @@ final class DslFacts {
             }
             if (name.equals("descendants") && args.size() == 1 && args.get(0) instanceof String ty) {
                 return n.descendants(ty);
+            }
+            if (name.equals("ancestors") && args.size() == 1 && args.get(0) instanceof String ty) {
+                return n.ancestors(ty);
             }
             if (name.equals("ancestor") && args.size() == 1 && args.get(0) instanceof String ty) {
                 return n.ancestor(ty);

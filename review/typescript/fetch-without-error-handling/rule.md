@@ -35,5 +35,7 @@ if (!res.ok) throw new Error(`HTTP ${res.status}`);
 ## Implementation notes
 `fetch` does not reject on HTTP errors, so check both the `ok` test and the catch.
 
+Detected on `fetch(...)` and `axios.*(...)`. A call is skipped when it is inside the `try` block of a `try` statement, has `.catch` on its chain, or is returned (or is an arrow function's expression body). A `fetch` is also skipped when its function mentions `ok` or `status` anywhere, which is how a status check is recognised. An `axios` call is flagged only when its function calls a `setXLoading`-style setter.
+
 ## Required tests
 Missing both (finding), `ok` check (no finding), `try/catch` plus `ok` (no finding), returned promise (no finding).

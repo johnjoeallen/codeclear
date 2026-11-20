@@ -33,6 +33,8 @@ const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
 ## Implementation notes
 Anchor to the call. Resolve same-file client instances for default options.
 
+Detected on `fetch`, `axios.<verb>`, `axios.create`, `got`, and `http.request`/`https.request`/`get` calls whose options object has no `timeout` or `signal` (a spread or a variable passed as the options is not looked into, so it is not flagged). A call on an `axios.create()` instance is not matched, so a client created with a timeout is never reported. A gRPC `deadline` is not checked. Browser-only code is recognised by path only: `.tsx`, `.jsx`, and folders called `public`, `client`, `frontend` or `browser`.
+
 ## Required tests
 `fetch` with no signal (finding), with `AbortSignal.timeout` (no finding), axios instance with `timeout` (no finding), axios call without (finding).
 

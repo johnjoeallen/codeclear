@@ -87,6 +87,17 @@ public final class CCTsNode implements CCModelNode {
         return null;
     }
 
+    /** Every ancestor of this type, nearest first. */
+    public List<CCTsNode> ancestors(String type) {
+        List<CCTsNode> out = new ArrayList<>();
+        for (TSNode p = node.getParent(); p != null && !p.isNull(); p = p.getParent()) {
+            if (p.getType().equals(type)) {
+                out.add(new CCTsNode(p, tree));
+            }
+        }
+        return out;
+    }
+
     /** The nearest ancestor with a type in the list, or null. */
     public CCTsNode ancestorOf(List<?> types) {
         for (TSNode p = node.getParent(); p != null && !p.isNull(); p = p.getParent()) {
@@ -174,6 +185,21 @@ public final class CCTsNode implements CCModelNode {
         }
         for (CCTsNode c : root.descendants("comment")) {
             if (c.line() == endLine() || c.endLine() == line() - 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** This is an identifier that a variable declaration inside {@code scope} initialises with a {@code new} expression. */
+    public boolean declaredAsNewIn(CCTsNode scope) {
+        if (!type().equals("identifier")) {
+            return false;
+        }
+        for (CCTsNode d : scope.descendants("variable_declarator")) {
+            CCTsNode name = d.field("name");
+            CCTsNode value = d.field("value");
+            if (name != null && value != null && name.text().equals(text()) && value.type().equals("new_expression")) {
                 return true;
             }
         }

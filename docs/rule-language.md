@@ -172,8 +172,7 @@ of a secret.
 
 A `.py` file is parsed with tree-sitter's Python grammar, and a `.ts`, `.js`, `.mjs`, `.cjs`, `.mts` or `.cts` file with its
 TypeScript grammar (which reads JavaScript too). The grammars are native libraries bundled in the jar for Linux, macOS and
-Windows; a file with a syntax error still gives a tree. `.tsx` and `.jsx` are read with the TypeScript grammar, which has no JSX,
-so the JSX in them becomes error nodes. A rule iterates the grammar's own node type as the kind, for example
+Windows; a file with a syntax error still gives a tree. `.tsx` and `.jsx` are read with the TypeScript grammar too, which has no JSX, so the JSX in them becomes error nodes. A rule iterates the grammar's own node type as the kind, for example
 `except_clause.each { c -> ... }` or `call_expression.each { c -> ... }`, or `Node.each` for every named node (then test
 `n.type in ['a', 'b']`). `x instanceof type_name` and `x.inside(type_name)` take a grammar type too.
 
@@ -187,9 +186,11 @@ so the JSX in them becomes error nodes. A rule iterates the grammar's own node t
 | `n.field('body')` | the child the grammar gives that field name, or missing |
 | `n.child('block')` | the first named child of that type, or missing |
 | `n.descendants('call')` | every node below with that type, in source order |
+| `n.ancestors('call_expression')` | every ancestor with that type, nearest first |
 | `n.ancestor('try_statement')`, `n.ancestorOf(['a', 'b'])` | the nearest ancestor with that type, or with one of those types |
 | `c.args`, `c.positional` | the arguments of a call, and those that are not `name=value` or a `*`/`**` splat |
 | `c.arg(0)`, `c.keyword('timeout')` | the i-th positional argument, and the value of the keyword argument, or missing |
+| `id.declaredAsNewIn(scope)` | the identifier is declared inside `scope` with a `new` expression |
 | `n.countOf('name')` | how many identifiers with that text are at or below the node |
 | `n.mentions('name')` | an identifier with that text appears at or below the node |
 | `n.hasNearbyComment` | a comment starts on the last line of the node, or ends on the line above its first |
