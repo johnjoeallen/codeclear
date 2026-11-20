@@ -38,6 +38,8 @@ async def run():
 Resolve only same-module `async def` names; cross-module resolution needs the AI reviewer (`hybrid`).
 Equivalent: Ruff `RUF006` for discarded tasks, pyflakes-style `RuntimeWarning: coroutine was never awaited`.
 
+Detected on an expression statement that is a call to `asyncio.sleep`, `gather`, `wait_for`, `wait` or `shield`, or to a name that the same module defines with `async def` (a method called on `self` is matched by its name). A discarded `create_task`/`ensure_future` is reported as a task nobody holds. A coroutine that is returned, stored or passed on is not an expression statement, so it is not flagged.
+
 ## AI prompt
 Question: "Is this call's result a coroutine that is neither awaited, scheduled, stored nor returned, so its work and exceptions are lost?" Supply the call, the callee definition (cross-module if needed) and the enclosing function. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

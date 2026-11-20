@@ -33,6 +33,8 @@ r = requests.get(url, timeout=3); r.raise_for_status(); return r.json()
 ## Implementation notes
 Python `ast` intraprocedural flow; anchor to the `.json()` use.
 
+Detected on a variable assigned from `requests.<verb>`, `httpx.<verb>`, or a `<name>session`/`<name>client` call, when the function reads `.json`, `.text` or `.content` of it and mentions none of `raise_for_status`, `status_code`, `status` or `ok` anywhere; a file that mentions `raise_for_status` is treated as configuring it. `aiohttp` responses (`async with ... as resp`) and gRPC are not detected.
+
 ## AI prompt
 Question: "Can the remote return a non-2xx response here, and does the caller treat the error payload as valid data or as success?" Supply the call, client configuration/hooks and consumer of the result. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

@@ -231,6 +231,21 @@ public final class CCTsNode implements CCModelNode {
         return n;
     }
 
+    /** A function or lambda that gives this parameter name a default value ({@code lambda x=x: ...}). */
+    public boolean bindsByDefault(String name) {
+        CCTsNode parameters = field("parameters");
+        if (parameters == null) {
+            return false;
+        }
+        for (CCTsNode d : parameters.descendants("default_parameter")) {
+            CCTsNode n = d.field("name");
+            if (n != null && n.text().equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The previous named sibling, or null. */
     public CCTsNode previous() {
         TSNode s = node.getPrevNamedSibling();

@@ -31,6 +31,8 @@ password = os.environ["DB_PASSWORD"]
 ## Implementation notes
 Python `ast` for assignments/keywords plus regex on literals; entropy filter optional. Equivalent: Bandit `B105`-`B107`, gitleaks.
 
+Detected on strings and on assignments, keyword arguments and default parameters. A secret-named target (including `self.password`) with a literal string of 8 or more characters, the known formats (AWS key, PEM header, Slack and GitHub tokens), and connection strings with `user:pass@`. Names that end in `count`, `length`, `type`, `url`, `file`, `path`, `name`, `id`, `header` and similar are labels, and dictionary keys are not looked at. Placeholder words skip a value.
+
 ## AI prompt
 Question: "Is this literal a real credential (not a placeholder, hash, public identifier or test value)?" Supply the line, surrounding assignment and file path. Report only with a concrete exposed credential; otherwise NO_FINDING.
 

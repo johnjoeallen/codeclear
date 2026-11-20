@@ -35,6 +35,8 @@ for o in orders:
 ## Implementation notes
 Python `ast` scope analysis. Equivalent: Ruff `B023`. Anchor to the closure.
 
+Detected on a `lambda` or nested `def` inside a `for` loop whose body uses a loop variable that is not bound by a default argument, when the function is passed to `on_commit`, `add_done_callback`, `call_soon`, `call_later`, `submit`, `create_task`, `append`, `add`, `register`, `Thread(target=...)`, `Timer`, or is assigned or stored in a literal. `while` loops and names assigned in the loop body are not tracked. `functools.partial` is another call, so it is never matched.
+
 ## AI prompt
 Question: "Does the callback run after the loop variable changes, so that it processes the wrong item?" Supply the loop and the API receiving the callback. Report only with a concrete trigger scenario; otherwise NO_FINDING.
 

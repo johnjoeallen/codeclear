@@ -230,6 +230,9 @@ final class DslFacts {
             if (name.equals("declaredAsNewIn") && args.size() == 1 && args.get(0) instanceof com.codeclear.rules.CCTsNode scope) {
                 return n.declaredAsNewIn(scope);
             }
+            if (name.equals("bindsByDefault") && args.size() == 1 && args.get(0) instanceof String id) {
+                return n.bindsByDefault(id);
+            }
             if (name.equals("countOf") && args.size() == 1 && args.get(0) instanceof String id) {
                 return n.countOf(id);
             }
