@@ -1,6 +1,6 @@
 # Review rules
 
-One Markdown file per rule. Each file is the input for an AI generator that produces a
+One folder per rule, with the Markdown rule file in it. Each file is the input for an AI generator that produces a
 deterministic detector and its tests. See `docs/ai-generated-deterministic-checks.md`.
 
 ## Folders
@@ -16,7 +16,14 @@ deterministic detector and its tests. See `docs/ai-generated-deterministic-check
 
 ## Naming
 
-`<rule-id>.md`, kebab-case, unique within a folder. The finding id is `<folder>/<rule-id>`.
+Each rule has its own folder, `<folder>/<rule-id>/`, with kebab-case rule ids unique within a language folder. The finding id is `<folder>/<rule-id>`.
+
+```
+review/java/empty-catch-block/
+  rule.md         the rule (source of truth)
+  rule.groovy     generated detector (executable rules only)
+  tests.json      generated cases (executable rules only)
+```
 
 ## Template
 
@@ -56,7 +63,7 @@ The cases the generator must produce.
 
 Rules of type `ast`, `regex`, `linter` and `hybrid` run as Groovy scripts through the Java scripting
 API (JSR-223), with a sandbox and a read-only `CodeModel`. Each has two files beside the rule:
-`<rule-id>.groovy` (the detector) and `<rule-id>.tests.json` (cases). `ai` rules have neither.
+`rule.groovy` (the detector) and `tests.json` (cases) in the rule's folder. `ai` rules have neither.
 The tool regenerates a script automatically when its rule file changes (the script header holds a
 `rule-hash`). See `docs/ai-generated-deterministic-checks.md#script-engine` and `#generation-workflow`.
 

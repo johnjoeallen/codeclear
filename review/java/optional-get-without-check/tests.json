@@ -1,0 +1,379 @@
+{
+  "rule": "java/optional-get-without-check",
+  "api-version": 1,
+  "prelude": "import java.util.*; import java.util.concurrent.*; import java.util.concurrent.atomic.*; import java.util.function.*; class User {} interface UserRepo { Optional<User> findById(long id); }",
+  "cases": [
+    {
+      "name": "chained findById().get() (Examples: Flag)",
+      "covers": [
+        "example:flag",
+        "required:chained-get"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = repo.findById(id).get();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "orElseThrow (Examples: OK)",
+      "covers": [
+        "example:ok",
+        "required:orElseThrow"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = repo.findById(id).orElseThrow(() -> new IllegalStateException());\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "get on parameter with no guard",
+      "covers": [
+        "detect:get"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = o.get();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "guarded: if (isPresent) then-branch",
+      "covers": [
+        "do-not-flag:isPresent",
+        "required:isPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isPresent()) {\n      User u = o.get();\n    }\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: isEmpty then return",
+      "covers": [
+        "do-not-flag:isEmpty-exit"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isEmpty()) return;\n    User u = o.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: isEmpty then throw",
+      "covers": [
+        "do-not-flag:isEmpty-exit"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isEmpty()) { throw new IllegalStateException(); }\n    User u = o.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: !isPresent then throw",
+      "covers": [
+        "do-not-flag:isEmpty-exit"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (!o.isPresent()) throw new IllegalStateException();\n    User u = o.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: else branch of isEmpty",
+      "covers": [
+        "do-not-flag:isEmpty-exit"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isEmpty()) { n = 1; } else { User u = o.get(); }\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: ternary",
+      "covers": [
+        "do-not-flag:isPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = o.isPresent() ? o.get() : null;\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: && short circuit",
+      "covers": [
+        "do-not-flag:isPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    boolean b = o.isPresent() && o.get() != null;\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: || short circuit with isEmpty",
+      "covers": [
+        "do-not-flag:isEmpty-exit"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    boolean b = o.isEmpty() || o.get() != null;\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: inside ifPresent lambda",
+      "covers": [
+        "do-not-flag:ifPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    o.ifPresent(x -> System.out.println(o.get()));\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: assert isPresent",
+      "covers": [
+        "do-not-flag:isPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    assert o.isPresent();\n    User u = o.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: continue in loop",
+      "covers": [
+        "do-not-flag:isEmpty-exit"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    for (int i = 0; i < 3; i++) {\n      if (o.isEmpty()) continue;\n      User u = o.get();\n    }\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "guarded: conjunction of two conditions",
+      "covers": [
+        "do-not-flag:isPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (n > 0 && o.isPresent()) { User u = o.get(); }\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "get before the guard",
+      "covers": [
+        "detect:earlier-guard"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = o.get();\n    if (o.isPresent()) { n = 1; }\n  }\n}\n",
+      "expect": [
+        {
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "guard on a different variable",
+      "covers": [
+        "detect:same-variable"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    Optional<User> p = Optional.empty();\n    if (p.isPresent()) { User u = o.get(); }\n  }\n}\n",
+      "expect": [
+        {
+          "line": 5
+        }
+      ]
+    },
+    {
+      "name": "isPresent checked but get is outside the guarded branch",
+      "covers": [
+        "detect:dominating"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isPresent()) { n = 1; }\n    User u = o.get();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 5
+        }
+      ]
+    },
+    {
+      "name": "isEmpty without early exit",
+      "covers": [
+        "detect:dominating"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isEmpty()) { n = 1; }\n    User u = o.get();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 5
+        }
+      ]
+    },
+    {
+      "name": "get in the wrong branch of isPresent",
+      "covers": [
+        "detect:dominating"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (o.isPresent()) { n = 1; } else { User u = o.get(); }\n  }\n}\n",
+      "expect": [
+        {
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "OptionalInt.getAsInt unguarded",
+      "covers": [
+        "detect:optional-primitives"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    int x = oi.getAsInt();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "OptionalInt.getAsInt guarded",
+      "covers": [
+        "do-not-flag:isPresent"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    if (oi.isPresent()) { int x = oi.getAsInt(); }\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "Future.get is not an Optional",
+      "covers": [
+        "do-not-flag:Future",
+        "required:Future"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    Future<User> fut = null;\n    User u = fut.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "Supplier.get is not an Optional",
+      "covers": [
+        "do-not-flag:Supplier"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    Supplier<User> sup = null;\n    User u = sup.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "AtomicReference.get is not an Optional",
+      "covers": [
+        "do-not-flag:AtomicReference"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    AtomicReference<User> ref = new AtomicReference<>();\n    User u = ref.get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "Map.get is not an Optional",
+      "covers": [
+        "do-not-flag:non-optional"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    Map<String, User> m = new HashMap<>();\n    User u = m.get(\"k\");\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "test source (Do not flag: tests)",
+      "covers": [
+        "do-not-flag:test-source"
+      ],
+      "path": "src/test/java/STest.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = repo.findById(id).get();\n  }\n}\n",
+      "expect": []
+    },
+    {
+      "name": "unresolved repository type: heuristic, LOW confidence",
+      "covers": [
+        "detect:fallback-heuristic"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    User u = repo.findById(id).get();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 4,
+          "confidence": "LOW"
+        }
+      ],
+      "prelude": "import com.acme.UserRepo;"
+    },
+    {
+      "name": "unresolved receiver, no Optional signal: no finding",
+      "covers": [
+        "detect:fallback-heuristic"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    Object x = thing.get();\n  }\n}\n",
+      "expect": [],
+      "prelude": "import com.acme.UserRepo;"
+    },
+    {
+      "name": "unresolved declared Optional variable: heuristic, LOW",
+      "covers": [
+        "detect:fallback-heuristic"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  UserRepo repo; Thing thing; int n;\n  void f(long id, Optional<User> o, OptionalInt oi) throws Exception {\n    Optional<Missing> m = lookup();\n    Object x = m.get();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 5,
+          "confidence": "LOW"
+        }
+      ],
+      "prelude": "import com.acme.UserRepo;"
+    },
+    {
+      "name": "OptionalLong.getAsLong unguarded",
+      "covers": [
+        "detect:optional-primitives"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  void f(OptionalLong ol) {\n    long x = ol.getAsLong();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "OptionalDouble.getAsDouble unguarded",
+      "covers": [
+        "detect:optional-primitives"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  void f(OptionalDouble od) {\n    double x = od.getAsDouble();\n  }\n}\n",
+      "expect": [
+        {
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "resolved Optional from a method not on the producer-name list",
+      "covers": [
+        "detect:get"
+      ],
+      "path": "src/main/java/S.java",
+      "source": "class S {\n  R r;\n  void f(long id) {\n    User u = r.lookup(id).get();\n  }\n}\ninterface R { Optional<User> lookup(long id); }\n",
+      "expect": [
+        {
+          "line": 4
+        }
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "from": "chained findById().get() (Examples: Flag)",
+      "to": "orElseThrow (Examples: OK)"
+    },
+    {
+      "from": "get on parameter with no guard",
+      "to": "guarded: if (isPresent) then-branch"
+    },
+    {
+      "from": "get on parameter with no guard",
+      "to": "guarded: isEmpty then return"
+    }
+  ]
+}

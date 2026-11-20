@@ -37,7 +37,7 @@ review, at run time**, with no model call.
 
 ```mermaid
 flowchart LR
-    R[Rule file<br/>review/lang/rule.md] --> G[AI generator]
+    R[Rule file<br/>review/lang/id/rule.md] --> G[AI generator]
     G --> D[Detector code]
     G --> T[Positive and negative tests]
     D --> CI[Human review + CI]
@@ -56,7 +56,7 @@ compiled Java. Rules can be added or changed without rebuilding the JAR. See
 
 ## Rule Files
 
-Each rule is one Markdown file at `review/<language>/<rule-id>.md`. It is the single source of
+Each rule has its own folder, `review/<language>/<rule-id>/`, and `rule.md` in it is the single source of
 truth for both the generated detector and its tests.
 
 | Folder | Applies to |
@@ -86,10 +86,13 @@ Rules should be written so that a generator needs no further interpretation.
 Executable rules (`ast`, `regex`, `linter`, `hybrid`) have two companion files next to the rule:
 
 ```
-review/java/lost-update-read-modify-write.md        rule (source of truth)
-review/java/lost-update-read-modify-write.groovy    generated detector
-review/java/lost-update-read-modify-write.tests.json  cases: source snippet, expected findings
+review/java/empty-catch-block/rule.md       rule (source of truth)
+review/java/empty-catch-block/rule.groovy   generated detector
+review/java/empty-catch-block/tests.json    cases: source snippet, expected findings
 ```
+
+An `ai` rule's folder holds only `rule.md`. The rule id is the folder name, so the finding id stays
+`<folder>/<rule-id>`.
 
 `ai` rules have no script. The detection type in the rule file is now a statement about the
 *mechanism* the script uses (parse the tree, match text, wrap a linter) and about whether the AI
@@ -113,7 +116,7 @@ JDK 25 has no built-in script engine (Nashorn was removed in JDK 15), so the too
 The engine parses the file and passes the tree to the script. A script receives these bindings and returns a list of results:
 
 ```groovy
-// review/java/empty-catch-block.groovy
+// review/java/empty-catch-block/rule.groovy
 def results = []
 ast.findAll(CatchClause).each { c ->
     if (c.body.isEmpty() && !c.hasComment() && !c.catchesTypes('InterruptedException')) {
@@ -129,7 +132,7 @@ return results
 | `model` | Read-only `CodeModel` facade for the project: resolved symbols, other files, config (below) |
 | `file` | Read-only file info: `path`, `language`. Used for path rules such as test sources |
 | `diff` | `ChangedLineMap` for the file |
-| `finding(line, message)` | Returns a finding. Used by `ast`, `regex` and `linter` rules |
+| `finding(line, message[, confidence])` | Returns a finding. Used by `ast`, `regex` and `linter` rules. The optional confidence lowers it below the rule's own, e.g. `'LOW'` when a type could not be resolved |
 | `candidate(line, evidence...)` | Returns a candidate. Used by `hybrid` rules, which pass it to the AI with the rule's `AI prompt` |
 
 The engine drops any result whose line is not a changed line, applies the severity cap from the rule
@@ -144,7 +147,7 @@ without the AI.
 
 | Facade | Answers |
 |---|---|
-| Symbol-resolved syntax tree | types, annotations, call targets, statement order (JavaParser with symbol solver; tree-sitter for Python and TypeScript) |
+| Symbol-resolved syntax tree | types, annotations, call targets, statement order (JavaParser with symbol solver; tree-sitter for Python and TypeScript). `model.typeOf(expr)` returns the qualified type name, or `null` when it cannot be resolved |
 | Call graph and type hierarchy | callers, "is this a listener or `@ExceptionHandler` boundary" |
 | Framework model | JPA entities (fetch type, `@Version`), `@Transactional` scope, security config, Kafka and Rabbit container settings, parsed from `application.yml` and `@Configuration` classes |
 | Lock and flow facts | lock acquisition order, try/finally, resource closing |
@@ -174,7 +177,7 @@ sandbox of its own, so the engine adds one:
 
 ### Testing
 
-`<rule>.tests.json` holds snippets and expected findings (line, rule id). A test runner loads the
+`tests.json` in the rule's folder holds snippets and expected findings (line, rule id). A test runner loads the
 script, runs each case through the engine, and asserts the result. It is the "Required tests"
 section of the rule file in executable form, and it is what the mutation and determinism checks
 in [Quality Controls](#quality-controls) run on.
@@ -250,7 +253,7 @@ coverage was reduced.
 Each generated script starts with a header:
 
 ```groovy
-// generated-from: review/java/empty-catch-block.md
+// generated-from: review/java/empty-catch-block/rule.md
 // rule-hash: 3f9c...      sha-256 of the generation-relevant sections
 // api-version: 1
 // generator: <model id>   generated: 2026-11-20

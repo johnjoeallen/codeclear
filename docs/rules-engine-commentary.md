@@ -1,0 +1,235 @@
+# Rules Engine: Running Commentary
+
+A running log of decisions, discoveries, recommendations and open questions while designing the
+script-based rule engine. Newest entries go at the bottom of each section. The formal design lives in
+`ai-generated-deterministic-checks.md`; this file records the reasoning and what we learned.
+
+## Table of Contents
+
+- [Decisions](#decisions)
+- [Discoveries](#discoveries)
+- [Recommendations](#recommendations)
+- [Open questions](#open-questions)
+- [Log](#log)
+
+## Decisions
+
+| # | Decision | Made |
+|---|---|---|
+| D1 | Deterministic and hybrid rules run their deterministic part as scripts through the Java scripting API (JSR-223). | 2026-11-20 |
+| D2 | The script language is Groovy (`groovy-jsr223`). | 2026-11-20 |
+| D3 | The core engine parses the source and passes the AST to the script. Scripts never parse files. | 2026-11-20 |
+| D4 | When a rule `.md` changes, the AI regenerates its script. | 2026-11-20 |
+| D5 | The tool regenerates stale scripts itself at review time, using the same AI driver as the review, because the AI is already required for `ai` and `hybrid` rules. | 2026-11-20 |
+| D6 | Every rule has its own folder, `review/<lang>/<id>/`, holding `rule.md`, `rule.groovy` and `tests.json`. | 2026-11-20 |
+
+## Discoveries
+
+### Rule inventory (from `review/INDEX.md`)
+
+- 320 rules: 59 deterministic, 113 hybrid, 148 AI-only. By folder: java 85, typescript 107, python 94,
+  common 19, sql 9, config 6.
+- The AI is doing three different jobs, and only one needs a model:
+  1. **Context lookup** (largest group): the rule's `Detect` and `Do not flag` sections are already
+     nearly executable, but the detector sees one file or method. The AI is asked to check things such
+     as `@Version`, `open-in-view`, container ack mode, security config, or whether a catch is at a
+     legitimate boundary. These are computable from a project-wide model.
+  2. **Intent**: the syntax is deterministic and the AI decides whether the outcome was meant
+     (`transactional-rollback-mismatch`, `lost-error-detail`, `floating-point-money`). These can emit
+     at lower confidence and severity instead of calling the model.
+  3. **Genuine semantic judgement**: comments versus code, log wording, log level, test quality.
+     These stay with the AI.
+- Rough estimate, from reading about 15 of the 261 `hybrid` and `ai` files and skimming the Java
+  titles, **not a measurement**: about 70-80% of `hybrid` and 30-40% of Java `ai` rules could become
+  fully deterministic with a code model. The comment, log-wording and test-quality rules (about 25-30
+  per language) stay AI.
+- A lock-ordering deadlock, lost update, lazy-loading outside a session and a missing endpoint
+  authorization are all decidable by queries over a call graph, entity model and parsed config.
+
+### Environment
+
+- JDK 25 has no built-in script engine (Nashorn was removed in JDK 15), so an engine must be bundled.
+- Groovy 4.0.x and JavaParser (core and symbol solver) are in the local Maven repository. The
+  `sdkman` Groovy CLI is too old for JDK 25 (`Unsupported class file major version 69`); run scripts
+  with the Groovy 4.0.30 jar from the Maven repository instead.
+- `pom.xml` has no Groovy or JavaParser dependency yet.
+- No rule file mentioned scripting before this work; `docs/design.md` has no JSR-223 reference.
+
+### From writing and running real scripts
+
+Two scripts exist: `java/empty-catch-block` and `java/optional-get-without-check`. Both pass their
+tests in a throwaway harness (not the real engine: no sandbox, no coverage-label check, no
+changed-line filter).
+
+- **Groovy scope trap.** Local variables are not visible inside script-level methods
+  (`MissingPropertyException: No such property: QUIET_LEVELS`). First generated attempt failed on it.
+  Rewriting the helper as a closure fixed it. Generator prompts should say: use closures, not script
+  methods, for helpers that read script-level locals. This is exactly the failure class the
+  test-and-retry loop in the acceptance gate is for.
+- **The contract grew from usage.** Writing real rules showed the bindings needed `file` (path and
+  language, for test-source exclusion), a `model.typeOf(expr)` call, and an optional confidence
+  argument on `finding(...)`. Expect more additions; the `api-version` header exists for this reason.
+- **Tests can be checked for teeth.** Deliberately breaking `optional-get-without-check` three ways
+  (drop the guard check, drop the type check, drop the abrupt-exit requirement) failed the expected
+  tests each time. Worth automating as part of the acceptance gate (mutation testing of the script,
+  not only of the examples).
+- **Type resolution decides the confidence.** With a resolved type, `Future.get()`, `Supplier.get()`,
+  `Map.get()` and friends are excluded exactly. With an unresolved type the script has to fall back to
+  names (`findById`, `Optional<...>` declarations) and report `LOW`. This confirms the rule's own
+  note and means classpath resolution quality directly sets false-positive and false-negative rates.
+- **Rule text can be wrong.** `optional-get-without-check` lists `ifPresent` and `orElse*` as guards,
+  but `orElse` proves nothing about presence. The generator had to pick an interpretation. The
+  generation step will not catch this kind of mistake; only a human reading the rule will. See R6.
+- **Dominance matters.** Naive "an `isPresent` appears earlier" checks give false negatives. Real
+  checks needed: then/else branch, early exit (`return`/`throw`/`continue`/`break`), ternary,
+  short-circuit `&&`/`||`, `assert`, and `ifPresent` lambdas, all on the same variable.
+- **Known limitation.** A variable reassigned between the guard and the call is not tracked.
+
+### Groovy sandbox (built and tested)
+
+- `GroovyRuleDetector` and `CCRuleSandbox` exist with 54 tests (about 32 forbidden-script cases). The sandbox is
+  best effort: a class allowlist, method and property name denylists, no computed names, no annotations, `@Grab`
+  disabled, extra imports and static imports rejected, `ThreadInterrupt` plus a worker-thread timeout.
+- **Not a security boundary.** No in-JVM boundary exists on JDK 25. JavaParser mutators other than the denylisted
+  ones stay callable.
+- **The timeout reports but cannot stop a catastrophic `java.util.regex` match** (verified with `(.*a){12}`;
+  `(a+)+$` did not blow up on this JDK). A linear-time engine (RE2/J, already in the local Maven repo) fixes it for
+  rules that use regex through the host, but not for a script that calls `java.util.regex` directly.
+
+### Alternative: a restricted rule language (the Distill idea from `../arete`)
+
+- Arete's Distill is a single-expression language with no locals or recursion over an immutable fact model, using
+  RE2/J. Its history went Groovy, then Starlark, then Distill. Measured about 4-5 times faster than compiled
+  Groovy and 5-6 times slower than hand-written Java.
+- **Core insight:** safety comes from moving all computation into trusted, host-built facts, so rules become thin
+  queries over them.
+- **Tiers of the 172 executable rules**, classified by hand from the Detect sections (TypeScript and Python tiers
+  are less certain: only 300 characters read; the 148 AI-only rules were not analysed):
+
+  | Tier | Rules | Needs |
+  |---|---|---|
+  | 0 | 19 (11%) | node kind, attributes, linear-time regex, list and glob membership |
+  | 1 | 68 (40%) | adds inside/contains, sibling order, absence, counts, per-file aggregation, text similarity |
+  | 2 | 75 (44%) | host-supplied facts: taint (about 13 rules), types (15), framework classification (12), def-use (12), guards (8), project/config lookup |
+  | 3 | 10 (6%) | path-sensitive flow, call graph, two-version diff, external linters |
+
+  Tiers 0 and 1 (87 rules, 51%) need only a pure query language over the syntax tree. Tier 3 should be host
+  analyzers or stay with the AI.
+
+### Experiment: the two Groovy rules in a restricted language (test scope only)
+
+Code under `src/test/java/com/codeclear/rules/dsl/`, rules under `src/test/resources/dsl/`.
+
+- Both rules pass their existing `tests.json` unchanged: 17 and 33 cases. Size: 53 to 15 lines and 160 to 22. The
+  90 lines of guard logic in `optional-get-without-check` became one host fact, `c.guarded(recv, present)`,
+  reusable by about 8 other rules.
+- **Findings that changed the design:** statement wrappers must be explicit (`ExprStmt.expression`; the Groovy had
+  hidden this); `let` must be lazy and a field known on another node kind must read as missing (found when a
+  generated rule failed on `declaredType` of a `Call`); first matching `flag` wins per node because `all` over an
+  empty list is true.
+- **Automatic mutation testing works** because rules are data: delete a clause, drop an `and`/`or` operand, negate
+  a leaf test. 43 mutants initially, 11 survived: 5 real test gaps (`getAsLong`, `getAsDouble`, `OptionalLong`,
+  `OptionalDouble`, no resolved-Optional-with-unlisted-method case), 5 redundant clauses, 1 message-only. After
+  adding the missing tests, 5 survive, all redundant or equivalent. The same gaps existed in the Groovy tests.
+- **Not yet shown:** the language on a tier 2 rule, its speed, or a real RE2/J engine. The schema was designed
+  around these two rules.
+
+### Experiment: can an AI write the language from a grammar page
+
+Fresh Sonnet 5.5 agents, one shot, given only a grammar page and `rule.md`. 3 attempts per rule. Test results
+decide pass or fail; the tests are held out from the generator.
+
+- **Syntax is not the risk.** All attempts parsed, including predicates, ternary confidence and a regex.
+- **Round 0:** `empty-catch-block` 3/3 passed all 16 cases; `optional-get-without-check` 0/3 (29, 29, 28 of 30).
+  Every `optional-get` miss was one case: the rule text said "naming heuristic" without naming the producer
+  methods. A spec gap, not generator error. One attempt also hit the eager-`let` bug.
+- **Two of three `empty-catch` attempts exempted every `InterruptedException`**, where the rule exempts only a
+  catch that restores the interrupt flag. No test caught it, and the exemption was inert only because of a bug in
+  the experiment (`Param.type` returned a node but the grammar said text, so the `==` never matched). After fixing
+  that, a new test case caught it.
+- **Round 1** (grammar, `rule.md` and tests corrected): `optional-get` 3/3 pass all 33; `empty-catch` 1/3 pass
+  (the same two attempts repeated the `InterruptedException` exemption).
+- **Retry with gate feedback** (the failing case source, expected and actual): both fixed it in one round. One
+  implemented the rule properly (exempt only when the body calls `interrupt()`); the other deleted the exemption.
+- **Conclusion:** failures came from vague rule text and untested exclusions, not syntax. A generator that sees
+  the failing case fixes itself, so the gate's test coverage is the real control. Caveats: two rules, N=3, easy
+  rules, schema built for them, and hand-written tests decided pass or fail.
+
+### Model choice (prices from the API reference cached 2026-11-03; token volumes are assumptions)
+
+- Two different jobs. **Rule generation and regeneration:** Sonnet 5.5 first, escalate to Opus 5.5 when the gate
+  fails (the gate is a machine-checkable signal, so a cascade is safe), Fable 5.2 only for repeat failures; use the
+  Batch API. About $55 (Sonnet 5.5) to $110 (Opus 5.5) to generate all 172 scripts at 2 attempts each.
+- **Review-time calls:** Sonnet 5.5 default; test Haiku 5.5 on the hybrid "confirm or drop this candidate"
+  prompts. Do not build a cascade before measuring one model at lower effort: a review verdict has no automatic
+  check and caches are per model.
+- The 148 `ai` rules carry 548 `Evaluation cases`, a ready-made eval set for choosing the review model.
+- `ai.driver` defaults to `copilot`, which picks its own model; per-purpose models need the Anthropic driver.
+  `CCAiRequest` already has an optional `model` field.
+- For developing this project itself: Sonnet 5.5 by default, Opus 5.5 for the sandbox, language design and flow
+  analysis, Haiku 5.5 for mechanical bulk edits.
+
+## Recommendations
+
+| # | Recommendation | Why |
+|---|---|---|
+| R1 | Build the engine around a project-wide `CodeModel` and read-only `ast`, then convert context-lookup `hybrid` rules to deterministic ones. | Removes most model calls and makes results reproducible. |
+| R2 | Do Java first. Treat Python and TypeScript as a later phase. | 85 Java rules, matches the stack, and tree-sitter native libraries conflict with the prebuilt-JAR, native-Windows distribution. |
+| R3 | Keep `Detection type` values as they are (`ast`, `regex`, `linter`, `hybrid`, `ai`) and treat them as "mechanism plus whether AI confirms". | Avoids editing 320 files. Every executable rule runs on the Groovy engine regardless. |
+| R4 | Make the sandbox and acceptance gate the first things built, before more rules. | Scripts generated at review time run unreviewed on a developer machine, so these are the only controls. |
+| R5 | Treat every generated script as untrusted. Never load scripts from the reviewed repository. | A sandbox escape would be code execution on the developer's machine. |
+| R6 | Review rule files for precision before generating from them, and fix `optional-get-without-check`'s guard list. | The generator follows the text; a wrong rule produces a faithfully wrong script. |
+| R7 | Pilot the context-heavy rules next: `lock-ordering-deadlock`, `lazy-association-outside-session`, `lost-update-read-modify-write`, `missing-endpoint-authorization`, `remote-call-in-transaction`, `broad-catch-swallowed`. | They exercise the call graph, entity and config parts of `CodeModel`, which neither finished script touches. |
+| R8 | Replace the name heuristic for loggers in `empty-catch-block` (`log`, `logger`, `LOGGER`) with a resolved-type check once `model.typeOf` is available there. | `auditLog` and the fluent `atDebug()` API are missed today. |
+| R9 | Let teams commit and pin the script store (`codeclear rules export`). | Different machines can generate different scripts for the same rule, so findings can differ between users. |
+| R10 | Put the rule-file edit, script regeneration and test run behind one command (`codeclear rules regen`) and a read-only `codeclear rules check`. | Gives CI a way to fail on stale scripts without calling the AI. |
+| R11 | Make the gate require a test for every "Do not flag" bullet, and generate mutants automatically. | A wrong exclusion passed every existing test in the experiment. Implemented as a label-count check in `RuleScriptsTest`; automatic mutation exists only for the restricted-language experiment. |
+| R12 | Write rule text precisely enough to implement: name the heuristic lists, and state what a guard is. | Every first-shot generator miss traced to vague prose. |
+| R13 | On gate failure, retry the generator with the failing case's source, expected and actual result. | Both failing generators fixed themselves in one round. |
+| R14 | If a restricted language is adopted, put computation in hand-written host facts (`guarded`, types, taint, framework classification) and keep the language itself tiny. | Rules then stay short, and the dangerous analysis is reviewed Java rather than generated code. |
+
+## Open questions
+
+| # | Question | Notes |
+|---|---|---|
+| Q1 | Native or normalized AST for Python and TypeScript? | Native keeps detail but each language needs its own node API in the generator prompt. Normalized is portable but loses detail. Leaning native for Java and deciding later for the rest. |
+| Q2 | How does tree-sitter ship in the prebuilt JAR on native Windows? | Needs native libraries per OS. Unresolved. |
+| Q3 | How does the tool get the project classpath for symbol resolution? | Needs Maven or Gradle resolution. Without it, rules fall back to names at `LOW` confidence. Unresolved. |
+| Q4 | Who reviews scripts generated at review time? | Currently nobody. Release builds regenerate and commit all scripts through a reviewed pull request, so the bundled baseline is reviewed; the user store is not. |
+| Q5 | Is the acceptance gate strong enough without a human? | Gate: sandbox compile, tests covering every example and "do not flag" bullet, determinism, time budget, mutation check, previous tests. Whether weak generated tests can slip a wrong script through is unproven. |
+| Q6 | Should the rollout order change to build the sandbox and gate first? | The doc's Rollout section still reads as if only maintainers generate. Not yet updated. |
+| Q7 | Should `Detection type` collapse to a single `script` type later? | Possible bulk edit plus regenerating `INDEX.md`. |
+| Q8 | Groovy or a restricted rule language? | Both pass the same tests on two rules. The language removes the sandbox problem and enables automatic mutation testing; it costs about 1,150 lines of host code plus every fact family, and is unproven on tier 2 rules. Decide after porting a harder rule. |
+| Q9 | Can the language express a tier 2 rule such as `lazy-association-outside-session`? | Needs entity, session and call-graph facts. Next experiment. |
+| Q10 | Which model does review-time work? | Run the 548 `Evaluation cases` across models and compare accuracy, false-positive rate and cost per completed review. |
+
+## Log
+
+### 2026-11-20
+
+- Analysed all rule files, concentrating on `ai` and `hybrid`. Found three jobs the AI is doing; only
+  one needs a model (see Discoveries).
+- Decided on scripts via JSR-223 (D1), Groovy (D2), engine-supplied AST (D3), regeneration on rule
+  change (D4) and at review time (D5).
+- Updated `docs/ai-generated-deterministic-checks.md`: Script Engine, script contract, `CodeModel`
+  facade, sandbox, generation workflow with staleness hash, script store, acceptance gate and fallback.
+  Committed and pushed (`36df946`).
+- Wrote `review/java/empty-catch-block/rule.groovy` and `tests.json` (16 cases plus a mutation check). All pass in a
+  throwaway harness. Committed and pushed.
+- Wrote `review/java/optional-get-without-check/rule.groovy` and `tests.json` (30 cases plus 3 mutation checks). All
+  pass; three deliberate script mutants failed the expected tests. Added `model.typeOf` and the
+  confidence argument to the doc. **Not yet committed.**
+- Created this file.
+- Moved every rule into its own folder (`rule.md`, `rule.groovy`, `tests.json`) and built the real
+  `GroovyRuleDetector`, sandbox, loader and test runner under `com.codeclear.rules`.
+- Analysed the Distill idea, classified the 172 executable rules into tiers, and answered the model-choice question
+  (see Discoveries).
+- Built a throwaway restricted rule language under `src/test`, ran both rules through it, and measured AI
+  generation of the language (see Discoveries). Fixed `optional-get-without-check/rule.md` (R6), added test cases
+  and a gate check for "Do not flag" coverage.
+
+### Next candidates
+
+- Port a tier 2 rule (`lazy-association-outside-session`) to the restricted language (Q9), then decide Q8.
+- Update the design doc's Rollout section (Q6) and the regex-timeout gap in the sandbox.
+- Run the model comparison on the `Evaluation cases` (Q10).
