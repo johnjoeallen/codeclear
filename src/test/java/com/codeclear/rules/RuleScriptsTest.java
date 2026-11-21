@@ -49,6 +49,10 @@ class RuleScriptsTest {
     }
 
     private static void check(CCRuleDefinition rule, CCRuleEngine engine) {
+        if (!TreeSitterSupport.available() && CCRuleTests.load(rule.dir().orElseThrow()).cases().stream()
+                .flatMap(c -> c.files().stream()).anyMatch(f -> TreeSitterFileAnalyzer.languageOf(f.path()) != null)) {
+            org.junit.jupiter.api.Assumptions.abort(rule.id() + ": needs the tree-sitter native library, which cannot be loaded here");
+        }
         assertThat(rule.stale()).as("detector headers match rule.md and the API version").isFalse();
         CCRuleTestRunner.Report report = new CCRuleTestRunner(engine).run(rule);
         assertThat(report.cases()).as("cases").isNotEmpty();

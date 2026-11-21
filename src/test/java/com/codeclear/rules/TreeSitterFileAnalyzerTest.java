@@ -7,6 +7,11 @@ import org.junit.jupiter.api.Test;
 
 class TreeSitterFileAnalyzerTest {
 
+    @org.junit.jupiter.api.BeforeAll
+    static void needsTreeSitter() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(TreeSitterSupport.available(), "the tree-sitter native library cannot be loaded");
+    }
+
     private static CCTsNode root(String path, String source) {
         return new TreeSitterFileAnalyzer().analyze(path, source, CCChangedLines.all()).tree().root();
     }
