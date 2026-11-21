@@ -48,7 +48,6 @@ public class CCReviewService implements AutoCloseable {
     private final String aiDriverId;
     private final JavaFileAnalyzer analyzer = new JavaFileAnalyzer();
     private final com.codeclear.rules.SqlFileAnalyzer sqlAnalyzer = new com.codeclear.rules.SqlFileAnalyzer();
-    private final com.codeclear.rules.TreeSitterFileAnalyzer treeSitterAnalyzer = new com.codeclear.rules.TreeSitterFileAnalyzer();
     private final com.codeclear.rules.ConfigFileAnalyzer configAnalyzer = new com.codeclear.rules.ConfigFileAnalyzer();
 
     /** The service the application runs: rules from the configured folder, the configured AI driver. */
@@ -101,6 +100,8 @@ public class CCReviewService implements AutoCloseable {
         List<String> notes = new ArrayList<>();
         Map<String, String> sources = new LinkedHashMap<>();
         List<CCFileAnalysis> analyses = new ArrayList<>();
+        // Created on first use: it needs a native library, which a locked-down machine may refuse to load.
+        com.codeclear.rules.TreeSitterFileAnalyzer treeSitterAnalyzer = null;
         for (CCReviewFile f : request.files()) {
             sources.put(f.path(), f.content());
             if (f.path().toLowerCase().endsWith(".sql")) {
@@ -108,7 +109,23 @@ public class CCReviewService implements AutoCloseable {
                 continue;
             }
             if (com.codeclear.rules.TreeSitterFileAnalyzer.languageOf(f.path()) != null) {
-                analyses.add(treeSitterAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
+                if (rules.stream().noneMatch(r -> r.appliesTo(f.path()))) {
+                    continue; // no rule would look at it, so do not load the parser for it
+                }
+                try {
+                    if (treeSitterAnalyzer == null) {
+                        treeSitterAnalyzer = new com.codeclear.rules.TreeSitterFileAnalyzer();
+                    }
+                    analyses.add(treeSitterAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
+                } catch (LinkageError e) {
+                    // UnsatisfiedLinkError, NoClassDefFoundError: the tree-sitter library could not be loaded (for example
+                    // blocked by endpoint security). Python and TypeScript files are skipped; the rest of the review goes on.
+                    String note = "Python/TypeScript files not analysed: the tree-sitter native library could not be loaded ("
+                            + e.getClass().getSimpleName() + ": " + e.getMessage() + ")";
+                    if (!notes.contains(note)) {
+                        notes.add(note);
+                    }
+                }
                 continue;
             }
             if (isConfig(f.path())) {
