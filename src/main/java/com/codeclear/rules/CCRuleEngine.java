@@ -45,7 +45,22 @@ public final class CCRuleEngine implements AutoCloseable {
      * @return one result per rule and file, in rule then file order
      */
     public List<CCRuleResult> run(List<CCRuleDefinition> rules, List<CCFileAnalysis> files, Map<String, String> config) {
-        DslRuleDetector.Session session = dsl.session(files, config);
+        return run(rules, files, config, Map.of());
+    }
+
+    /**
+     * As {@link #run(List, List, Map)}, with the text of the project's source files by path, which a rule can search for
+     * the readers of a configuration key.
+     */
+    public List<CCRuleResult> run(List<CCRuleDefinition> rules, List<CCFileAnalysis> files, Map<String, String> config,
+                                  Map<String, String> sources) {
+        return run(rules, files, config, sources, Map.of());
+    }
+
+    /** As above, with the files as they were at the diff base, by path. */
+    public List<CCRuleResult> run(List<CCRuleDefinition> rules, List<CCFileAnalysis> files, Map<String, String> config,
+                                  Map<String, String> sources, Map<String, String> bases) {
+        DslRuleDetector.Session session = dsl.session(files, config, sources, bases);
         List<CCRuleResult> results = new ArrayList<>();
         for (CCRuleDefinition rule : rules) {
             for (CCFileAnalysis file : files) {

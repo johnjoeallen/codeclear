@@ -31,6 +31,7 @@ Generated from each rule file's metadata. "AI call" is whether the tool calls th
 | [misleading-api-documentation](common/misleading-api-documentation/rule.md) | Public API doc omits or misstates a caller-relevant condition | ai | Always |
 | [misleading-log-message](common/misleading-log-message/rule.md) | Log text contradicts the code | ai | Always |
 | [missing-why-for-surprising-code](common/missing-why-for-surprising-code/rule.md) | Non-obvious code with no explanation | ai | Always |
+| [placeholder-default-removed](common/placeholder-default-removed/rule.md) | Default value taken out of a property placeholder | hybrid | Candidates only (diff reviews) |
 | [sensitive-data-in-log](common/sensitive-data-in-log/rule.md) | Secret or personal data written to a log | hybrid | Candidates only |
 | [stale-comment](common/stale-comment/rule.md) | Comment contradicts the code it describes | ai | Always |
 | [unclear-or-contradictory-comment](common/unclear-or-contradictory-comment/rule.md) | Comment wording suggests the opposite of the code | ai | Always |
@@ -46,6 +47,7 @@ Generated from each rule file's metadata. "AI call" is whether the tool calls th
 | [environment-specific-behaviour-change](config/environment-specific-behaviour-change/rule.md) | Config value changes behaviour between environments | ai | Always |
 | [insecure-default](config/insecure-default/rule.md) | Setting that disables security or exposes internals | regex | No |
 | [missing-required-setting](config/missing-required-setting/rule.md) | Config key with no matching consumer or value | hybrid | Candidates only |
+| [removed-setting-still-read](config/removed-setting-still-read/rule.md) | Setting removed from configuration but still read by code | hybrid | Candidates only (diff reviews) |
 | [secret-in-config](config/secret-in-config/rule.md) | Credential committed in a configuration file | regex | No |
 | [secret-logged-by-config](config/secret-logged-by-config/rule.md) | Configuration that makes secrets appear in logs | hybrid | Candidates only |
 

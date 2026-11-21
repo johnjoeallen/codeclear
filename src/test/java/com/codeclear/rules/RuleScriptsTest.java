@@ -25,7 +25,7 @@ class RuleScriptsTest {
 
     @Test
     void everyRuleFolderLoads() {
-        assertThat(CCRuleLoader.loadAll(REVIEW_ROOT)).hasSize(320);
+        assertThat(CCRuleLoader.loadAll(REVIEW_ROOT)).hasSize(322);
     }
 
     @TestFactory

@@ -272,6 +272,82 @@ final class DslProject {
         return settings.contains(k) || settings.stream().anyMatch(s -> s.startsWith(k + ".") || s.startsWith(k + "["));
     }
 
+    private Map<String, String> sources = Map.of();
+
+    /** The text of the source files of the project, by path, searched by {@link #references}. */
+    void setSources(Map<String, String> sources) {
+        this.sources = sources;
+    }
+
+    /**
+     * The lines of source files that read a configuration key, as {@code path:line: text}, at most five. The key is
+     * matched in the spellings Spring accepts: {@code a.max-retries}, {@code a.maxRetries}, {@code a.max_retries} and the
+     * environment form {@code A_MAX_RETRIES}.
+     */
+    List<String> references(String key) {
+        String kebab = key.replaceAll("([a-z0-9])([A-Z])", "$1-$2").replace('_', '-').toLowerCase(java.util.Locale.ROOT);
+        StringBuilder camel = new StringBuilder();
+        boolean up = false;
+        for (char c : kebab.toCharArray()) {
+            if (c == '-') {
+                up = true;
+            } else {
+                camel.append(up ? Character.toUpperCase(c) : c);
+                up = false;
+            }
+        }
+        java.util.Set<String> spellings = new java.util.LinkedHashSet<>(List.of(kebab, camel.toString(),
+                kebab.replace('-', '_'), kebab.replace('.', '_').replace('-', '_').toUpperCase(java.util.Locale.ROOT)));
+        // A spelling counts only as a whole name, not inside a longer one (a.timeout inside a.timeout-ms or b.a.timeout).
+        // A name with no dot may follow one (process.env.A_B).
+        List<String> alternatives = new ArrayList<>();
+        for (String sp : spellings) {
+            alternatives.add((sp.contains(".") ? "(?<![A-Za-z0-9_.\\-])" : "(?<![A-Za-z0-9_\\-])") + java.util.regex.Pattern.quote(sp));
+        }
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?:" + String.join("|", alternatives)
+                + ")(?![A-Za-z0-9_\\-]|\\.[A-Za-z0-9])");
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<String, String> e : sources.entrySet()) {
+            if (e.getKey().matches("(?i).*(^|/)(test|tests|__tests__)/.*|.*(Test|Tests|IT)\\.java|.*\\.(test|spec)\\.[jt]sx?|.*(^|/)test_[^/]*\\.py")) {
+                continue; // a test reading the key does not keep it needed
+            }
+            String[] lines = e.getValue().split("\n", -1);
+            for (int i = 0; i < lines.length && out.size() < 5; i++) {
+                if (pattern.matcher(lines[i]).find()) {
+                    out.add(e.getKey() + ":" + (i + 1) + ": " + lines[i].strip());
+                }
+            }
+        }
+        return out;
+    }
+
+    private Map<String, String> bases = Map.of();
+
+    /** Files as they were at the diff base, by path (only the files that existed there). */
+    void setBases(Map<String, String> bases) {
+        this.bases = bases;
+    }
+
+    /**
+     * The keys of the {@code ${key}} placeholders in {@code text} that have no default, where the file {@code path} had
+     * {@code ${key:default}} at the diff base: the change took the default away. Empty with no base.
+     */
+    List<String> droppedDefaults(String path, String text) {
+        String base = bases.get(path);
+        List<String> out = new ArrayList<>();
+        if (base == null || text == null) {
+            return out;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\$\\{([^}:]+)\\}").matcher(text);
+        while (m.find()) {
+            String key = m.group(1).strip();
+            if (!out.contains(key) && base.contains("${" + key + ":")) {
+                out.add(key);
+            }
+        }
+        return out;
+    }
+
     String config(String key) {
         return config.get(key);
     }

@@ -113,7 +113,7 @@ public class CCReviewService implements AutoCloseable {
             }
             if (isConfig(f.path())) {
                 try {
-                    analyses.add(configAnalyzer.analyze(f.path(), f.content(), f.changedLines()));
+                    analyses.add(configAnalyzer.analyze(f.path(), f.content(), f.changedLines(), f.baseContent()));
                 } catch (IllegalArgumentException e) {
                     notes.add("not analysed: " + e.getMessage());
                 }
@@ -165,7 +165,7 @@ public class CCReviewService implements AutoCloseable {
         CCAiDriverStatus ai = confirmer.status();
         boolean noteAi = false;
 
-        for (CCRuleResult result : engine.run(runnable, analyses, request.projectConfig())) {
+        for (CCRuleResult result : engine.run(runnable, analyses, request.projectConfig(), searchable(request), bases(request))) {
             if (!result.ok()) {
                 if (!failedRules.contains(result.ruleId())) {
                     failedRules.add(result.ruleId());
@@ -211,6 +211,28 @@ public class CCReviewService implements AutoCloseable {
         return new CCReviewResult(List.copyOf(findings), List.copyOf(unconfirmed), List.copyOf(skipped),
                 List.copyOf(notes), runnable.size() - failedRules.size(), dismissed, aiDriverId, ai.ready() ? "ready" : ai.detail(),
                 List.copyOf(suppressedList));
+    }
+
+    /** The text of every non-config file of the run and of the context, for rules that look for the readers of a key. */
+    private static Map<String, String> searchable(CCReviewRequest request) {
+        Map<String, String> out = new LinkedHashMap<>(request.contextSources());
+        for (CCReviewFile f : request.files()) {
+            if (!isConfig(f.path())) {
+                out.put(f.path(), f.content());
+            }
+        }
+        return out;
+    }
+
+    /** The files that have a diff base, by path. */
+    private static Map<String, String> bases(CCReviewRequest request) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (CCReviewFile f : request.files()) {
+            if (f.baseContent() != null) {
+                out.put(f.path(), f.baseContent());
+            }
+        }
+        return out;
     }
 
     /** The line is covered by a {@code CodeClear:} comment (see {@link CCSuppressions}). */

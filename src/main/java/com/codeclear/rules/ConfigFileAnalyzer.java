@@ -28,6 +28,65 @@ public final class ConfigFileAnalyzer {
 
     /** @throws IllegalArgumentException when a YAML or JSON file does not parse; the caller skips the file */
     public CCFileAnalysis analyze(String path, String source, CCChangedLines changedLines) {
+        return analyze(path, source, changedLines, null);
+    }
+
+    /**
+     * As {@link #analyze(String, String, CCChangedLines)}, also finding the settings the change removed: those in
+     * {@code baseSource} (the file as it was at the diff base, null for a new file or a whole-file review) that the file
+     * no longer has. A base that does not parse is ignored.
+     */
+    public CCFileAnalysis analyze(String path, String source, CCChangedLines changedLines, String baseSource) {
+        List<CCConfigModel.Setting> out = settings(path, source);
+        List<CCConfigModel.Removed> removed = baseSource == null ? List.of() : removed(path, baseSource, out);
+        CCChangedLines lines = changedLines;
+        if (!removed.isEmpty()) {
+            // A removal has no line in the new file, so the lines it is reported on count as changed.
+            java.util.Set<Integer> at = new java.util.HashSet<>();
+            removed.forEach(r -> at.add(r.line()));
+            lines = line -> changedLines.contains(line) || at.contains(line);
+        }
+        return new CCFileAnalysis(new CCFileInfo(path, language(path)), new CompilationUnit(), null, lines, null,
+                new CCConfigModel(List.copyOf(out), removed));
+    }
+
+    private List<CCConfigModel.Removed> removed(String path, String baseSource, List<CCConfigModel.Setting> now) {
+        List<CCConfigModel.Setting> before;
+        try {
+            before = settings(path, baseSource);
+        } catch (IllegalArgumentException e) {
+            return List.of();
+        }
+        List<CCConfigModel.Removed> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (CCConfigModel.Setting old : before) {
+            boolean kept = now.stream().anyMatch(s -> s.key().equals(old.key()) || s.key().startsWith(old.key() + ".")
+                    || s.key().startsWith(old.key() + "["));
+            if (!kept && !old.key().contains("[") && seen.add(old.key())) {
+                out.add(new CCConfigModel.Removed(anchor(old.key(), now), old.key(), old.rawKey(), old.value()));
+            }
+        }
+        return out;
+    }
+
+    /** The line of the remaining setting that shares the longest key prefix with the removed key; 1 for an empty file. */
+    private static int anchor(String key, List<CCConfigModel.Setting> now) {
+        int best = -1;
+        int line = 1;
+        for (CCConfigModel.Setting s : now) {
+            int common = 0;
+            while (common < key.length() && common < s.key().length() && key.charAt(common) == s.key().charAt(common)) {
+                common++;
+            }
+            if (common > best) {
+                best = common;
+                line = s.line();
+            }
+        }
+        return line;
+    }
+
+    private List<CCConfigModel.Setting> settings(String path, String source) {
         String text = source.replace("\r\n", "\n").replace('\r', '\n');
         String fileProfile = profileOfFile(path);
         List<List<Raw>> documents = path.toLowerCase(Locale.ROOT).endsWith(".properties")
@@ -47,8 +106,7 @@ public final class ConfigFileAnalyzer {
                 out.add(new CCConfigModel.Setting(r.line, kebab(r.key), r.key, r.value, profile, frozen));
             }
         }
-        return new CCFileAnalysis(new CCFileInfo(path, language(path)), new CompilationUnit(), null, changedLines, null,
-                new CCConfigModel(List.copyOf(out)));
+        return out;
     }
 
     private static String language(String path) {

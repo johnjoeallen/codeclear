@@ -71,7 +71,7 @@ file or a folder (searched for `.java` files); the default is the current folder
 
 | Option | Meaning |
 |---|---|
-| `--diff=<rev>` | Review only the lines changed since a git revision (`git diff --unified=0 --relative <rev>`); files with no changed line are skipped |
+| `--diff=<rev>` | Review only the lines changed since a git revision (`git diff --unified=0 --relative <rev>`); files with no changed line are skipped. A bare `--diff` (or `--diff=auto`) picks the revision: on `main`/`master` the upstream (or `origin/<branch>`), so only unpushed work; on any other branch the merge-base with the default branch, so only the branch's own changes |
 | `--format=<text\|json>` | Terminal report (default) or the whole result as JSON |
 | `--fail-on=<level>` | Exit 1 when a finding has this severity or worse (`critical`, `high`, `medium`, `low`, `info`); default `never` |
 | `--config=<key=value>` | A project configuration fact for cross-file rules, repeatable (for example `spring.jpa.open-in-view=false`) |

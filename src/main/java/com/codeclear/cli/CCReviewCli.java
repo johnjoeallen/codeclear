@@ -42,6 +42,8 @@ public final class CCReviewCli {
 
             Options (written --name=value):
               --diff=<rev>        review only the lines changed since a git revision (for example main or HEAD~1)
+              --diff              same, with the revision chosen for you: on main/master, what is not yet on origin;
+                                  on any other branch, what changed since the branch left main/master
               --format=<text|json>  output format (default text)
               --fail-on=<level>   exit 1 when a finding has this severity or worse: critical, high, medium, low, info
                                   (default never)
@@ -128,21 +130,30 @@ public final class CCReviewCli {
         }
 
         List<CCReviewFile> files;
+        Collected collected;
+        String diffRev = null;
         try {
-            files = collect(dir, paths.isEmpty() ? List.of(".") : paths, options.containsKey("diff") ? last(options, "diff", "") : null);
+            if (options.containsKey("diff")) {
+                diffRev = last(options, "diff", "");
+                if (diffRev.isEmpty() || diffRev.equals("auto")) {
+                    diffRev = CCGitDiff.autoBase(dir);
+                }
+            }
+            collected = collect(dir, paths.isEmpty() ? List.of(".") : paths, diffRev);
+            files = collected.files();
         } catch (IOException | IllegalStateException e) {
             err.println("error: " + e.getMessage());
             return USAGE;
         }
         if (files.isEmpty()) {
-            err.println("error: no files to review" + (options.containsKey("diff") ? " (nothing changed since " + last(options, "diff", "") + ")" : ""));
+            err.println("error: no files to review" + (diffRev != null ? " (nothing changed since " + diffRev + ")" : ""));
             return USAGE;
         }
 
         Path rulesDir = dir.resolve(last(options, "rules", "review")).normalize();
         CCReviewResult result;
         try (CCReviewService service = factory.create(rulesDir)) {
-            result = service.review(new CCReviewRequest(files, config));
+            result = service.review(new CCReviewRequest(files, config, collected.context()));
         } catch (IllegalArgumentException | IllegalStateException | java.io.UncheckedIOException e) {
             err.println("error: " + e.getMessage());
             return USAGE;
@@ -212,7 +223,7 @@ public final class CCReviewCli {
     }
 
     /** The files to review: the named files, and the .java and .sql files under the named folders, limited to changed lines with a diff. */
-    private static List<CCReviewFile> collect(Path dir, List<String> paths, String diffRev) throws IOException {
+    private static Collected collect(Path dir, List<String> paths, String diffRev) throws IOException {
         Map<String, Set<Integer>> changed = diffRev == null ? null : CCGitDiff.changedLines(dir, diffRev);
         Map<String, Path> selected = new LinkedHashMap<>();
         for (String p : paths) {
@@ -232,18 +243,33 @@ public final class CCReviewCli {
             }
         }
         List<CCReviewFile> files = new ArrayList<>();
+        Map<String, String> context = new LinkedHashMap<>();
         for (Map.Entry<String, Path> e : selected.entrySet()) {
             CCChangedLines lines = CCChangedLines.all();
+            String base = null;
+            boolean config = isConfig(e.getKey());
             if (changed != null) {
                 Set<Integer> set = changed.get(e.getKey());
-                if (set == null || set.isEmpty()) {
+                // A config file that only lost lines has no changed line, but may have lost a key code still reads.
+                if (set == null || (set.isEmpty() && !config)) {
+                    if (!config) {
+                        context.put(e.getKey(), Files.readString(e.getValue(), StandardCharsets.UTF_8));
+                    }
                     continue;
                 }
                 lines = CCChangedLines.of(set);
+                base = CCGitDiff.contentAt(dir, diffRev, e.getKey());
             }
-            files.add(new CCReviewFile(e.getKey(), Files.readString(e.getValue(), StandardCharsets.UTF_8), lines));
+            files.add(new CCReviewFile(e.getKey(), Files.readString(e.getValue(), StandardCharsets.UTF_8), lines, base));
         }
-        return files;
+        return new Collected(files, context);
+    }
+
+    /** The files to review, and with a diff the source files outside the change, which are searched for readers of a removed key. */
+    private record Collected(List<CCReviewFile> files, Map<String, String> context) { }
+
+    private static boolean isConfig(String path) {
+        return path.toLowerCase(Locale.ROOT).matches(".*\\.(ya?ml|json|properties)");
     }
 
     private static boolean skipped(Path root, Path file) {

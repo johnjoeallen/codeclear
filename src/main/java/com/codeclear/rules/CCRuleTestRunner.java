@@ -4,6 +4,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Runs the {@code tests.md} of a rule through the real {@link GroovyRuleDetector}.
@@ -112,7 +113,17 @@ public final class CCRuleTestRunner {
         String prelude = c.prelude() != null ? c.prelude() : sharedPrelude;
         int offset = CCRuleTests.lineOffset(prelude);
         List<CCFileAnalysis> files = new ArrayList<>();
+        Map<String, String> bases = new java.util.HashMap<>();
+        Map<String, String> sources = new java.util.LinkedHashMap<>();
         for (CCRuleTests.SourceFile f : c.files()) {
+            if (f.base()) {
+                bases.put(f.path(), f.source());
+            }
+        }
+        for (CCRuleTests.SourceFile f : c.files()) {
+            if (f.base()) {
+                continue;
+            }
             // Lines in a case's "changed:" list are source lines; the prelude shifts them in the analysed text.
             CCChangedLines changed = c.changedLines() == null ? CCChangedLines.all()
                     : CCChangedLines.of(c.changedLines().stream().map(l -> l + offset).collect(java.util.stream.Collectors.toSet()));
@@ -121,10 +132,17 @@ public final class CCRuleTestRunner {
             files.add(TreeSitterFileAnalyzer.languageOf(f.path()) != null ? treeSitterAnalyzer.analyze(f.path(), text, changed)
                     : lower.endsWith(".sql") ? sqlAnalyzer.analyze(f.path(), text, changed)
                     : lower.endsWith(".yml") || lower.endsWith(".yaml") || lower.endsWith(".json") || lower.endsWith(".properties")
-                            ? configAnalyzer.analyze(f.path(), text, changed) : analyzer.analyze(f.path(), text, changed));
+                            ? configAnalyzer.analyze(f.path(), text, changed, bases.get(f.path())) : analyzer.analyze(f.path(), text, changed));
+        }
+        for (CCRuleTests.SourceFile f : c.files()) {
+            String lower = f.path().toLowerCase();
+            if (!f.base() && !lower.endsWith(".yml") && !lower.endsWith(".yaml") && !lower.endsWith(".json")
+                    && !lower.endsWith(".properties")) {
+                sources.put(f.path(), f.source());
+            }
         }
         List<String> out = new ArrayList<>();
-        for (CCRuleResult result : engine.run(List.of(rule), files, c.config())) {
+        for (CCRuleResult result : engine.run(List.of(rule), files, c.config(), sources, bases)) {
             if (!result.ok()) {
                 throw new IllegalStateException("rule failed: " + result.failure().get());
             }

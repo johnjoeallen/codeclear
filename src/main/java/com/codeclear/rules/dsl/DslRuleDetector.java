@@ -38,6 +38,20 @@ public final class DslRuleDetector {
      * @param config project configuration facts, by key (for example {@code spring.jpa.open-in-view})
      */
     public Session session(List<CCFileAnalysis> files, Map<String, String> config) {
+        return session(files, config, Map.of());
+    }
+
+    /**
+     * As {@link #session(List, Map)}, with the text of the project's source files (by path) for the rules that look for
+     * where a configuration key is read.
+     */
+    public Session session(List<CCFileAnalysis> files, Map<String, String> config, Map<String, String> sources) {
+        return session(files, config, sources, Map.of());
+    }
+
+    /** As above, with the files as they were at the diff base (by path), for the rules that compare before and after. */
+    public Session session(List<CCFileAnalysis> files, Map<String, String> config, Map<String, String> sources,
+                           Map<String, String> bases) {
         List<CompilationUnit> units = new ArrayList<>();
         for (CCFileAnalysis f : files) {
             if (f.ast() instanceof CompilationUnit cu) {
@@ -45,6 +59,8 @@ public final class DslRuleDetector {
             }
         }
         DslProject project = new DslProject(units, new HashMap<>(config));
+        project.setSources(sources);
+        project.setBases(bases);
         for (CCFileAnalysis f : files) {
             if (f.config() != null) {
                 f.config().settings().forEach(s -> project.addSetting(s.key()));

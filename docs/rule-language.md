@@ -178,6 +178,22 @@ one per scalar value:
 A finding is reported on the line of the value (of the key, in a properties file). Put the key in a message, never the value
 of a secret.
 
+A rule can also iterate `Removed`: the settings the change took out of the file. It has data only in a diff review (`--diff`),
+where the file as it was at the base is compared with the file now; with no diff nothing is `Removed`. A key that is still
+there, or that became a nested key, is not removed.
+
+| Field | Meaning |
+|---|---|
+| `key`, `rawKey` | as for `Setting` |
+| `oldValue` | the value the key had at the base |
+| `project.references('a.b')` | up to five source lines (`path:line: text`, test files left out) that read the key, in any Spring spelling: `a.b`, `a.maxRetries`, `a.max_retries`, `A_MAX_RETRIES`. In a diff review the search covers every source file under the scanned folders, not only the changed ones |
+
+A removal has no line of its own, so it is reported on the nearest setting that remains in the file.
+
+| Fact | Meaning |
+|---|---|
+| `project.droppedDefaults(file.path, text)` | the keys of the `${key}` placeholders in `text` (a string literal or a config value) that had `${key:default}` in the same file at the diff base; empty with no diff |
+
 ## Python and TypeScript files
 
 A `.py` file is parsed with tree-sitter's Python grammar, and a `.ts`, `.js`, `.mjs`, `.cjs`, `.mts` or `.cts` file with its

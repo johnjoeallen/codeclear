@@ -350,6 +350,38 @@ class CCReviewCliTest {
     }
 
     @Test
+    void bareDiffOnAFeatureBranchReviewsOnlyTheBranchChanges(@TempDir Path dir) throws Exception {
+        assumeTrue(git(dir, "init", "-q", "-b", "main") == 0, "git is not available");
+        Files.writeString(dir.resolve("A.java"), EMPTY_CATCH);
+        git(dir, "add", "-A");
+        git(dir, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "base");
+        git(dir, "checkout", "-qb", "feature");
+        Files.writeString(dir.resolve("B.java"), EMPTY_CATCH);
+        git(dir, "add", "-A");
+        git(dir, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "feature work");
+
+        Run r = run(cli(EMPTY_CATCH_RULE), dir, "--diff");
+
+        assertThat(r.out()).contains("B.java:3").doesNotContain("A.java");
+    }
+
+    @Test
+    void bareDiffOnMainReviewsWhatIsNotOnOrigin(@TempDir Path dir) throws Exception {
+        assumeTrue(git(dir, "init", "-q", "-b", "main") == 0, "git is not available");
+        Files.writeString(dir.resolve("A.java"), EMPTY_CATCH);
+        git(dir, "add", "-A");
+        git(dir, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "pushed");
+        git(dir, "update-ref", "refs/remotes/origin/main", "HEAD");
+        Files.writeString(dir.resolve("B.java"), EMPTY_CATCH);
+        git(dir, "add", "-A");
+        git(dir, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "local");
+
+        Run r = run(cli(EMPTY_CATCH_RULE), dir, "--diff");
+
+        assertThat(r.out()).contains("B.java:3").doesNotContain("A.java");
+    }
+
+    @Test
     void aGitFailureIsReported(@TempDir Path dir) throws Exception {
         assumeTrue(git(dir, "init", "-q") == 0, "git is not available");
         project(dir);

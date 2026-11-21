@@ -50,7 +50,12 @@ public final class CCRuleTests {
      */
     public record Expect(String path, int line, String confidence, boolean candidate) { }
 
-    public record SourceFile(String path, String source) { }
+    public record SourceFile(String path, String source, boolean base) {
+
+        public SourceFile(String path, String source) {
+            this(path, source, false);
+        }
+    }
 
     /**
      * @param prelude      {@code null} to use the shared prelude
@@ -103,7 +108,7 @@ public final class CCRuleTests {
                     if (info.matches(".*\\bprelude\\b.*")) {
                         current.prelude = String.join("\n", bodyLines);
                     } else {
-                        current.addFile(attribute(info, "path"), bodyLines);
+                        current.addFile(attribute(info, "path"), bodyLines, info.matches(".*\\bbase\\b.*"));
                     }
                 }
                 continue;
@@ -203,18 +208,18 @@ public final class CCRuleTests {
             this.name = name;
         }
 
-        void addFile(String path, List<String> lines) {
+        void addFile(String path, List<String> lines, boolean base) {
             StringBuilder source = new StringBuilder();
             for (int n = 1; n <= lines.size(); n++) {
                 String text = lines.get(n - 1);
                 Matcher m = MARKER.matcher(text);
-                if (m.find()) {
+                if (!base && m.find()) {
                     expect.add(new Expect(path, n, m.group(2), m.group(1).equals("CANDIDATE")));
                     text = text.substring(0, m.start());
                 }
                 source.append(text).append('\n');
             }
-            files.add(new SourceFile(path, source.toString()));
+            files.add(new SourceFile(path, source.toString(), base));
         }
 
         Case build() {

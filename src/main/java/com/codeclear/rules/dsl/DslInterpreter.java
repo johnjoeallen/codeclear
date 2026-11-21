@@ -97,7 +97,7 @@ final class DslInterpreter {
     }
 
     /** The kinds of a SQL file ({@code Statement}, {@code Column} added by an ALTER TABLE, {@code Line}) and of a config file ({@code Setting}). */
-    private static final Set<String> SQL_KINDS = Set.of("Statement", "Column", "Line", "Setting");
+    private static final Set<String> SQL_KINDS = Set.of("Statement", "Column", "Line", "Setting", "Removed");
 
     /** The nodes of a tree-sitter tree with this grammar type, the root included. */
     private static List<com.codeclear.rules.CCTsNode> treeNodes(com.codeclear.rules.CCTsTree tree, String type) {
@@ -116,6 +116,7 @@ final class DslInterpreter {
             case "Statement" -> file.sql() == null ? List.of() : file.sql().statements();
             case "Column" -> file.sql() == null ? List.of() : file.sql().columns();
             case "Setting" -> file.config() == null ? List.of() : file.config().settings();
+            case "Removed" -> file.config() == null ? List.of() : file.config().removed();
             case "Line" -> file.sql() == null ? List.of() : file.sql().lines();
             default -> file.tree() == null ? List.of() : treeNodes(file.tree(), rule.kind());
         };

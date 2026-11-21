@@ -79,6 +79,14 @@ final class DslFacts {
                 default -> unknown(t, name);
             };
         }
+        if (t instanceof com.codeclear.rules.CCConfigModel.Removed r) {
+            return switch (name) {
+                case "key" -> r.key();
+                case "rawKey" -> r.rawKey();
+                case "oldValue" -> r.oldValue();
+                default -> unknown(t, name);
+            };
+        }
         if (t instanceof com.codeclear.rules.CCConfigModel.Setting s) {
             return switch (name) {
                 case "key" -> s.key();
@@ -293,6 +301,13 @@ final class DslFacts {
         }
         if (name.equals("hasSetting") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String id) {
             return p.hasSetting(id);
+        }
+        if (name.equals("droppedDefaults") && target instanceof DslProject p && args.size() == 2 && args.get(0) instanceof String path
+                && args.get(1) instanceof String text) {
+            return p.droppedDefaults(path, text); // placeholders that lost their :default since the diff base
+        }
+        if (name.equals("references") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String id) {
+            return p.references(id); // where source files read this configuration key
         }
         if (name.equals("mentions") && target instanceof DslProject p && args.size() == 1 && args.get(0) instanceof String id) {
             return p.mentions(id); // some file of the project uses this name as a type or identifier
